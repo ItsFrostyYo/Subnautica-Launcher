@@ -1,0 +1,38 @@
+﻿<Window x:Class="SubnauticaLauncher.InstallProgressWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Installing Version"
+        Width="520"
+        Height="320"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="TitleText"
+                   FontSize="18"
+                   FontWeight="Bold"
+                   Margin="0,0,0,12"/>
+
+        <ScrollViewer Grid.Row="1">
+            <TextBox x:Name="LogBox"
+                     IsReadOnly="True"
+                     TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto"/>
+        </ScrollViewer>
+
+        <Button Grid.Row="2"
+                x:Name="CloseButton"
+                Content="Close"
+                Width="100"
+                Margin="0,12,0,0"
+                HorizontalAlignment="Right"
+                IsEnabled="False"
+                Click="Close_Click"/>
+    </Grid>
+</Window>

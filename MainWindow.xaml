@@ -1,0 +1,317 @@
+﻿<Window x:Class="SubnauticaLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SubnauticaLauncher"
+        Title="Subnautica Launcher *Beta* By - ItsFrosti"
+        Width="850"
+        Height="500"
+        MinWidth="850"
+        MinHeight="500"
+        MaxWidth="850"
+        MaxHeight="500"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="Aileron">
+
+    <!-- ================= BACKGROUND ================= -->
+    <Window.Background>
+        <ImageBrush x:Name="BackgroundBrush"
+                    Stretch="UniformToFill"/>
+    </Window.Background>
+
+    <!-- ================= RESOURCES ================= -->
+    <Window.Resources>
+
+        <!-- STATUS COLOR CONVERTER -->
+        <local:ActiveColorConverter x:Key="ActiveColorConverter"/>
+
+        <!-- GLOBAL TEXT -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- TRANSPARENT SCROLLVIEWER -->
+        <Style TargetType="ScrollViewer">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <!-- ================= BUTTON STYLE ================= -->
+        <Style x:Key="RoundedButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="14">
+                            <ContentPresenter
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root" Property="Background" Value="#333"/>
+                                <Setter Property="Foreground" Value="#888"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </Window.Resources>
+
+    <!-- ================= LAYOUT ================= -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ================= LEFT SIDEBAR ================= -->
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0"
+                        VerticalAlignment="Center"
+                        Height="303">
+
+                <Button Content="Installations"
+                        Width="175"
+                        Height="50"
+                        Margin="0,45"
+                        Background="#154966"
+                        Style="{StaticResource RoundedButton}"
+                        Click="InstallsTab_Click"/>
+
+                <Button Content="Settings"
+                        Width="175"
+                        Height="50"
+                        Background="#154966"
+                        Style="{StaticResource RoundedButton}"
+                        Click="SettingsTab_Click"/>
+
+                <Button Content="Additional Info"
+                        Width="175"
+                        Height="50"
+                        Margin="0,50"
+                        Background="#154966"
+                        Style="{StaticResource RoundedButton}"
+                        Click="InfoTab_Click"/>
+            </StackPanel>
+
+            <Button Grid.Row="1"
+                    Content="Launch"
+                    Width="175"
+                    Height="75"
+                    Margin="0,0,0,20"
+                    Background="#FF4FD38B"
+                    FontSize="34"
+                    Style="{StaticResource RoundedButton}"
+                    Click="Launch_Click"/>
+        </Grid>
+
+        <!-- ================= CONTENT ================= -->
+        <Grid Grid.Column="1">
+
+            <!-- ===== INSTALLS VIEW ===== -->
+            <Grid x:Name="InstallsView" Margin="16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Versions List"
+                           FontSize="22"
+                           FontWeight="Bold"
+                           Margin="4,0,0,12"/>
+
+                <ListBox x:Name="InstalledVersionsList"
+                         Grid.Row="1"
+                         Margin="10"
+                         Background="Transparent"
+                         BorderThickness="0">
+
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding DisplayLabel}"
+                                       Foreground="{Binding Status,
+                                       Converter={StaticResource ActiveColorConverter}}"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <StackPanel Grid.Row="2"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            Margin="0,12,0,0">
+
+                    <Button Content="Add Version"
+                            Width="160"
+                            Height="44"
+                            Margin="0,0,12,0"
+                            Background="#154966"
+                            Style="{StaticResource RoundedButton}"
+                            Click="InstallVersion_Click"/>
+
+                    <Button Content="Open Folder"
+                            Width="140"
+                            Height="44"
+                            Margin="0,0,12,0"
+                            Background="#154966"
+                            Style="{StaticResource RoundedButton}"
+                            Click="OpenInstallFolder_Click"/>
+
+                    <Button Content="Rename"
+                            Width="120"
+                            Height="44"
+                            Margin="0,0,12,0"
+                            Background="#154966"
+                            Style="{StaticResource RoundedButton}"
+                            Click="RenameVersion_Click"/>
+
+                    <Button Content="Delete"
+                            Width="120"
+                            Height="44"
+                            Background="#8B2C2C"
+                            Style="{StaticResource RoundedButton}"
+                            Click="DeleteVersion_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ===== SETTINGS VIEW ===== -->
+            <Grid x:Name="SettingsView"
+                  Visibility="Collapsed"
+                  Margin="24">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Margin="0,0,12,0"
+                        Background="#22000000"
+                        CornerRadius="12"
+                        Padding="16">
+
+                    <StackPanel>
+                        <TextBlock Text="Customize"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Margin="0,0,0,12"/>
+
+                        <TextBlock Text="Background"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,6"/>
+
+                        <!-- ✅ FIXED COMBOBOX -->
+                        <ComboBox x:Name="ThemeDropdown"
+          Height="34"
+          Foreground="White"
+          BorderBrush="White"
+          BorderThickness="1"
+          Background="Transparent"
+          SelectionChanged="ThemeDropdown_SelectionChanged">
+
+                            <!-- ✅ THIS IS THE FIX -->
+                            <ComboBox.Template>
+                                <ControlTemplate TargetType="ComboBox">
+                                    <Grid>
+                                        <ToggleButton x:Name="ToggleButton"
+                              Background="Transparent"
+                              BorderBrush="{TemplateBinding BorderBrush}"
+                              BorderThickness="{TemplateBinding BorderThickness}"
+                              IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                              Focusable="False"/>
+
+                                        <ContentPresenter
+                    Content="{TemplateBinding SelectionBoxItem}"
+                    Margin="8,2,30,2"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Left"
+                    TextElement.Foreground="White"/>
+
+                                        <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                      Fill="White"
+                      HorizontalAlignment="Right"
+                      Margin="0,0,10,0"
+                      VerticalAlignment="Center"/>
+
+                                        <Popup x:Name="PART_Popup"
+                       Placement="Bottom"
+                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                       AllowsTransparency="True">
+                                            <Border Background="#22000000"
+                            BorderBrush="White"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Margin="0,4,0,0">
+                                                <ScrollViewer>
+                                                    <ItemsPresenter/>
+                                                </ScrollViewer>
+                                            </Border>
+                                        </Popup>
+                                    </Grid>
+                                </ControlTemplate>
+                            </ComboBox.Template>
+
+                            <!-- items unchanged -->
+                            <ComboBoxItem Content="Lifepod"/>
+                            <ComboBoxItem Content="GrassyPlateau"/>
+                            <ComboBoxItem Content="GrandReef"/>
+                            <ComboBoxItem Content="Reaper"/>
+                            <ComboBoxItem Content="LostRiver"/>
+                            <ComboBoxItem Content="Custom"/>
+                        </ComboBox>
+
+                        <Button Content="Choose Custom Background"
+                                Margin="0,12,0,0"
+                                Background="#154966"
+                                Style="{StaticResource RoundedButton}"
+                                Click="ChooseCustomBackground_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="1"
+                        Margin="12,0,0,0"
+                        Background="#22000000"
+                        CornerRadius="12"
+                        Padding="16">
+                    <StackPanel>
+                        <TextBlock Text="Options"
+                                   FontSize="20"
+                                   FontWeight="Bold"
+                                   Margin="0,0,0,12"/>
+                        <TextBlock Text="(More options coming soon)"
+                                   Foreground="#AAAAAA"
+                                   FontStyle="Italic"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ===== INFO VIEW ===== -->
+            <Grid x:Name="InfoView" Visibility="Collapsed">
+                <TextBlock Text="Credits"
+                           FontSize="26"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"/>
+            </Grid>
+
+        </Grid>
+    </Grid>
+</Window>
