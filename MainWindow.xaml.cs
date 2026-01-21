@@ -31,9 +31,11 @@ namespace SubnauticaLauncher
 
         // ================= STARTUP =================
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            _ = CheckForUpdatesOnStartup();
+            // 🔥 CHECK FOR UPDATES FIRST
+            await CheckForUpdatesOnStartup();
+
             Directory.CreateDirectory(BgPath);
 
             if (!File.Exists(BgPreset))
@@ -54,17 +56,18 @@ namespace SubnauticaLauncher
         {
             try
             {
-                var update = await UpdateChecker.CheckForUpdateAsync();
+                var update = await Updater.UpdateChecker.CheckForUpdateAsync();
                 if (update == null)
                     return;
 
-                ShowUpdatingUI();
+                var extracted = await Updater.UpdateDownloader
+                    .DownloadAndExtractAsync(update.ZipUrl);
 
-                await UpdateDownloader.DownloadAndApplyAsync(update);
+                Updater.UpdateHelper.ApplyUpdate(extracted);
             }
-            catch
+            catch (Exception ex)
             {
-                // Silent fail – never block launcher
+                MessageBox.Show(ex.ToString(), "Update failed");
             }
         }
 

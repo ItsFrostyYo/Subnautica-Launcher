@@ -1,50 +1,44 @@
 ﻿using System.Net.Http;
 using System.Text.Json;
 
-public static class UpdateChecker
+namespace SubnauticaLauncher.Updater
 {
-    private const string RepoOwner = "YOUR_GITHUB_USERNAME";
-    private const string RepoName = "YOUR_REPO_NAME";
-
-    public static async Task<UpdateInfo?> CheckForUpdateAsync()
+    public static class UpdateChecker
     {
-        using var http = new HttpClient();
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
+        private const string Owner = "ItsFrostyYo";
+        private const string Repo = "Subnautica-Launcher";
 
-        var url = $"https://api.github.com/repos/{RepoOwner}/{RepoName}/releases/latest";
-        var json = await http.GetStringAsync(url);
-
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-
-        var tag = root.GetProperty("tag_name").GetString(); // v1.0.1
-        if (tag == null || !tag.StartsWith("v"))
-            return null;
-
-        var version = Version.Parse(tag[1..]);
-
-        if (version <= AppVersion.Current)
-            return null;
-
-        foreach (var asset in root.GetProperty("assets").EnumerateArray())
+        public static async Task<UpdateInfo?> CheckForUpdateAsync()
         {
-            var name = asset.GetProperty("name").GetString();
-            if (name == "SubnauticaLauncher.exe")
+            var current = typeof(UpdateChecker).Assembly.GetName().Version!;
+            var url = $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
+
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
+
+            var json = await client.GetStringAsync(url);
+            using var doc = JsonDocument.Parse(json);
+
+            var tag = doc.RootElement.GetProperty("tag_name").GetString()!;
+            var latest = Version.Parse(tag.TrimStart('v'));
+
+            if (latest <= current)
+                return null;
+
+            foreach (var asset in doc.RootElement.GetProperty("assets").EnumerateArray())
             {
-                return new UpdateInfo
+                var name = asset.GetProperty("name").GetString()!;
+                if (name.EndsWith(".zip"))
                 {
-                    Version = version,
-                    DownloadUrl = asset.GetProperty("browser_download_url").GetString()!
-                };
+                    return new UpdateInfo
+                    {
+                        Version = latest,
+                        ZipUrl = asset.GetProperty("browser_download_url").GetString()!
+                    };
+                }
             }
+
+            return null;
         }
-
-        return null;
     }
-}
-
-public class UpdateInfo
-{
-    public Version Version { get; set; } = null!;
-    public string DownloadUrl { get; set; } = null!;
 }

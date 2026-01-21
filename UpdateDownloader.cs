@@ -1,34 +1,28 @@
-﻿using System.Diagnostics;
-using System.IO;
+﻿using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 
-public static class UpdateDownloader
+namespace SubnauticaLauncher.Updater
 {
-    public static async Task DownloadAndApplyAsync(UpdateInfo info)
+    public static class UpdateDownloader
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), "SubnauticaLauncherUpdate");
-        Directory.CreateDirectory(tempDir);
-
-        var newExe = Path.Combine(tempDir, "SubnauticaLauncher.exe");
-
-        using var http = new HttpClient();
-        var bytes = await http.GetByteArrayAsync(info.DownloadUrl);
-        await File.WriteAllBytesAsync(newExe, bytes);
-
-        LaunchUpdater(newExe);
-    }
-
-    private static void LaunchUpdater(string newExePath)
-    {
-        var updaterExe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Updater.exe");
-
-        Process.Start(new ProcessStartInfo
+        public static async Task<string> DownloadAndExtractAsync(string zipUrl)
         {
-            FileName = updaterExe,
-            Arguments = $"\"{newExePath}\" \"{Process.GetCurrentProcess().MainModule!.FileName}\"",
-            UseShellExecute = true
-        });
+            var tempRoot = Path.Combine(Path.GetTempPath(), "SNLUpdate_" + Guid.NewGuid());
+            Directory.CreateDirectory(tempRoot);
 
-        Environment.Exit(0);
+            var zipPath = Path.Combine(tempRoot, "update.zip");
+
+            using var client = new HttpClient();
+            await using (var fs = File.Create(zipPath))
+            {
+                var stream = await client.GetStreamAsync(zipUrl);
+                await stream.CopyToAsync(fs);
+            }
+
+            ZipFile.ExtractToDirectory(zipPath, tempRoot, true);
+
+            return tempRoot;
+        }
     }
 }
