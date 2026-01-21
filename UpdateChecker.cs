@@ -1,44 +1,47 @@
 ﻿using System.Net.Http;
+using System.Reflection;
 using System.Text.Json;
+using System.IO;
 
-namespace SubnauticaLauncher.Updater
+namespace SubnauticaLauncher.Updater;
+
+public static class UpdateChecker
 {
-    public static class UpdateChecker
+    private const string Owner = "ItsFrostyYo";
+    private const string Repo = "Subnautica-Launcher";
+
+    private static readonly HttpClient http = new();
+
+    public static async Task<UpdateInfo?> CheckForUpdateAsync()
     {
-        private const string Owner = "ItsFrostyYo";
-        private const string Repo = "Subnautica-Launcher";
+        var current = Assembly.GetExecutingAssembly().GetName().Version!;
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
 
-        public static async Task<UpdateInfo?> CheckForUpdateAsync()
-        {
-            var current = typeof(UpdateChecker).Assembly.GetName().Version!;
-            var url = $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest";
+        var json = await http.GetStringAsync(
+            $"https://api.github.com/repos/{Owner}/{Repo}/releases/latest");
 
-            using var client = new HttpClient();
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
 
-            var json = await client.GetStringAsync(url);
-            using var doc = JsonDocument.Parse(json);
+        var tag = root.GetProperty("tag_name").GetString()!.TrimStart('v');
+        var latest = new Version(tag);
 
-            var tag = doc.RootElement.GetProperty("tag_name").GetString()!;
-            var latest = Version.Parse(tag.TrimStart('v'));
-
-            if (latest <= current)
-                return null;
-
-            foreach (var asset in doc.RootElement.GetProperty("assets").EnumerateArray())
-            {
-                var name = asset.GetProperty("name").GetString()!;
-                if (name.EndsWith(".zip"))
-                {
-                    return new UpdateInfo
-                    {
-                        Version = latest,
-                        ZipUrl = asset.GetProperty("browser_download_url").GetString()!
-                    };
-                }
-            }
-
+        if (latest <= current)
             return null;
+
+        foreach (var asset in root.GetProperty("assets").EnumerateArray())
+        {
+            var name = asset.GetProperty("name").GetString();
+            if (name == "SubnauticaLauncher.exe")
+            {
+                return new UpdateInfo
+                {
+                    Version = latest,
+                    DownloadUrl = asset.GetProperty("browser_download_url").GetString()!
+                };
+            }
         }
+
+        return null;
     }
 }

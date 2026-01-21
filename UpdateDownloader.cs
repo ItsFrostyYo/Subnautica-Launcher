@@ -1,28 +1,18 @@
-﻿using System.IO;
-using System.IO.Compression;
-using System.Net.Http;
+﻿using System.Net.Http;
+using System.IO;
 
-namespace SubnauticaLauncher.Updater
+namespace SubnauticaLauncher.Updater;
+
+public static class UpdateDownloader
 {
-    public static class UpdateDownloader
+    public static async Task<string> DownloadAsync(string url)
     {
-        public static async Task<string> DownloadAndExtractAsync(string zipUrl)
-        {
-            var tempRoot = Path.Combine(Path.GetTempPath(), "SNLUpdate_" + Guid.NewGuid());
-            Directory.CreateDirectory(tempRoot);
+        var temp = Path.Combine(Path.GetTempPath(), "SubnauticaLauncher.new.exe");
 
-            var zipPath = Path.Combine(tempRoot, "update.zip");
+        using var http = new HttpClient();
+        var bytes = await http.GetByteArrayAsync(url);
 
-            using var client = new HttpClient();
-            await using (var fs = File.Create(zipPath))
-            {
-                var stream = await client.GetStreamAsync(zipUrl);
-                await stream.CopyToAsync(fs);
-            }
-
-            ZipFile.ExtractToDirectory(zipPath, tempRoot, true);
-
-            return tempRoot;
-        }
+        await File.WriteAllBytesAsync(temp, bytes);
+        return temp;
     }
 }

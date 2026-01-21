@@ -1,29 +1,22 @@
 ﻿using System.Diagnostics;
 using System.IO;
 
-namespace SubnauticaLauncher.Updater
+namespace SubnauticaLauncher.Updater;
+
+public static class UpdateHelper
 {
-    public static class UpdateHelper
+    public static void ApplyUpdate(string newExe)
     {
-        public static void ApplyUpdate(string extractedFolder)
+        var currentExe = Process.GetCurrentProcess().MainModule!.FileName!;
+        var updater = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SNLUpdater.exe");
+
+        Process.Start(new ProcessStartInfo
         {
-            var updater = Path.Combine(
-                AppContext.BaseDirectory,
-                "SNLUpdater.exe");
+            FileName = updater,
+            Arguments = $"\"{newExe}\" \"{currentExe}\"",
+            UseShellExecute = false
+        });
 
-            if (!File.Exists(updater))
-                throw new FileNotFoundException("SNLUpdater.exe not found.");
-
-            var currentExe = Process.GetCurrentProcess().MainModule!.FileName!;
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = updater,
-                Arguments = $"\"{extractedFolder}\" \"{currentExe}\"",
-                UseShellExecute = false
-            });
-
-            Environment.Exit(0);
-        }
+        Environment.Exit(0);
     }
 }

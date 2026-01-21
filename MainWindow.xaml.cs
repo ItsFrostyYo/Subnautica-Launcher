@@ -1,4 +1,5 @@
 ﻿using SubnauticaLauncher.Models;
+using SubnauticaLauncher.Updater;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -33,7 +34,6 @@ namespace SubnauticaLauncher
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // 🔥 CHECK FOR UPDATES FIRST
             await CheckForUpdatesOnStartup();
 
             Directory.CreateDirectory(BgPath);
@@ -56,18 +56,18 @@ namespace SubnauticaLauncher
         {
             try
             {
-                var update = await Updater.UpdateChecker.CheckForUpdateAsync();
+                var update = await UpdateChecker.CheckForUpdateAsync();
                 if (update == null)
                     return;
 
-                var extracted = await Updater.UpdateDownloader
-                    .DownloadAndExtractAsync(update.ZipUrl);
+                ShowUpdatingUI();
 
-                Updater.UpdateHelper.ApplyUpdate(extracted);
+                var newExe = await UpdateDownloader.DownloadAsync(update.DownloadUrl);
+                UpdateHelper.ApplyUpdate(newExe);
             }
-            catch (Exception ex)
+            catch
             {
-                MessageBox.Show(ex.ToString(), "Update failed");
+                // silent fail by design
             }
         }
 
@@ -86,12 +86,10 @@ namespace SubnauticaLauncher
         {
             string path;
 
-            // Custom image path
             if (File.Exists(value))
             {
                 path = value;
             }
-            // Preset name
             else
             {
                 path = Path.Combine(BgPath, $"{value}.png");
@@ -314,13 +312,6 @@ namespace SubnauticaLauncher
 
             Directory.Delete(v.HomeFolder, true);
             LoadInstalledVersions();
-        }
-
-        private void AddUnmanagedVersion_Click(object sender, RoutedEventArgs e)
-        {
-            var win = new AddUnmanagedVersionWindow { Owner = this };
-            if (win.ShowDialog() == true)
-                LoadInstalledVersions();
         }
 
         // ================= NAV =================
