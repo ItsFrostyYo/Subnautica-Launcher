@@ -6,42 +6,128 @@
         Height="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#071B26">
+        Background="#FF1B4F72"
+        FontFamily="Aileron">
 
+    <!-- ================= RESOURCES ================= -->
     <Window.Resources>
-        <SolidColorBrush x:Key="Accent" Color="#2EC4C6"/>
-        <SolidColorBrush x:Key="Panel" Color="#0D2A3A"/>
-        <SolidColorBrush x:Key="TextMain" Color="#E6F7F8"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#9FC9CC"/>
 
-        <Style TargetType="Button">
+        <!-- GLOBAL TEXT -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- MUTED LABEL TEXT -->
+        <Style x:Key="MutedText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#D0E7F2"/>
+        </Style>
+
+        <!-- TEXTBOX -->
+        <Style TargetType="TextBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#331B4F72"/>
+            <Setter Property="BorderBrush" Value="White"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+
+        <!-- COMBOBOX (TRANSPARENT / GLASSY) -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="White"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Background="Transparent"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Focusable="False"/>
+
+                            <ContentPresenter
+                                Content="{TemplateBinding SelectionBoxItem}"
+                                Margin="8,2,30,2"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Left"
+                                TextElement.Foreground="White"/>
+
+                            <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                                  Fill="White"
+                                  HorizontalAlignment="Right"
+                                  Margin="0,0,10,0"
+                                  VerticalAlignment="Center"/>
+
+                            <Popup x:Name="PART_Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True">
+                                <Border Background="#331B4F72"
+                                        BorderBrush="White"
+                                        BorderThickness="1"
+                                        CornerRadius="6"
+                                        Margin="0,4,0,0">
+                                    <ScrollViewer>
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ROUNDED BUTTON (NO MARGINS IN STYLE) -->
+        <Style x:Key="RoundedButton" TargetType="Button">
             <Setter Property="Height" Value="36"/>
-            <Setter Property="Margin" Value="0,8,0,0"/>
-            <Setter Property="Background" Value="{StaticResource Panel}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="6">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="14">
                             <ContentPresenter
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"/>
                         </Border>
+
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background"
-                                        Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Root"
+                                        Property="Opacity"
+                                        Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root"
+                                        Property="Opacity"
+                                        Value="0.7"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Root"
+                                        Property="Background"
+                                        Value="#333"/>
+                                <Setter Property="Foreground"
+                                        Value="#888"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
     </Window.Resources>
 
+    <!-- ================= LAYOUT ================= -->
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -52,14 +138,13 @@
         <!-- HEADER -->
         <TextBlock Text="Add Unmanaged Subnautica Version"
                    FontSize="18"
-                   Foreground="{StaticResource TextMain}"
                    Margin="0,0,0,12"/>
 
         <!-- CONTENT -->
         <StackPanel Grid.Row="1">
 
             <TextBlock Text="Folder"
-                       Foreground="{StaticResource TextMuted}"
+                       Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
             <Grid Margin="0,0,0,10">
@@ -75,44 +160,51 @@
                         Width="80"
                         Margin="8,0,0,0"
                         Grid.Column="1"
+                        Background="#154966"
+                        Style="{StaticResource RoundedButton}"
                         Click="Browse_Click"/>
             </Grid>
 
             <TextBlock Text="Display Name"
-                       Foreground="{StaticResource TextMuted}"
+                       Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
             <TextBox x:Name="DisplayNameBox"
                      Margin="0,0,0,10"/>
 
             <TextBlock Text="Folder Name"
-                       Foreground="{StaticResource TextMuted}"
+                       Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
             <TextBox x:Name="FolderNameBox"
                      Margin="0,0,0,10"/>
 
             <TextBlock Text="Original Download"
-                       Foreground="{StaticResource TextMuted}"
+                       Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
             <ComboBox x:Name="OriginalDownloadBox"/>
         </StackPanel>
 
-        <!-- BUTTONS -->
+        <!-- BUTTONS (CENTERED + PERFECTLY ALIGNED) -->
         <StackPanel Grid.Row="2"
                     Orientation="Horizontal"
-                    HorizontalAlignment="Right"
+                    HorizontalAlignment="Center"
                     Margin="0,16,0,0">
 
             <Button Content="Add"
-                    Width="90"
+                    Width="100"
+                    Margin="0,0,12,0"
+                    Background="#FF4FD38B"
+                    Style="{StaticResource RoundedButton}"
                     Click="Add_Click"/>
 
             <Button Content="Cancel"
-                    Width="90"
-                    Margin="8,8,0,0"
+                    Width="100"
+                    Background="#8B2C2C"
+                    Style="{StaticResource RoundedButton}"
                     Click="Cancel_Click"/>
         </StackPanel>
+
     </Grid>
 </Window>

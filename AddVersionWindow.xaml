@@ -6,40 +6,58 @@
         Height="380"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="#071B26">
+        Background="#FF1B4F72"
+        FontFamily="Aileron">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="Accent" Color="#2EC4C6"/>
-        <SolidColorBrush x:Key="Panel" Color="#0D2A3A"/>
-        <SolidColorBrush x:Key="TextMain" Color="#E6F7F8"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#9FC9CC"/>
 
-        <Style TargetType="Button">
+        <!-- GLOBAL TEXT -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <!-- LISTBOX (MATCHES MAIN WINDOW) -->
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="#331B4F72"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+
+        <!-- BASE ROUNDED BUTTON -->
+        <Style x:Key="RoundedButton" TargetType="Button">
             <Setter Property="Height" Value="36"/>
             <Setter Property="Margin" Value="0,8,0,0"/>
-            <Setter Property="Background" Value="{StaticResource Panel}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="6">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="14">
                             <ContentPresenter
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background"
-                                        Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Root"
+                                        Property="Opacity"
+                                        Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root"
+                                        Property="Opacity"
+                                        Value="0.7"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+
     </Window.Resources>
 
     <Grid Margin="20">
@@ -52,19 +70,15 @@
         <!-- HEADER -->
         <TextBlock Text="Select a version to install"
                    FontSize="18"
-                   Foreground="{StaticResource TextMain}"
                    Margin="0,0,0,12"/>
 
         <!-- VERSION LIST -->
         <ListBox x:Name="AvailableVersionsList"
-                 Grid.Row="1"
-                 Background="{StaticResource Panel}"
-                 Foreground="{StaticResource TextMain}"
-                 BorderThickness="0"/>
+                 Grid.Row="1"/>
 
         <!-- BUTTONS -->
         <Grid Grid.Row="2"
-      Margin="0,16,0,0">
+              Margin="0,16,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -72,27 +86,31 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- ADD UNMANAGED (LEFT) -->
+            <!-- ADD UNMANAGED (NORMAL BLUE) -->
             <Button Content="Add Unmanaged"
-            Width="140"
-            Grid.Column="0"
-            Margin="0,8,0,0"
-            Click="AddUnmanaged_Click"/>
+                    Width="140"
+                    Grid.Column="0"
+                    Background="#154966"
+                    Style="{StaticResource RoundedButton}"
+                    Click="AddUnmanaged_Click"/>
 
-            <!-- INSTALL (CENTERED CORRECTLY) -->
+            <!-- INSTALL (GREEN) -->
             <Button x:Name="InstallButton"
-            Content="Install"
-            Width="90"
-            Grid.Column="2"
-            Margin="0,8,8,0"
-            Click="Install_Click"/>
+                    Content="Install"
+                    Width="90"
+                    Grid.Column="2"
+                    Margin="0,8,8,0"
+                    Background="#FF4FD38B"
+                    Style="{StaticResource RoundedButton}"
+                    Click="Install_Click"/>
 
-            <!-- CANCEL (RIGHT) -->
+            <!-- CANCEL (RED) -->
             <Button Content="Cancel"
-            Width="90"
-            Grid.Column="3"
-            Margin="0,8,0,0"
-            Click="Cancel_Click"/>
+                    Width="90"
+                    Grid.Column="3"
+                    Background="#8B2C2C"
+                    Style="{StaticResource RoundedButton}"
+                    Click="Cancel_Click"/>
         </Grid>
     </Grid>
 </Window>

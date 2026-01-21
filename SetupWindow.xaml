@@ -6,16 +6,38 @@
         Height="160"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
-        WindowStyle="ToolWindow">
+        WindowStyle="ToolWindow"
+        Background="#FF1B4F72"
+        FontFamily="Aileron">
 
-    <StackPanel Margin="20">
-        <TextBlock Text="Preparing launcher..."
-                   FontSize="16"
-                   FontWeight="Bold"
-                   Margin="0,0,0,10"/>
+    <!-- ================= RESOURCES ================= -->
+    <Window.Resources>
 
-        <TextBlock x:Name="StatusText"
-                   Text="Initializing..."
-                   FontSize="13"/>
-    </StackPanel>
+        <!-- GLOBAL TEXT -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+    </Window.Resources>
+
+    <!-- ================= CONTENT ================= -->
+    <Border Background="#331B4F72"
+            CornerRadius="14"
+            Padding="20"
+            Margin="12">
+
+        <StackPanel VerticalAlignment="Center">
+
+            <TextBlock Text="Preparing launcher..."
+                       FontSize="18"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,8"/>
+
+            <TextBlock x:Name="StatusText"
+                       Text="Initializing..."
+                       FontSize="13"
+                       Foreground="#D0E7F2"/>
+
+        </StackPanel>
+    </Border>
 </Window>

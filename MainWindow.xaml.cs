@@ -33,6 +33,7 @@ namespace SubnauticaLauncher
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            _ = CheckForUpdatesOnStartup();
             Directory.CreateDirectory(BgPath);
 
             if (!File.Exists(BgPreset))
@@ -47,6 +48,33 @@ namespace SubnauticaLauncher
 
             LoadInstalledVersions();
             ShowView(InstallsView);
+        }
+
+        private async Task CheckForUpdatesOnStartup()
+        {
+            try
+            {
+                var update = await UpdateChecker.CheckForUpdateAsync();
+                if (update == null)
+                    return;
+
+                ShowUpdatingUI();
+
+                await UpdateDownloader.DownloadAndApplyAsync(update);
+            }
+            catch
+            {
+                // Silent fail – never block launcher
+            }
+        }
+
+        private void ShowUpdatingUI()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                Title = "Subnautica Launcher – Updating…";
+                IsEnabled = false;
+            });
         }
 
         // ================= BACKGROUND =================
