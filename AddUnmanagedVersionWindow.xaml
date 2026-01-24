@@ -52,7 +52,7 @@
 
                             <ContentPresenter
                                 Content="{TemplateBinding SelectionBoxItem}"
-                                Margin="8,2,30,2"
+                                Margin="8,9,30,9"
                                 VerticalAlignment="Center"
                                 HorizontalAlignment="Left"
                                 TextElement.Foreground="White"/>
@@ -67,11 +67,11 @@
                                    Placement="Bottom"
                                    IsOpen="{TemplateBinding IsDropDownOpen}"
                                    AllowsTransparency="True">
-                                <Border Background="#331B4F72"
+                                <Border Background="Black"
                                         BorderBrush="White"
-                                        BorderThickness="1"
-                                        CornerRadius="6"
-                                        Margin="0,4,0,0">
+                                        BorderThickness="2"
+                                        CornerRadius="5"
+                                        Margin="0,5,0,0">
                                     <ScrollViewer>
                                         <ItemsPresenter/>
                                     </ScrollViewer>
@@ -136,14 +136,17 @@
         </Grid.RowDefinitions>
 
         <!-- HEADER -->
-        <TextBlock Text="Add Unmanaged Subnautica Version"
-                   FontSize="18"
+        <TextBlock Text="Add Existing Subnautica Version"
+                   FontWeight="UltraBold"
+                   FontSize="20"
                    Margin="0,0,0,12"/>
 
         <!-- CONTENT -->
         <StackPanel Grid.Row="1">
 
-            <TextBlock Text="Folder"
+            <TextBlock Text="Folder (Must Contain Subnautica.exe)"
+                       FontSize="14"
+                       FontWeight="Heavy"
                        Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
@@ -157,6 +160,8 @@
                          IsReadOnly="True"/>
 
                 <Button Content="Browse"
+                        FontSize="13"
+                        FontWeight="Normal"
                         Width="80"
                         Margin="8,0,0,0"
                         Grid.Column="1"
@@ -166,6 +171,8 @@
             </Grid>
 
             <TextBlock Text="Display Name"
+                       FontSize="14"
+                       FontWeight="Heavy"
                        Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
@@ -173,17 +180,23 @@
                      Margin="0,0,0,10"/>
 
             <TextBlock Text="Folder Name"
+                       FontSize="14"
+                       FontWeight="Heavy"
                        Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
             <TextBox x:Name="FolderNameBox"
                      Margin="0,0,0,10"/>
 
-            <TextBlock Text="Original Download"
+            <TextBlock Text="Original Version"
+                       FontWeight="Heavy"
+                       FontSize="14"
                        Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
-            <ComboBox x:Name="OriginalDownloadBox"/>
+            <ComboBox x:Name="OriginalDownloadBox"
+                      Margin="0,0,0,0"
+                      FontWeight="Light"/>
         </StackPanel>
 
         <!-- BUTTONS (CENTERED + PERFECTLY ALIGNED) -->

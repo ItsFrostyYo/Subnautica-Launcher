@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 using SubnauticaLauncher.Models;
+using Brushes = System.Windows.Media.Brushes;
 
 namespace SubnauticaLauncher
 {

@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
+using MessageBox = System.Windows.MessageBox;
+using Application = System.Windows.Application;
+using UpdatesData = SubnauticaLauncher.Updates.Updates;
+using System.Windows.Media;
 
 namespace SubnauticaLauncher
 {
@@ -34,8 +38,25 @@ namespace SubnauticaLauncher
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            // 1️⃣ RUN STARTUP INSTALLER FIRST (THIS WAS MISSING)
+            if (!Directory.Exists(AppPaths.ToolsPath) ||
+                !File.Exists(DepotDownloaderInstaller.DepotDownloaderExe))
+            {
+                var setup = new SetupWindow();
+                setup.Owner = this;
+
+                bool? result = setup.ShowDialog();
+                if (result != true)
+                {
+                    Application.Current.Shutdown();
+                    return;
+                }
+            }
+
+            // 2️⃣ CHECK FOR APP UPDATES (AS BEFORE)
             await CheckForUpdatesOnStartup();
 
+            // 3️⃣ ENSURE BACKGROUND FOLDERS EXIST
             Directory.CreateDirectory(BgPath);
 
             if (!File.Exists(BgPreset))
@@ -78,6 +99,61 @@ namespace SubnauticaLauncher
                 Title = "Subnautica Launcher – Updating…";
                 IsEnabled = false;
             });
+        }
+
+        private void BuildUpdatesView()
+        {
+            UpdatesPanel.Children.Clear();
+
+            foreach (var update in UpdatesData.History)
+            {
+                var border = new Border
+                {
+                    Background = new System.Windows.Media.SolidColorBrush(
+                        System.Windows.Media.Color.FromArgb(34, 0, 0, 0)
+                    ),
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(12),
+                    Margin = new Thickness(0, 0, 0, 12)
+                };
+
+                var panel = new StackPanel();
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = $"{update.Version} ({update.Title})",
+                    FontSize = 16,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = System.Windows.Media.Brushes.White
+                });
+
+                panel.Children.Add(new TextBlock
+                {
+                    Text = update.Date,
+                    FontSize = 12,
+                    FontWeight = FontWeights.ExtraLight,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    Margin = new Thickness(0, 2, 0, 6)
+                });
+
+                foreach (var change in update.Changes)
+                {
+                    panel.Children.Add(new TextBlock
+                    {
+                        Text = "• " + change,
+                        FontSize = 13,
+                        Foreground = System.Windows.Media.Brushes.LightGray
+                    });
+                }
+
+                border.Child = panel;
+                UpdatesPanel.Children.Add(border);
+            }
+        }
+        private void InfoTab_Click(object s, RoutedEventArgs e)
+        {
+            ShowView(InfoView);
+            BuildUpdatesView();
         }
 
         // ================= BACKGROUND =================
@@ -306,12 +382,49 @@ namespace SubnauticaLauncher
 
             if (v.IsActive)
             {
-                MessageBox.Show("Cannot delete active version.");
+                MessageBox.Show(
+                    "You cannot delete the currently active version.",
+                    "Delete Blocked",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
                 return;
             }
 
-            Directory.Delete(v.HomeFolder, true);
-            LoadInstalledVersions();
+            var dialog = new DeleteVersionDialog
+            {
+                Owner = this
+            };
+
+            dialog.ShowDialog();
+
+            try
+            {
+                switch (dialog.Choice)
+                {
+                    case DeleteChoice.Cancel:
+                        return;
+
+                    case DeleteChoice.RemoveFromLauncher:
+                        string infoPath = Path.Combine(v.HomeFolder, "Version.info");
+                        if (File.Exists(infoPath))
+                            File.Delete(infoPath);
+                        break;
+
+                    case DeleteChoice.DeleteGame:
+                        Directory.Delete(v.HomeFolder, true);
+                        break;
+                }
+
+                LoadInstalledVersions();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    ex.Message,
+                    "Delete Failed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         // ================= NAV =================
@@ -326,7 +439,6 @@ namespace SubnauticaLauncher
 
         private void InstallsTab_Click(object s, RoutedEventArgs e) => ShowView(InstallsView);
         private void SettingsTab_Click(object s, RoutedEventArgs e) => ShowView(SettingsView);
-        private void InfoTab_Click(object s, RoutedEventArgs e) => ShowView(InfoView);
 
         // ================= SHUTDOWN =================
 

@@ -3,6 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using Microsoft.Win32;
+using Application = System.Windows.Application;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
+using MessageBox = System.Windows.MessageBox;
 
 namespace SubnauticaLauncher
 {
@@ -16,29 +19,12 @@ namespace SubnauticaLauncher
 
         private void LoadOriginalDownloads()
         {
-            OriginalDownloadBox.ItemsSource = new[]
-            {
-        // Modern builds
-        "Subnautica_Oct2025",
-        "Subnautica_Aug2025",
-        "Subnautica_Mar2023",
-        "Subnautica_Dec2022",
-        // Stable era
-        "Subnautica_Dec2021",
-        "Subnautica_Jan2020",
-        "Subnautica_Nov2019",
-        "Subnautica_Sep2018",
-        "Subnautica_Jan2018",
-        // Early Access
-        "Subnautica_Dec2017",
-        "Subnautica_Sep2017",
-        "Subnautica_Mar2017",
+            OriginalDownloadBox.ItemsSource = VersionRegistry.AllVersions
+                .Select(v => v.Id)
+                .ToList();
 
-    };
-                   
             OriginalDownloadBox.SelectedIndex = 0;
         }
-
         private void Browse_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new OpenFileDialog

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Windows;
+using MessageBox = System.Windows.MessageBox;
+using Application = System.Windows.Application;
 
 namespace SubnauticaLauncher
 {

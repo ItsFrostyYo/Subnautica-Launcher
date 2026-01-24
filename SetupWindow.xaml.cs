@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Windows;
+using MessageBox = System.Windows.MessageBox;
+using Application = System.Windows.Application;
 
 namespace SubnauticaLauncher
 {

@@ -1,5 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
+using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
 
 namespace SubnauticaLauncher
 {
@@ -7,24 +9,19 @@ namespace SubnauticaLauncher
     {
         protected override void OnStartup(StartupEventArgs e)
         {
-            base.OnStartup(e);
-
-            // Ensure DepotDownloader exists
-            if (!File.Exists(AppPaths.DepotDownloaderExe))
+            DispatcherUnhandledException += (s, ex) =>
             {
-                var setup = new SetupWindow();
-                setup.ShowDialog();
+                MessageBox.Show(
+                    ex.Exception.ToString(),
+                    "UNHANDLED WPF EXCEPTION",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
 
-                // If setup failed or was closed
-                if (!File.Exists(AppPaths.DepotDownloaderExe))
-                {
-                    Shutdown();
-                    return;
-                }
-            }
+                ex.Handled = true;
+            };
 
-            var main = new MainWindow();
-            main.Show();
+            base.OnStartup(e);
         }
     }
 }
