@@ -1,5 +1,9 @@
 ﻿using System.IO;
 using System.Text.Json;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Versions;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Installer;
 
 namespace SubnauticaLauncher
 {

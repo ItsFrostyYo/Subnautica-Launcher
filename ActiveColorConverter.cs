@@ -2,8 +2,11 @@
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
-using SubnauticaLauncher.Models;
 using Brushes = System.Windows.Media.Brushes;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Versions;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Installer;
 
 namespace SubnauticaLauncher
 {

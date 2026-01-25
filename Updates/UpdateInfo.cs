@@ -3,12 +3,8 @@ using SubnauticaLauncher.Versions;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Installer;
 
-namespace SubnauticaLauncher
+public sealed class UpdateInfo
 {
-    public enum LauncherState
-    {
-        Initializing,
-        RequiresLogin,
-        Ready
-    }
+    public Version Version { get; init; } = new(0, 0, 0);
+    public string DownloadUrl { get; init; } = "";
 }
