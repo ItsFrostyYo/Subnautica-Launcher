@@ -11,12 +11,12 @@ namespace SubnauticaLauncher.Updates
             new UpdateEntry
             {
                 Version = "1.0.2",
-                Title = "General Improvements Update",
-                Date = "Jan 23, 2026",
+                Title = "Versions Update",
+                Date = "Jan 25, 2026",
                 Changes = new[]
                 {
-                    "Update Logging",
-                    "Reset Macros UI",
+                    "Updates Tab",
+                    "Improved UI",
                     "All Downloadable Versions"
                 }
             },
@@ -24,13 +24,13 @@ namespace SubnauticaLauncher.Updates
             new UpdateEntry
             {
                 Version = "1.0.1",
-                Title = "UI Update",
+                Title = "General Improvements",
                 Date = "Jan 23, 2026",
                 Changes = new[]
                 {
                     "Launcher Auto Updates",
                     "Can Add Existing Versions",
-                    "General UI polish and layout cleanup"
+                    "General UI Cleanup"
                 }
             },
 
@@ -41,9 +41,9 @@ namespace SubnauticaLauncher.Updates
                 Date = "Jan 22, 2026",
                 Changes = new[]
                 {
-                    "Initial launcher release",
-                    "Version installation and management",
-                    "Basic UI framework",
+                    "Basic Background Customizations",
+                    "Installation and Management",
+                    "Basic UI",
                 }
             }
         };
