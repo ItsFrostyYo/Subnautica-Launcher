@@ -21,7 +21,14 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="Assets\Backgrounds\Cove Tree.png" />
+	  <None Remove="Assets\Backgrounds\Floating Island.png" />
+	  <None Remove="Assets\Backgrounds\Jellyshroom Caves.png" />
+	  <None Remove="Assets\Backgrounds\Kelp Forest.png" />
+	  <None Remove="Assets\Backgrounds\Lifepod.png" />
+	  <None Remove="Assets\Backgrounds\Lost River.png" />
 	  <None Remove="Assets\Icons\SNL.ico" />
+	  <None Remove="Assets\Icons\SNLIcon.png" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -33,7 +40,40 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Resource Include="Assets\Backgrounds\Cove Tree.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Floating Island.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Grand Reef.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Grassy Plateau.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Jellyshroom Caves.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Kelp Forest.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Lifepod.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Ghost Leviathan.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Lost River.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Reaper Leviathan.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Assets\Icons\SNL.ico">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\SNLIcon.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	</ItemGroup>

@@ -1,15 +1,16 @@
-﻿using System;
+﻿using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Versions;
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using System.Windows;
-using MessageBox = System.Windows.MessageBox;
+using System.Windows.Input;
 using Application = System.Windows.Application;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
+using MessageBox = System.Windows.MessageBox;
 
 namespace SubnauticaLauncher.UI
 {
@@ -21,49 +22,45 @@ namespace SubnauticaLauncher.UI
             Loaded += SetupWindow_Loaded;
         }
 
-        // =========================
-        // BACKGROUND DOWNLOAD
-        // =========================
-        private async Task InstallBackgroundsAsync()
+        private void EnsureBackgroundPreset()
         {
-            Directory.CreateDirectory(AppPaths.BackgroundsPath);
+            Directory.CreateDirectory(AppPaths.DataPath);
 
-            var backgrounds = new Dictionary<string, string>
+            string presetPath = Path.Combine(AppPaths.DataPath, "BPreset.txt");
+
+            if (!File.Exists(presetPath))
             {
-                {
-                    "Lifepod.png",
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/8a7e2d94fd0affc6a96a0abc4981252c43e2fa84/backgrounds/Lifepod.png"
-                },
-                {
-                    "GrassyPlateau.png",
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/8a7e2d94fd0affc6a96a0abc4981252c43e2fa84/backgrounds/GrassyPlateau.png"
-                },
-                {
-                    "GrandReef.png",
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/8a7e2d94fd0affc6a96a0abc4981252c43e2fa84/backgrounds/GrandReef.png"
-                },
-                {
-                    "Reaper.png",
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/8a7e2d94fd0affc6a96a0abc4981252c43e2fa84/backgrounds/Reaper.png"
-                },
-                {
-                    "LostRiver.png",
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/8a7e2d94fd0affc6a96a0abc4981252c43e2fa84/backgrounds/LostRiver.png"
-                }
-            };
-
-            using var client = new HttpClient();
-
-            foreach (var bg in backgrounds)
-            {
-                string targetPath = Path.Combine(AppPaths.BackgroundsPath, bg.Key);
-
-                if (File.Exists(targetPath))
-                    continue;
-
-                byte[] data = await client.GetByteArrayAsync(bg.Value);
-                await File.WriteAllBytesAsync(targetPath, data);
+                File.WriteAllText(presetPath, "Grassy Plateau");
             }
+        }
+
+        // ================= TITLE BAR =================
+
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+                WindowState = WindowState == WindowState.Maximized
+                    ? WindowState.Normal
+                    : WindowState.Maximized;
+            else
+                DragMove();
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void Maximize_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+        }
+
+        private void Close_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
         }
 
         // =========================
@@ -77,14 +74,13 @@ namespace SubnauticaLauncher.UI
 
                 Directory.CreateDirectory(AppPaths.ToolsPath);
                 Directory.CreateDirectory(AppPaths.LogsPath);
-                Directory.CreateDirectory(AppPaths.DataPath);
-                Directory.CreateDirectory(AppPaths.BackgroundsPath);
+                Directory.CreateDirectory(AppPaths.DataPath);                
 
                 StatusText.Text = "Installing DepotDownloader...";
                 await DepotDownloaderInstaller.EnsureInstalledAsync();
 
-                StatusText.Text = "Installing backgrounds...";
-                await InstallBackgroundsAsync();
+                StatusText.Text = "Writing background presets...";
+                EnsureBackgroundPreset();
 
                 StatusText.Text = "Setup complete.";
                 await Task.Delay(600);

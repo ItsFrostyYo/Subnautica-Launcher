@@ -1,26 +1,119 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Versions;
+using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
-using Microsoft.Win32;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Application = System.Windows.Application;
-using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 using MessageBox = System.Windows.MessageBox;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
+using OpenFileDialog = Microsoft.Win32.OpenFileDialog;
 
 namespace SubnauticaLauncher.UI
 {
     public partial class AddUnmanagedVersionWindow : Window
     {
+        private static readonly string BgPreset =
+    Path.Combine(AppPaths.DataPath, "BPreset.txt");
+
+        private const string DefaultBg = "Grassy Plateau";
+
+        private ImageBrush GetBackgroundBrush()
+        {
+            return (ImageBrush)Resources["BackgroundBrush"];
+        }
+
         public AddUnmanagedVersionWindow()
         {
             InitializeComponent();
+            Loaded += AddUnmanagedVersionWindow_Loaded;
             LoadOriginalDownloads();
         }
 
+        private void AddUnmanagedVersionWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            string bg = DefaultBg;
+
+            if (File.Exists(BgPreset))
+            {
+                bg = File.ReadAllText(BgPreset).Trim();
+                if (string.IsNullOrWhiteSpace(bg))
+                    bg = DefaultBg;
+            }
+
+            ApplyBackground(bg);
+        }
+
+        private void ApplyBackground(string preset)
+        {
+            try
+            {
+                BitmapImage img = new BitmapImage();
+                img.BeginInit();
+
+                if (File.Exists(preset))
+                {
+                    img.UriSource = new Uri(preset, UriKind.Absolute);
+                }
+                else
+                {
+                    img.UriSource = new Uri(
+                        $"pack://application:,,,/Assets/Backgrounds/{preset}.png",
+                        UriKind.Absolute
+                    );
+                }
+
+                img.CacheOption = BitmapCacheOption.OnLoad;
+                img.EndInit();
+                img.Freeze();
+
+                GetBackgroundBrush().ImageSource = img;
+            }
+            catch
+            {
+                GetBackgroundBrush().ImageSource = new BitmapImage(new Uri(
+                    $"pack://application:,,,/Assets/Backgrounds/{DefaultBg}.png",
+                    UriKind.Absolute));
+            }
+        }
+
+        // ================= TITLE BAR =================
+
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+                WindowState = WindowState == WindowState.Maximized
+                    ? WindowState.Normal
+                    : WindowState.Maximized;
+            else
+                DragMove();
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void Maximize_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+        }
+
+        private void Close_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
+        }
+
+        
+
+        // ================= Rest =================
         private void LoadOriginalDownloads()
         {
             OriginalDownloadBox.ItemsSource = VersionRegistry.AllVersions

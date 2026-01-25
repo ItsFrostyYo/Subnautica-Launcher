@@ -20,8 +20,10 @@ public static class Updates
             Changes = new[]
             {
                 "Added Advanced Reset Macros",
-                "Slight UI Updates",
-                "Window Now Resizable"
+                "Window UI Updated and Customized",
+                "Window is now Resizable",
+                "Backgrounds Rework",
+                "More Background Options (Still Custom Option)"
 
             }
         },

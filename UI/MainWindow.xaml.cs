@@ -1,18 +1,19 @@
-﻿using System;
+﻿using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Versions;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
-using MessageBox = System.Windows.MessageBox;
-using Application = System.Windows.Application;
-using UpdatesData = SubnauticaLauncher.Updates.Updates;
+using System.Windows.Input;
 using System.Windows.Media;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
+using System.Windows.Media.Imaging;
+using Application = System.Windows.Application;
+using MessageBox = System.Windows.MessageBox;
+using UpdatesData = SubnauticaLauncher.Updates.Updates;
 
 namespace SubnauticaLauncher.UI
 {
@@ -21,19 +22,45 @@ namespace SubnauticaLauncher.UI
         private const string ACTIVE = "Subnautica";
         private const string UNMANAGED = "SubnauticaUnmanagedVersion";
 
-        private static readonly string BgPath =
-            Path.Combine(AppPaths.DataPath, "backgrounds");
-
         private static readonly string BgPreset =
-            Path.Combine(BgPath, "BPreset.txt");
+        Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
-        private const string DefaultBg = "GrassyPlateau";
+        private const string DefaultBg = "Grassy Plateau";
 
         public MainWindow()
         {
             InitializeComponent();
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
+        }
+
+        // ================= TITLE BAR =================
+
+        private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+                WindowState = WindowState == WindowState.Maximized
+                    ? WindowState.Normal
+                    : WindowState.Maximized;
+            else
+                DragMove();
+        }
+
+        private void Minimize_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void Maximize_Click(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+        }
+
+        private void Close_Click(object sender, RoutedEventArgs e)
+        {
+            Close();
         }
 
         // ================= STARTUP =================
@@ -58,8 +85,7 @@ namespace SubnauticaLauncher.UI
             // 2️⃣ CHECK FOR APP UPDATES (AS BEFORE)
             await CheckForUpdatesOnStartup();
 
-            // 3️⃣ ENSURE BACKGROUND FOLDERS EXIST
-            Directory.CreateDirectory(BgPath);
+            Directory.CreateDirectory(AppPaths.DataPath);
 
             if (!File.Exists(BgPreset))
                 File.WriteAllText(BgPreset, DefaultBg);
@@ -73,6 +99,46 @@ namespace SubnauticaLauncher.UI
 
             LoadInstalledVersions();
             ShowView(InstallsView);
+        }
+        
+        private void ApplyBackground(string preset)
+        {
+            try
+            {
+                BitmapImage img = new BitmapImage();
+                img.BeginInit();
+
+                // Custom image (absolute path)
+                if (File.Exists(preset))
+                {
+                    img.UriSource = new Uri(preset, UriKind.Absolute);
+                }
+                else
+                {
+                    // Built-in asset
+                    var uri = new Uri(
+    $"pack://application:,,,/Assets/Backgrounds/{preset}.png",
+    UriKind.Absolute
+);
+
+                    Application.GetResourceStream(uri); // validate first
+                    img.UriSource = uri;
+                }
+
+                img.CacheOption = BitmapCacheOption.OnLoad;
+                img.EndInit();
+                img.Freeze();
+
+                BackgroundBrush.ImageSource = img;
+            }
+            catch
+            {
+                // Fallback to default asset
+                BackgroundBrush.ImageSource =
+                    new BitmapImage(new Uri(
+                        $"pack://application:,,,/Assets/Backgrounds/{DefaultBg}.png",
+                        UriKind.Absolute));
+            }
         }
 
         private async Task CheckForUpdatesOnStartup()
@@ -159,32 +225,7 @@ namespace SubnauticaLauncher.UI
         }
 
         // ================= BACKGROUND =================
-
-        private void ApplyBackground(string value)
-        {
-            string path;
-
-            if (File.Exists(value))
-            {
-                path = value;
-            }
-            else
-            {
-                path = Path.Combine(BgPath, $"{value}.png");
-                if (!File.Exists(path))
-                    return;
-            }
-
-            var img = new BitmapImage();
-            img.BeginInit();
-            img.UriSource = new Uri(path, UriKind.Absolute);
-            img.CacheOption = BitmapCacheOption.OnLoad;
-            img.EndInit();
-            img.Freeze();
-
-            BackgroundBrush.ImageSource = img;
-        }
-
+        
         private void SyncThemeDropdown(string bg)
         {
             foreach (ComboBoxItem i in ThemeDropdown.Items)

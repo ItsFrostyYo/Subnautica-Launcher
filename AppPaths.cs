@@ -39,10 +39,7 @@ namespace SubnauticaLauncher
         // LAUNCHER DATA
         // =========================
         public static readonly string DataPath =
-            Path.Combine(BasePath, "data");
-
-        public static readonly string BackgroundsPath =
-            Path.Combine(DataPath, "backgrounds");
+            Path.Combine(BasePath, "data");       
 
         public static readonly string LogsPath =
             Path.Combine(BasePath, "logs");
