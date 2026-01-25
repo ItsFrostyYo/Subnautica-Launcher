@@ -167,7 +167,7 @@
 
                 <ListBox x:Name="AvailableVersionsList"
                          FontWeight="Light"
-                         Background="#90000000"
+                         Background="#99000000"
                          Grid.Row="1"/>
 
                 <Grid Grid.Row="2"

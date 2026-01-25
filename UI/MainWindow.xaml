@@ -383,6 +383,7 @@ UseAeroCaptionButtons="False" />
                                         <ComboBoxItem Content="Grand Reef"/>
                                         <ComboBoxItem Content="Reaper Leviathan"/>
                                         <ComboBoxItem Content="Ghost Leviathan"/>
+                                        <ComboBoxItem Content="Sea Dragon Leviathan"/>
                                         <ComboBoxItem Content="Custom"/>
                                     </ComboBox>
 

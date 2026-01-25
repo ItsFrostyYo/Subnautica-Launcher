@@ -1,22 +1,29 @@
 ﻿<Window x:Class="SubnauticaLauncher.UI.RenameVersionWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Rename Version"
-        Height="265"
         Width="360"
+        Height="285"
+        ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
-        Background="#FF1B4F72"
-        FontFamily="Aileron">
+        FontFamily="Aileron"
+        WindowStyle="None"
+        AllowsTransparency="True">
 
     <!-- ================= RESOURCES ================= -->
     <Window.Resources>
+
+        <!-- SHARED BACKGROUND BRUSH -->
+        <ImageBrush x:Key="BackgroundBrush"
+                    Stretch="UniformToFill"/>
 
         <!-- GLOBAL TEXT -->
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
-        <!-- TEXTBOX STYLE -->
+        <!-- TEXTBOX -->
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Background" Value="#331B4F72"/>
@@ -26,8 +33,9 @@
             <Setter Property="FontSize" Value="14"/>
         </Style>
 
-        <!-- ROUNDED BUTTON (MATCHES MAIN WINDOW) -->
+        <!-- ROUNDED BUTTON -->
         <Style x:Key="RoundedButton" TargetType="Button">
+            <Setter Property="Height" Value="34"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="14"/>
@@ -43,7 +51,6 @@
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"/>
                         </Border>
-
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Root" Property="Opacity" Value="0.85"/>
@@ -63,57 +70,120 @@
 
     </Window.Resources>
 
-    <!-- ================= CONTENT ================= -->
-    <Border Background="#331B4F72"
-            CornerRadius="13"
-            Padding="10"
-            Margin="13">
+    <!-- ================= WINDOW CHROME ================= -->
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome
+            CaptionHeight="25"
+            ResizeBorderThickness="6"
+            CornerRadius="0"
+            GlassFrameThickness="0"
+            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
 
-        <StackPanel Margin="0,0,0,-30">
+    <!-- ================= ROOT ================= -->
+    <Grid>
 
-            <TextBlock Text="Display Name"
-                       FontSize="14" 
-                       FontWeight="Heavy"/>
+        <!-- ===== BLURRED BACKGROUND ===== -->
+        <Rectangle Fill="{StaticResource BackgroundBrush}">
+            <Rectangle.Effect>
+                <BlurEffect Radius="8"/>
+            </Rectangle.Effect>
+        </Rectangle>
 
-            <TextBox x:Name="DisplayNameBox"
-                     Margin="0,4,0,10"/>
+        <!-- ===== CONTENT ===== -->
+        <Grid>
 
-            <TextBlock Text="Folder Name"
-                       FontSize="14" 
-                       FontWeight="Heavy"/>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="25"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-            <TextBox x:Name="FolderNameBox"
-                     Margin="0,4,0,6"/>
+            <!-- ================= TITLE BAR ================= -->
+            <Grid Grid.Row="0"
+                  Background="#40000000"
+                  MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
 
-            <TextBlock Text="Change folder name when adding the same version multiple times."
-                       FontSize="11" 
-                       FontWeight="Medium"                    
-                       Foreground="#D0E7F2"
-                       TextWrapping="Wrap"/>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal"
-                        HorizontalAlignment="Center"
-                        Margin="0,10,0,0">
+                <Image Source="pack://application:,,,/Assets/Icons/SNLIcon.png"
+                       Width="16"
+                       Height="16"
+                       Margin="12,0,8,0"
+                       VerticalAlignment="Center"/>
 
-                <!-- CANCEL -->
-                <Button Content="Save"
-                        Width="80"
-                        Height="34"
-                        Margin="0,0,8,0"
-                        Background="#FF4FD38B"
-                        Style="{StaticResource RoundedButton}"
-                        Click="Save_Click"/>
+                <TextBlock Grid.Column="1"
+                           Text="Rename Version"
+                           VerticalAlignment="Center"
+                           FontSize="13"
+                           Margin="0,3,0,0"
+                           FontWeight="SemiBold"/>
 
-                <!-- SAVE -->
-                <Button Content="Cancel"
-                        Width="80"
-                        Height="34"
+                <Button Content="✕"
+                        Grid.Column="2"
+                        Width="44"
+                        Height="25"
                         Background="#8B2C2C"
-                        Style="{StaticResource RoundedButton}"
-                        Click="Cancel_Click"/>
+                        BorderBrush="#55000000"
+                        BorderThickness="1"
+                        Click="Cancel_Click"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+            </Grid>
 
-            </StackPanel>
+            <!-- ================= CONTENT ================= -->
+            <Border Grid.Row="1"
+                    Background="#90000000"
+                    BorderBrush="#99000000"
+                    CornerRadius="14"
+                    Padding="16"
+                    Margin="16">
 
-        </StackPanel>
-    </Border>
+                <StackPanel>
+
+                    <TextBlock Text="Display Name"
+                               FontSize="14"
+                               FontWeight="Heavy"/>
+
+                    <TextBox x:Name="DisplayNameBox"
+                             Margin="0,4,0,10"/>
+
+                    <TextBlock Text="Folder Name"
+                               FontSize="14"
+                               FontWeight="Heavy"/>
+
+                    <TextBox x:Name="FolderNameBox"
+                             Margin="0,4,0,6"/>
+
+                    <TextBlock Text="Change folder name when adding the same version multiple times."
+                               FontSize="11"
+                               Foreground="#D0E7F2"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,14"/>
+
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Center">
+
+                        <Button Content="Save"
+                                Width="90"
+                                Margin="0,0,12,0"
+                                Background="#FF4FD38B"
+                                Style="{StaticResource RoundedButton}"
+                                Click="Save_Click"/>
+
+                        <Button Content="Cancel"
+                                Width="90"
+                                Background="#8B2C2C"
+                                Style="{StaticResource RoundedButton}"
+                                Click="Cancel_Click"/>
+
+                    </StackPanel>
+
+                </StackPanel>
+            </Border>
+
+        </Grid>
+    </Grid>
 </Window>

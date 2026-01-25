@@ -15,15 +15,17 @@ public static class Updates
         new UpdateEntry
         {
             Version = "1.0.3",
-            Title = "Reset Macros Update",
+            Title = "UI Overhall Update",
             Date = "Jan 25, 2026",
             Changes = new[]
             {
-                "Added Advanced Reset Macros",
-                "Window UI Updated and Customized",
+                "Advanced Reset Macros (UI)",
+                "UI Updated for Readablility Priority",
                 "Window is now Resizable",
-                "Backgrounds Rework",
-                "More Background Options (Still Custom Option)"
+                "Background Folder Removed (Now Fetches Backgrounds)",
+                "More Background Options (Still Custom Option)",
+                "Cutom Title Bar",
+                "Added Icon"
 
             }
         },
@@ -58,7 +60,7 @@ public static class Updates
         {
             Version = "1.0.0",
             Title = "Initial Release",
-            Date = "Jan 22, 2026",
+            Date = "Jan 20, 2026",
             Changes = new[]
             {
                 "Basic Background Customizations",

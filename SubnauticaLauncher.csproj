@@ -27,6 +27,7 @@
 	  <None Remove="Assets\Backgrounds\Kelp Forest.png" />
 	  <None Remove="Assets\Backgrounds\Lifepod.png" />
 	  <None Remove="Assets\Backgrounds\Lost River.png" />
+	  <None Remove="Assets\Backgrounds\Sea Dragon Leviathan.png" />
 	  <None Remove="Assets\Icons\SNL.ico" />
 	  <None Remove="Assets\Icons\SNLIcon.png" />
 	</ItemGroup>
@@ -68,6 +69,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Backgrounds\Reaper Leviathan.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Sea Dragon Leviathan.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Icons\SNL.ico">

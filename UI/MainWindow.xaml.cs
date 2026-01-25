@@ -86,6 +86,7 @@ namespace SubnauticaLauncher.UI
             await CheckForUpdatesOnStartup();
 
             Directory.CreateDirectory(AppPaths.DataPath);
+            OldRemover.Run();
 
             if (!File.Exists(BgPreset))
                 File.WriteAllText(BgPreset, DefaultBg);
@@ -93,7 +94,7 @@ namespace SubnauticaLauncher.UI
             string bg = File.ReadAllText(BgPreset).Trim();
             if (string.IsNullOrWhiteSpace(bg))
                 bg = DefaultBg;
-
+            
             ApplyBackground(bg);
             SyncThemeDropdown(bg);
 

@@ -1,14 +1,11 @@
 ﻿using SubnauticaLauncher.Installer;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Versions;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
@@ -16,21 +13,42 @@ namespace SubnauticaLauncher.UI
 {
     public partial class SetupWindow : Window
     {
+        private const string SetupBackground = "GrassyPlateau";
+
         public SetupWindow()
         {
             InitializeComponent();
             Loaded += SetupWindow_Loaded;
         }
 
-        private void EnsureBackgroundPreset()
+        // ================= BACKGROUND =================
+
+        private ImageBrush GetBackgroundBrush()
         {
-            Directory.CreateDirectory(AppPaths.DataPath);
+            return (ImageBrush)Resources["BackgroundBrush"];
+        }
 
-            string presetPath = Path.Combine(AppPaths.DataPath, "BPreset.txt");
-
-            if (!File.Exists(presetPath))
+        private void ApplySetupBackground()
+        {
+            try
             {
-                File.WriteAllText(presetPath, "Grassy Plateau");
+                BitmapImage img = new BitmapImage();
+                img.BeginInit();
+
+                img.UriSource = new Uri(
+                    $"pack://application:,,,/Assets/Backgrounds/{SetupBackground}.png",
+                    UriKind.Absolute
+                );
+
+                img.CacheOption = BitmapCacheOption.OnLoad;
+                img.EndInit();
+                img.Freeze();
+
+                GetBackgroundBrush().ImageSource = img;
+            }
+            catch
+            {
+                // If even this fails, just leave background blank
             }
         }
 
@@ -39,11 +57,15 @@ namespace SubnauticaLauncher.UI
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
+            {
                 WindowState = WindowState == WindowState.Maximized
                     ? WindowState.Normal
                     : WindowState.Maximized;
+            }
             else
+            {
                 DragMove();
+            }
         }
 
         private void Minimize_Click(object sender, RoutedEventArgs e)
@@ -63,26 +85,25 @@ namespace SubnauticaLauncher.UI
             Close();
         }
 
-        // =========================
-        // SETUP FLOW
-        // =========================
+        // ================= SETUP FLOW =================
+
         private async void SetupWindow_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
+                // ✅ Background FIRST (no dependencies)
+                ApplySetupBackground();
+
                 StatusText.Text = "Creating folders...";
 
                 Directory.CreateDirectory(AppPaths.ToolsPath);
                 Directory.CreateDirectory(AppPaths.LogsPath);
-                Directory.CreateDirectory(AppPaths.DataPath);                
+                Directory.CreateDirectory(AppPaths.DataPath);
 
                 StatusText.Text = "Installing DepotDownloader...";
                 await DepotDownloaderInstaller.EnsureInstalledAsync();
 
-                StatusText.Text = "Writing background presets...";
-                EnsureBackgroundPreset();
-
-                StatusText.Text = "Setup complete.";
+                StatusText.Text = "Finalizing setup...";
                 await Task.Delay(600);
 
                 DialogResult = true;
