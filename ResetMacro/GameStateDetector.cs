@@ -2,9 +2,11 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 
 namespace SubnauticaLauncher.Macros
 {
+    [SupportedOSPlatform("windows")]
     public static class GameStateDetector
     {
         public static GameState Detect(GameStateProfile p)

@@ -102,12 +102,57 @@ namespace SubnauticaLauncher.Macros
             {
                 [GameMode.Survival] = new MacroSteps
                 {
-                    QuitButton = new Point(0, 0),
-                    ConfirmQuit1 = new Point(0, 0),
-                    ConfirmQuit2 = new Point(0, 0),
-                    PlayButton = new Point(0, 0),
-                    StartNewGame = new Point(0, 0),
-                    SelectGameMode = new Point(0, 0)
+                    QuitButton = new Point(1005, 728),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(986, 552)
+                },
+                [GameMode.Hardcore] = new MacroSteps
+                {
+                    QuitButton = new Point(1067, 691),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(1093, 781)
+                },
+                [GameMode.Creative] = new MacroSteps
+                {
+                    QuitButton = new Point(1021, 728),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(1125, 878)
+                },
+                [GameMode.SaveSlot1] = new MacroSteps
+                {
+                    QuitButton = new Point(1005, 728),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(986, 552)
+                },
+                [GameMode.SaveSlot2] = new MacroSteps
+                {
+                    QuitButton = new Point(1005, 728),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(986, 552)
+                },
+                [GameMode.SaveSlot3] = new MacroSteps
+                {
+                    QuitButton = new Point(1005, 728),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(986, 552)
                 }
             }
         };

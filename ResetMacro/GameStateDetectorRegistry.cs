@@ -31,14 +31,15 @@ namespace SubnauticaLauncher.Macros
 
             [2022] = new GameStateProfile
             {
-                MainMenuPixel = new Point(960, 495),
-                MainMenuColor = Color.FromArgb(255, 255, 255),
-
-                InGamePixel = new Point(50, 50),
-                InGameColor = Color.FromArgb(255, 255, 255),
-
+                MainMenuPixel = new Point(634, 729),
+                MainMenuColor = Color.FromArgb(255, 27, 81, 154),
+                
+                InGamePixel = new Point(1033, 89),
+                InGameColor = Color.FromArgb(255, 25, 177, 167),
+                
                 BlackPixel = new Point(960, 540)
             }
+            
         };
 
         public static GameStateProfile Get(int yearGroup)
