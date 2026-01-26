@@ -86,8 +86,8 @@ namespace SubnauticaLauncher.UI
         }
 
         private IntPtr WndProc(
-    IntPtr hwnd,
-    int msg,
+        IntPtr hwnd,
+            int msg,
     IntPtr wParam,
     IntPtr lParam,
     ref bool handled)
