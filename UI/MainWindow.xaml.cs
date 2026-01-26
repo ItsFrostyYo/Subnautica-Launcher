@@ -1,17 +1,24 @@
 ﻿using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.UI;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Application = System.Windows.Application;
+using Brushes = System.Windows.Media.Brushes;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using MessageBox = System.Windows.MessageBox;
 using UpdatesData = SubnauticaLauncher.Updates.Updates;
 
@@ -21,6 +28,18 @@ namespace SubnauticaLauncher.UI
     {
         private const string ACTIVE = "Subnautica";
         private const string UNMANAGED = "SubnauticaUnmanagedVersion";
+        private Key _resetKey = Key.None;
+        private bool _macroEnabled;
+        private const int HOTKEY_ID = 9001;
+        [DllImport("user32.dll")]
+        private static extern bool RegisterHotKey(
+    IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+        [DllImport("user32.dll")]
+        private static extern bool UnregisterHotKey(
+            IntPtr hWnd, int id);
+
+        private const int WM_HOTKEY = 0x0312;
 
         private static readonly string BgPreset =
         Path.Combine(AppPaths.DataPath, "BPreset.txt");
@@ -30,11 +49,61 @@ namespace SubnauticaLauncher.UI
         public MainWindow()
         {
             InitializeComponent();
-            Loaded += MainWindow_Loaded;
+            Loaded += MainWindow_Loaded;            
             Closing += MainWindow_Closing;
         }
 
         // ================= TITLE BAR =================
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+
+            var source = HwndSource.FromHwnd(
+                new WindowInteropHelper(this).Handle);
+
+            source.AddHook(WndProc);
+
+            RegisterResetHotkey();
+        }
+
+        private void RegisterResetHotkey()
+        {
+            UnregisterHotKey(
+                new WindowInteropHelper(this).Handle,
+                HOTKEY_ID);
+
+            if (!_macroEnabled || _resetKey == Key.None)
+                return;
+
+            uint vk = (uint)KeyInterop.VirtualKeyFromKey(_resetKey);
+
+            RegisterHotKey(
+                new WindowInteropHelper(this).Handle,
+                HOTKEY_ID,
+                0,
+                vk);
+        }
+
+        private IntPtr WndProc(
+    IntPtr hwnd,
+    int msg,
+    IntPtr wParam,
+    IntPtr lParam,
+    ref bool handled)
+        {
+            if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
+            {
+                _ = Dispatcher.InvokeAsync(async () =>
+                {
+                    await OnResetHotkeyPressed();
+                });
+
+                handled = true;
+            }
+
+            return IntPtr.Zero;
+        }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -99,6 +168,7 @@ namespace SubnauticaLauncher.UI
             SyncThemeDropdown(bg);
 
             LoadInstalledVersions();
+            LoadMacroSettings();
             ShowView(InstallsView);
         }
         
@@ -471,8 +541,102 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        // ================= NAV =================
+        // ================= NAV =================        
+       
+        private async Task OnResetHotkeyPressed()
+        {
+            if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
+                return;
 
+            if (item.Content is not string modeText)
+                return;
+
+            var mode = Enum.Parse<GameMode>(modeText);
+
+            await ResetMacroService.RunAsync(mode);
+
+        }
+
+        private void ResetMacroToggleButton_Click(object sender, RoutedEventArgs e)
+        {
+            _macroEnabled = !_macroEnabled;
+
+            ResetMacroToggleButton.Content =
+                _macroEnabled ? "Enabled" : "Disabled";
+
+            ResetMacroToggleButton.Background =
+                _macroEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            SaveMacroSettings();
+            RegisterResetHotkey();
+        }
+
+        private void SetResetHotkey_Click(object sender, RoutedEventArgs e)
+        {
+            ResetHotkeyBox.Text = "Press a key...";
+            PreviewKeyDown += CaptureResetKey;
+        }
+
+        private void CaptureResetKey(object sender, KeyEventArgs e)
+        {
+            _resetKey = e.Key;
+            ResetHotkeyBox.Text = _resetKey.ToString();
+
+            PreviewKeyDown -= CaptureResetKey;
+
+            SaveMacroSettings();
+            RegisterResetHotkey(); // 🔥 THIS WAS MISSING
+        }
+
+        private static readonly string SettingsPath =
+    Path.Combine(AppPaths.DataPath, "Settings.info");
+
+        private void SaveMacroSettings()
+        {
+            if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
+                return;
+
+            if (item.Content is not string modeText)
+                return;
+
+            var mode = Enum.Parse<GameMode>(modeText);
+
+            File.WriteAllLines(SettingsPath, new[]
+            {
+        $"Enabled={_macroEnabled}",
+        $"Hotkey={_resetKey}",
+        $"Mode={mode}"
+    });
+        }
+
+        private void LoadMacroSettings()
+        {
+            if (!File.Exists(SettingsPath))
+                return;
+
+            var dict = File.ReadAllLines(SettingsPath)
+                .Select(l => l.Split('='))
+                .ToDictionary(x => x[0], x => x[1]);
+
+            _macroEnabled = bool.Parse(dict["Enabled"]);
+            _resetKey = Enum.Parse<Key>(dict["Hotkey"]);
+            var mode = Enum.Parse<GameMode>(dict["Mode"]);
+
+            ResetHotkeyBox.Text = _resetKey.ToString();
+            ResetGamemodeDropdown.SelectedItem =
+                ResetGamemodeDropdown.Items
+                    .Cast<ComboBoxItem>()
+                    .First(i => (string)i.Content == mode.ToString());
+
+            ResetMacroToggleButton.Content =
+                _macroEnabled ? "Enabled" : "Disabled";
+            RegisterResetHotkey();
+        }
+
+        private void ResetGamemodeDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            SaveMacroSettings();
+        }
         private void ShowView(UIElement v)
         {
             InstallsView.Visibility = Visibility.Collapsed;
@@ -486,8 +650,12 @@ namespace SubnauticaLauncher.UI
 
         // ================= SHUTDOWN =================
 
-        private async void MainWindow_Closing(object? s, System.ComponentModel.CancelEventArgs e)
+        private async void MainWindow_Closing(object? s, CancelEventArgs e)
         {
+            UnregisterHotKey(
+                new WindowInteropHelper(this).Handle,
+                HOTKEY_ID);
+
             try
             {
                 await RestoreUntilGone(AppPaths.SteamCommonPath);

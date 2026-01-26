@@ -434,12 +434,13 @@ UseAeroCaptionButtons="False" />
 
                                         <!-- Set button -->
                                         <Button Content="Set"
-                    Grid.Column="1"
-                    Width="70"
-                    Height="32"
-                    Margin="8,0,10,0"
-                    Background="#154966"
-                    Style="{StaticResource RoundedButton}"/>
+        Grid.Column="1"
+        Width="70"
+        Height="32"
+        Margin="8,0,10,0"
+        Background="#154966"
+        Style="{StaticResource RoundedButton}"
+        Click="SetResetHotkey_Click"/>
                                     </Grid>
 
                                     <!-- GAMEMODE -->
@@ -448,12 +449,13 @@ UseAeroCaptionButtons="False" />
                    Margin="0,0,0,4"/>
 
                                     <ComboBox x:Name="ResetGamemodeDropdown"
-                  Height="35"
-                  Margin="0,0,15,0"                
-                  Foreground="White"
-                  BorderBrush="White"
-                  BorderThickness="1"
-                  Background="Transparent">
+          Height="35"
+          Margin="0,0,15,0"
+          Foreground="White"
+          BorderBrush="White"
+          BorderThickness="1"
+          Background="Transparent"
+          SelectionChanged="ResetGamemodeDropdown_SelectionChanged">
 
                                         <!-- reuse SAME template -->
                                         <ComboBox.Template>
@@ -501,7 +503,7 @@ UseAeroCaptionButtons="False" />
                                         <ComboBoxItem Content="Freedom"/>
                                         <ComboBoxItem Content="Save File Slot 1"/>
                                         <ComboBoxItem Content="Save File Slot 2"/>
-                                        <ComboBoxItem Content="Save File Slot 3"/>
+                                        <ComboBoxItem Content="Save File Slot 3"/>a
                                     </ComboBox>
 
                                     <!-- ENABLE TOGGLE -->
@@ -513,6 +515,7 @@ UseAeroCaptionButtons="False" />
 
                                         <Button x:Name="ResetMacroToggleButton"
         Grid.Column="1"
+        Click="ResetMacroToggleButton_Click"                                        
         Width="120"
         Height="34"
         Margin="8,0,0,0"
