@@ -1,0 +1,20 @@
+﻿SubnauticaLauncher
+1.0.3.0
+
+winexe
+C#
+.cs
+C:\Users\mxz\Desktop\Subnautica Launcher\SubnauticaLauncher\obj\Debug\net8.0-windows\
+SubnauticaLauncher
+none
+false
+TRACE;DEBUG;NET;NET8_0;NETCOREAPP;WINDOWS;WINDOWS7_0;NET5_0_OR_GREATER;NET6_0_OR_GREATER;NET7_0_OR_GREATER;NET8_0_OR_GREATER;NETCOREAPP3_0_OR_GREATER;NETCOREAPP3_1_OR_GREATER;WINDOWS7_0_OR_GREATER
+C:\Users\mxz\Desktop\Subnautica Launcher\SubnauticaLauncher\App.xaml
+8668920647
+1-855933794
+48-228212653
+2091175689172
+UI\AddUnmanagedVersionWindow.xaml;UI\AddVersionWindow.xaml;UI\DeleteVersionDialog.xaml;UI\DepotDownloaderLoginWindow.xaml;UI\InstallProgressWindow.xaml;UI\MainWindow.xaml;UI\RenameVersionWindow.xaml;UI\SetupWindow.xaml;
+
+False
+
