@@ -21,6 +21,7 @@ namespace SubnauticaLauncher.Macros
         public static void PressEsc()
         {
             KeyController.HoldStart(VK_ESCAPE);
+            Thread.Sleep(50);
             KeyController.HoldStop(VK_ESCAPE);
         }
 
