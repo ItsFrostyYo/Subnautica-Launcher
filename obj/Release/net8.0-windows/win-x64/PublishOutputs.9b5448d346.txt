@@ -1,2 +1,0 @@
-C:\Users\mxz\Desktop\Subnautica Launcher\SubnauticaLauncher\bin\Release\net8.0-windows\publish\win-x64\SubnauticaLauncher.pdb
-C:\Users\mxz\Desktop\Subnautica Launcher\SubnauticaLauncher\bin\Release\net8.0-windows\publish\win-x64\SubnauticaLauncher.exe
