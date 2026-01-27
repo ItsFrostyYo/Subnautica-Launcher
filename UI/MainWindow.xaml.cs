@@ -55,6 +55,15 @@ namespace SubnauticaLauncher.UI
 
         // ================= TITLE BAR =================
 
+        private void UpdateResetMacroVisualState()
+        {
+            ResetMacroToggleButton.Content =
+                _macroEnabled ? "Enabled" : "Disabled";
+
+            ResetMacroToggleButton.Background =
+                _macroEnabled ? Brushes.Green : Brushes.DarkRed;
+        }
+
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -561,11 +570,7 @@ namespace SubnauticaLauncher.UI
         {
             _macroEnabled = !_macroEnabled;
 
-            ResetMacroToggleButton.Content =
-                _macroEnabled ? "Enabled" : "Disabled";
-
-            ResetMacroToggleButton.Background =
-                _macroEnabled ? Brushes.Green : Brushes.DarkRed;
+            UpdateResetMacroVisualState();
 
             SaveMacroSettings();
             RegisterResetHotkey();
@@ -628,8 +633,7 @@ namespace SubnauticaLauncher.UI
                     .Cast<ComboBoxItem>()
                     .First(i => (string)i.Content == mode.ToString());
 
-            ResetMacroToggleButton.Content =
-                _macroEnabled ? "Enabled" : "Disabled";
+            UpdateResetMacroVisualState();
             RegisterResetHotkey();
         }
 
