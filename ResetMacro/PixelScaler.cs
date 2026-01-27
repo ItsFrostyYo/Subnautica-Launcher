@@ -1,7 +1,9 @@
 ﻿using System.Drawing;
+using System.Runtime.Versioning;
 
 namespace SubnauticaLauncher.Display
 {
+    [SupportedOSPlatform("windows")]
     public static class PixelScaler
     {
         public static Point Scale(Point p, DisplayInfo display)

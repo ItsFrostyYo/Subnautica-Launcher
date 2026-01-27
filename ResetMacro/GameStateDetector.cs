@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SubnauticaLauncher.Display;
+using System;
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
@@ -9,27 +10,31 @@ namespace SubnauticaLauncher.Macros
     [SupportedOSPlatform("windows")]
     public static class GameStateDetector
     {
-        public static GameState Detect(GameStateProfile p)
+        // 🔥 NEW: display-aware detect
+        public static GameState Detect(GameStateProfile p, DisplayInfo display)
         {
             FocusSubnautica();
 
-            if (IsBlackScreen(p))
+            if (IsBlackScreen(p, display))
                 return GameState.BlackScreen;
 
-            if (Matches(p.MainMenuPixel, p.MainMenuColor, p.ColorTolerance))
+            if (Matches(display.ScalePoint(p.MainMenuPixel), p.MainMenuColor, p.ColorTolerance))
                 return GameState.MainMenu;
 
-            if (Matches(p.InGamePixel, p.InGameColor, p.ColorTolerance))
+            if (Matches(display.ScalePoint(p.InGamePixel), p.InGameColor, p.ColorTolerance))
                 return GameState.InGame;
 
             return GameState.Unknown;
         }
 
-        public static bool IsBlackScreen(GameStateProfile p)
+        // 🔥 NEW: display-aware black screen
+        public static bool IsBlackScreen(GameStateProfile p, DisplayInfo display)
         {
-            var c = GetPixel(p.BlackPixel);
+            var c = GetPixel(display.ScalePoint(p.BlackPixel));
             return c.R < 8 && c.G < 8 && c.B < 8;
         }
+
+        // ================= INTERNAL =================
 
         private static bool Matches(Point p, Color e, int t)
         {

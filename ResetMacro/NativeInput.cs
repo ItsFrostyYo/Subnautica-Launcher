@@ -1,24 +1,32 @@
-﻿using System;
+﻿using SubnauticaLauncher.Display;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
 namespace SubnauticaLauncher.Macros
 {
+    [SupportedOSPlatform("windows")]
     public static class NativeInput
-    {
-        public static async Task Click(Point p, int delayMs = 10)
-        {
-            SetCursorPos(p.X, p.Y);
-            MouseDown();
-            await Task.Delay(5);
-            MouseUp();
-            await Task.Delay(delayMs);
-        }
+    {       
 
-        public static void PressEsc()
+    public static async Task Click(Point p, int delayMs = 10)
+    {
+        var display = DisplayInfo.GetPrimary();
+
+        Point scaled = display.ScalePoint(p);
+
+        SetCursorPos(scaled.X, scaled.Y);
+        MouseDown();
+        await Task.Delay(5);
+        MouseUp();
+        await Task.Delay(delayMs);
+    }
+
+    public static void PressEsc()
         {
             KeyController.HoldStart(VK_ESCAPE);
             Thread.Sleep(50);
