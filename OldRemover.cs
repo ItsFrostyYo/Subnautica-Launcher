@@ -21,30 +21,11 @@ namespace SubnauticaLauncher
             string oldBackgroundsPath =
                 Path.Combine(AppPaths.DataPath, "backgrounds");
 
-            string oldPresetPath =
-                Path.Combine(oldBackgroundsPath, "BPreset.txt");
-
-            string newPresetPath =
-                Path.Combine(AppPaths.DataPath, "BPreset.txt");
-
             if (!Directory.Exists(oldBackgroundsPath))
                 return;
 
             try
             {
-                // ✅ If old preset exists, it ALWAYS wins
-                if (File.Exists(oldPresetPath))
-                {
-                    Directory.CreateDirectory(AppPaths.DataPath);
-
-                    File.Copy(
-                        oldPresetPath,
-                        newPresetPath,
-                        overwrite: true // 🔥 IMPORTANT FIX
-                    );
-                }
-
-                // Remove obsolete folder
                 Directory.Delete(oldBackgroundsPath, recursive: true);
             }
             catch

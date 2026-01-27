@@ -11,25 +11,25 @@ namespace SubnauticaLauncher.Macros
 {
     [SupportedOSPlatform("windows")]
     public static class NativeInput
-    {       
-
-    public static async Task Click(Point p, int delayMs = 10)
     {
-        var display = DisplayInfo.GetPrimary();
 
-        Point scaled = display.ScalePoint(p);
+        public static async Task Click(Point logicalPoint, int delayMs = 10)
+        {
+            var display = DisplayInfo.GetPrimary();
 
-        SetCursorPos(scaled.X, scaled.Y);
-        MouseDown();
-        await Task.Delay(5);
-        MouseUp();
-        await Task.Delay(delayMs);
-    }
+            Point physical = display.ScalePoint(logicalPoint);
 
-    public static void PressEsc()
+            SetCursorPos(physical.X, physical.Y);
+            MouseDown();
+            await Task.Delay(5);
+            MouseUp();
+            await Task.Delay(delayMs);
+        }
+
+        public static void PressEsc()
         {
             KeyController.HoldStart(VK_ESCAPE);
-            Thread.Sleep(50);
+            Thread.Sleep(25);
             KeyController.HoldStop(VK_ESCAPE);
         }
 

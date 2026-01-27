@@ -150,7 +150,7 @@
                     <TextBox x:Name="DisplayNameBox"
                              Margin="0,4,0,10"/>
 
-                    <TextBlock Text="Folder Name"
+                    <TextBlock Text="Folder Name (When Inactive)"
                                FontSize="14"
                                FontWeight="Heavy"/>
 

@@ -1,9 +1,6 @@
 ﻿using System;
 using System.IO;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
+using System.Text;
 
 namespace SubnauticaLauncher
 {
@@ -11,23 +8,56 @@ namespace SubnauticaLauncher
     {
         private static readonly object _lock = new();
 
+        private static string LogDirectory =>
+            AppPaths.LogsPath;
+
+        private static string LogFile =>
+            AppPaths.LogFile;
+
         public static void Log(string message)
+        {
+            Write("INFO", message);
+        }
+
+        public static void Warn(string message)
+        {
+            Write("WARN", message);
+        }
+
+        public static void Error(string message)
+        {
+            Write("ERROR", message);
+        }
+
+        public static void Exception(Exception ex, string? context = null)
+        {
+            var sb = new StringBuilder();
+
+            if (!string.IsNullOrWhiteSpace(context))
+                sb.AppendLine(context);
+
+            sb.AppendLine(ex.ToString());
+
+            Write("EXCEPTION", sb.ToString());
+        }
+
+        private static void Write(string level, string message)
         {
             try
             {
-                Directory.CreateDirectory(AppPaths.LogsPath);
+                Directory.CreateDirectory(LogDirectory);
 
                 var line =
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}";
 
                 lock (_lock)
                 {
-                    File.AppendAllText(AppPaths.LogFile, line + Environment.NewLine);
+                    File.AppendAllText(LogFile, line + Environment.NewLine);
                 }
             }
             catch
             {
-                // Never crash the launcher because of logging
+                // 🔒 Logging must NEVER crash the app
             }
         }
     }

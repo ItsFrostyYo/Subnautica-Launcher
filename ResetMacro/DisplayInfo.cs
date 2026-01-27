@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using System.Runtime.Versioning;
+using SubnauticaLauncher; // 🔥 Logger lives here
 
 namespace SubnauticaLauncher.Display
 {
@@ -13,7 +15,7 @@ namespace SubnauticaLauncher.Display
         ThreeK_1800p,
         FourK_2160p
     }
-    
+
     [SupportedOSPlatform("windows")]
     public sealed class DisplayInfo
     {
@@ -33,12 +35,29 @@ namespace SubnauticaLauncher.Display
             ScaleY = height / 1080f;
 
             Tier = DetectTier(width, height);
+
+            Logger.Log(
+                $"DisplayInfo Fetched for Reset Macro |" +
+                $"Resolution={width}x{height} | " +
+                $"ScaleX={ScaleX:F3} ScaleY={ScaleY:F3}"
+            );
         }
 
         public static DisplayInfo GetPrimary()
         {
-            var screen = Screen.PrimaryScreen
-                ?? throw new InvalidOperationException("No primary screen");
+            Logger.Log("Detecting primary display");
+
+            var screen = Screen.PrimaryScreen;
+            if (screen == null)
+            {
+                Logger.Log("ERROR: No Primary Screen could be Detected");
+                throw new InvalidOperationException("No primary screen");
+            }
+
+            Logger.Log(
+                $"Primary Screen Bounds Detected: " +
+                $"{screen.Bounds.Width}x{screen.Bounds.Height}"
+            );
 
             return new DisplayInfo(
                 screen.Bounds.Width,
@@ -48,28 +67,32 @@ namespace SubnauticaLauncher.Display
 
         private static MonitorTier DetectTier(int w, int h)
         {
+            MonitorTier tier;
+
             if (w >= 3800 && h >= 2100)
-                return MonitorTier.FourK_2160p;
-
-            if (w >= 3000 && h >= 1700)
-                return MonitorTier.ThreeK_1800p;
-
-            if (w >= 2500 && h >= 1400)
-                return MonitorTier.TwoK_1440p;
-
-            if (w >= 1800 && h >= 1000)
-                return MonitorTier.OneK_1080p;
-
-            return MonitorTier.Unknown;
+                tier = MonitorTier.FourK_2160p;
+            else if (w >= 3000 && h >= 1700)
+                tier = MonitorTier.ThreeK_1800p;
+            else if (w >= 2500 && h >= 1400)
+                tier = MonitorTier.TwoK_1440p;
+            else if (w >= 1800 && h >= 1000)
+                tier = MonitorTier.OneK_1080p;
+            else
+                tier = MonitorTier.Unknown;
+            
+            return tier;
         }
 
         // 🔥 THIS IS THE MONEY METHOD
         public Point ScalePoint(Point p)
         {
-            return new Point(
+            var scaled = new Point(
                 (int)Math.Round(p.X * ScaleX),
                 (int)Math.Round(p.Y * ScaleY)
+            
             );
+
+            return scaled;
         }
     }
 }

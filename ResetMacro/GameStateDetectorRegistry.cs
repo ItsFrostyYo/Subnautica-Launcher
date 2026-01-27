@@ -10,21 +10,21 @@ namespace SubnauticaLauncher.Macros
             // ================= 2014–2017 =================
             [2017] = new GameStateProfile
             {
-                MainMenuPixel = new Point(960, 520),
-                MainMenuColor = Color.FromArgb(255, 255, 255),
+                MainMenuPixel = new Point(788, 793),
+                MainMenuColor = Color.FromArgb(255, 43, 169, 197),
 
-                InGamePixel = new Point(50, 50),
-                InGameColor = Color.FromArgb(255, 255, 255),
+                InGamePixel = new Point(1027, 109),
+                InGameColor = Color.FromArgb(255, 64, 179, 157),
 
                 BlackPixel = new Point(960, 540),
                 ColorTolerance = 8
             },
-
+         
             // ================= 2018–2021 =================
             [2018] = new GameStateProfile
             {
-                MainMenuPixel = new Point(920, 925),
-                MainMenuColor = Color.FromArgb(255, 25, 113, 181),
+                MainMenuPixel = new Point(764, 793),
+                MainMenuColor = Color.FromArgb(255, 28, 83, 157),
 
                 InGamePixel = new Point(976, 124),
                 InGameColor = Color.FromArgb(255, 233, 242, 95),

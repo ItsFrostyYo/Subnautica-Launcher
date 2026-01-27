@@ -41,14 +41,15 @@ namespace SubnauticaLauncher.UI
         private void DeleteVersionDialog_Loaded(object sender, RoutedEventArgs e)
         {
             string bg = DefaultBg;
-
+            Logger.Log("Delete Version Window Successfully Opened");
             if (File.Exists(BgPreset))
             {
                 bg = File.ReadAllText(BgPreset).Trim();
                 if (string.IsNullOrWhiteSpace(bg))
                     bg = DefaultBg;
             }
-
+            
+            Logger.Log("Delete Version Window Background Applied Successfully");
             ApplyBackground(bg);
         }
 

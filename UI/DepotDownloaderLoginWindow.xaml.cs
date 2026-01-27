@@ -1,4 +1,9 @@
 ﻿using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.Macros;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Versions;
+using SubnauticaLauncher; // Logger
 using System;
 using System.IO;
 using System.Windows;
@@ -34,14 +39,14 @@ namespace SubnauticaLauncher.UI
         private void DepotDownloaderLoginWindow_Loaded(object sender, RoutedEventArgs e)
         {
             string bg = DefaultBg;
-
+            Logger.Log("Login Window has been Opened Successfully");
             if (File.Exists(BgPreset))
             {
                 bg = File.ReadAllText(BgPreset).Trim();
                 if (string.IsNullOrWhiteSpace(bg))
                     bg = DefaultBg;
             }
-
+            Logger.Log("Login Window Background Applied Successfully");
             ApplyBackground(bg);
         }
 
@@ -95,11 +100,13 @@ namespace SubnauticaLauncher.UI
 
         private void Minimize_Click(object sender, RoutedEventArgs e)
         {
+            Logger.Log("Login Window Minimized");
             WindowState = WindowState.Minimized;
         }
 
         private void Maximize_Click(object sender, RoutedEventArgs e)
         {
+            Logger.Log("Login Window Maximized");
             WindowState = WindowState == WindowState.Maximized
                 ? WindowState.Normal
                 : WindowState.Maximized;
@@ -107,6 +114,7 @@ namespace SubnauticaLauncher.UI
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {
+            Logger.Log("Login Window Closed");
             Close();
         }
 
@@ -117,7 +125,8 @@ namespace SubnauticaLauncher.UI
             if (string.IsNullOrWhiteSpace(Username) ||
                 string.IsNullOrWhiteSpace(Password))
             {
-                StatusText.Text = "Username and password required.";
+                StatusText.Text = "Username and Password required.";
+                Logger.Log("Failed to Login (Username and Password not Given)");
                 return;
             }
 
@@ -128,6 +137,7 @@ namespace SubnauticaLauncher.UI
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
+            Logger.Log("User Canceled Login");
             Close();
         }
     }

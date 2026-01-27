@@ -1,4 +1,5 @@
-﻿using SubnauticaLauncher.Installer;
+﻿using SubnauticaLauncher; // Logger
+using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.UI;
 using SubnauticaLauncher.Updates;
@@ -16,6 +17,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Application = System.Windows.Application;
 using Brushes = System.Windows.Media.Brushes;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
@@ -44,12 +46,14 @@ namespace SubnauticaLauncher.UI
         private static readonly string BgPreset =
         Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
-        private const string DefaultBg = "Grassy Plateau";
+        private const string DefaultBg = "Grassy Plateau";      
 
         public MainWindow()
         {
+            Logger.Log("MainWindow constructor");
+
             InitializeComponent();
-            Loaded += MainWindow_Loaded;            
+            Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
         }
 
@@ -68,6 +72,8 @@ namespace SubnauticaLauncher.UI
         {
             base.OnSourceInitialized(e);
 
+            Logger.Log("Window source initialized");
+
             var source = HwndSource.FromHwnd(
                 new WindowInteropHelper(this).Handle);
 
@@ -83,29 +89,43 @@ namespace SubnauticaLauncher.UI
                 HOTKEY_ID);
 
             if (!_macroEnabled || _resetKey == Key.None)
+            {
+                Logger.Log("Reset hotkey not registered (disabled or no key)");
                 return;
+            }
 
             uint vk = (uint)KeyInterop.VirtualKeyFromKey(_resetKey);
 
-            RegisterHotKey(
+            bool ok = RegisterHotKey(
                 new WindowInteropHelper(this).Handle,
                 HOTKEY_ID,
                 0,
                 vk);
+
+            Logger.Log($"Reset hotkey registered: Key={_resetKey}, Success={ok}");
         }
 
         private IntPtr WndProc(
-        IntPtr hwnd,
-            int msg,
+    IntPtr hwnd,
+    int msg,
     IntPtr wParam,
     IntPtr lParam,
     ref bool handled)
         {
             if (msg == WM_HOTKEY && wParam.ToInt32() == HOTKEY_ID)
             {
+                Logger.Log("Reset Macro Hotkey Pressed");
+
                 _ = Dispatcher.InvokeAsync(async () =>
                 {
-                    await OnResetHotkeyPressed();
+                    try
+                    {
+                        await OnResetHotkeyPressed();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Exception(ex, "Reset Macro Failed to Execute");
+                    }
                 });
 
                 handled = true;
@@ -145,26 +165,30 @@ namespace SubnauticaLauncher.UI
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // 1️⃣ RUN STARTUP INSTALLER FIRST (THIS WAS MISSING)
+            Logger.Log("Launcher UI Loaded Successfully");
+            
             if (!Directory.Exists(AppPaths.ToolsPath) ||
                 !File.Exists(DepotDownloaderInstaller.DepotDownloaderExe))
             {
-                var setup = new SetupWindow();
-                setup.Owner = this;
+                Logger.Warn("Required tools missing, opening setup window");
 
+                var setup = new SetupWindow { Owner = this };
                 bool? result = setup.ShowDialog();
+
                 if (result != true)
                 {
+                    Logger.Warn("Setup cancelled, shutting down");
                     Application.Current.Shutdown();
                     return;
                 }
             }
 
-            // 2️⃣ CHECK FOR APP UPDATES (AS BEFORE)
             await CheckForUpdatesOnStartup();
 
             Directory.CreateDirectory(AppPaths.DataPath);
             OldRemover.Run();
+
+            Logger.Log("Launcher data directory prepared");
 
             if (!File.Exists(BgPreset))
                 File.WriteAllText(BgPreset, DefaultBg);
@@ -172,15 +196,19 @@ namespace SubnauticaLauncher.UI
             string bg = File.ReadAllText(BgPreset).Trim();
             if (string.IsNullOrWhiteSpace(bg))
                 bg = DefaultBg;
-            
+
+            Logger.Log($"Applying background: {bg}");
+
             ApplyBackground(bg);
             SyncThemeDropdown(bg);
 
             LoadInstalledVersions();
             LoadMacroSettings();
+
+            Logger.Log("Startup Complete");
             ShowView(InstallsView);
         }
-        
+
         private void ApplyBackground(string preset)
         {
             try
@@ -358,36 +386,118 @@ namespace SubnauticaLauncher.UI
 
             try
             {
+                bool isGameRunning =
+                    Process.GetProcessesByName("Subnautica").Length > 0;
+
+                bool isAlreadyActive =
+                    Directory.Exists(activePath) &&
+                    Path.GetFullPath(target.HomeFolder)
+                        .Equals(Path.GetFullPath(activePath),
+                                StringComparison.OrdinalIgnoreCase);
+
+                // 🚫 Same version + running → BLOCK
+                if (isAlreadyActive && isGameRunning)
+                {
+                    MessageBox.Show(
+                        "This Subnautica version is already running.",
+                        "Launch Blocked",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information
+                    );
+
+                    SetStatus(target, VersionStatus.Active);
+                    return;
+                }
+
+                // ✅ Same version + not running → just launch
+                if (isAlreadyActive && !isGameRunning)
+                {
+                    SetStatus(target, VersionStatus.Launching);
+
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = Path.Combine(activePath, "Subnautica.exe"),
+                        WorkingDirectory = activePath,
+                        UseShellExecute = true
+                    });
+
+                    SetStatus(target, VersionStatus.Active);
+                    return;
+                }
+
+                // 🔁 Different version → switch required
                 SetStatus(target, VersionStatus.Switching);
 
                 bool wasRunning = await CloseGameIfRunning();
+
                 if (wasRunning)
+                {
                     await Task.Delay(1000);
+
+                    int yearGroup = BuildYearResolver.ResolveGroupedYear(target.HomeFolder);
+                    if (yearGroup >= 2022)
+                        await Task.Delay(1500);
+                }
 
                 await RestoreUntilGone(common);
 
                 if (Directory.Exists(activePath))
                     throw new IOException("Subnautica folder still exists after restore.");
 
-                Directory.Move(target.HomeFolder, activePath);
+                // Safe swap (Unity file-lock tolerant)
+                var start = DateTime.UtcNow;
+                while (true)
+                {
+                    try
+                    {
+                        Directory.Move(target.HomeFolder, activePath);
+                        break;
+                    }
+                    catch (IOException)
+                    {
+                        if ((DateTime.UtcNow - start).TotalMilliseconds > 10000)
+                            throw;
+
+                        await Task.Delay(250);
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        if ((DateTime.UtcNow - start).TotalMilliseconds > 10000)
+                            throw;
+
+                        await Task.Delay(250);
+                    }
+                }
+
                 await Task.Delay(250);
 
+                // 🚀 LAUNCH
                 SetStatus(target, VersionStatus.Launching);
+
+                // allow UI to repaint
+                await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
 
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = Path.Combine(activePath, "Subnautica.exe"),
-                    WorkingDirectory = activePath
+                    WorkingDirectory = activePath,
+                    UseShellExecute = true
                 });
-
+                await Task.Delay(250);
                 SetStatus(target, VersionStatus.Active);
                 LoadInstalledVersions();
+
             }
             catch (Exception ex)
             {
                 SetStatus(target, VersionStatus.Idle);
-                MessageBox.Show(ex.Message, "Launch Failed",
-                    MessageBoxButton.OK, MessageBoxImage.Error);
+
+                MessageBox.Show(
+                    ex.Message,
+                    "Launch Failed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
             }
         }
 
@@ -551,27 +661,32 @@ namespace SubnauticaLauncher.UI
         }
 
         // ================= NAV =================        
-       
+
         private async Task OnResetHotkeyPressed()
         {
             if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
+            {
+                Logger.Warn("Macro Reset Hotkey Pressed, Macro Failed - No Gamemode Selected");
                 return;
+            }
 
             if (item.Content is not string modeText)
                 return;
 
             var mode = Enum.Parse<GameMode>(modeText);
 
-            await ResetMacroService.RunAsync(mode);
+            Logger.Log($"Running Reset Macro Successfully: Gamemode={mode}");
 
+            await ResetMacroService.RunAsync(mode);
         }
 
         private void ResetMacroToggleButton_Click(object sender, RoutedEventArgs e)
         {
             _macroEnabled = !_macroEnabled;
 
-            UpdateResetMacroVisualState();
+            Logger.Log($"Reset Macro Enabled={_macroEnabled}");
 
+            UpdateResetMacroVisualState();
             SaveMacroSettings();
             RegisterResetHotkey();
         }
@@ -612,12 +727,18 @@ namespace SubnauticaLauncher.UI
         $"Hotkey={_resetKey}",
         $"Mode={mode}"
     });
+
+            Logger.Log($"Reset Macro Settings Saved Successfully. Enabled={_macroEnabled}, Hotkey={_resetKey}, Gamemode={mode}");
         }
 
         private void LoadMacroSettings()
         {
             if (!File.Exists(SettingsPath))
+            {
+                Logger.Log("Reset Macro Settings could not be found Setting to Default.");
+                UpdateResetMacroVisualState();
                 return;
+            }
 
             var dict = File.ReadAllLines(SettingsPath)
                 .Select(l => l.Split('='))
@@ -626,6 +747,8 @@ namespace SubnauticaLauncher.UI
             _macroEnabled = bool.Parse(dict["Enabled"]);
             _resetKey = Enum.Parse<Key>(dict["Hotkey"]);
             var mode = Enum.Parse<GameMode>(dict["Mode"]);
+
+            Logger.Log($"Reset Macro Settings Loaded Successfully. Enabled={_macroEnabled}, Hotkey={_resetKey}, Mode={mode}");
 
             ResetHotkeyBox.Text = _resetKey.ToString();
             ResetGamemodeDropdown.SelectedItem =
@@ -656,6 +779,8 @@ namespace SubnauticaLauncher.UI
 
         private async void MainWindow_Closing(object? s, CancelEventArgs e)
         {
+            Logger.Log("Launcher is now closing");
+
             UnregisterHotKey(
                 new WindowInteropHelper(this).Handle,
                 HOTKEY_ID);
@@ -664,7 +789,12 @@ namespace SubnauticaLauncher.UI
             {
                 await RestoreUntilGone(AppPaths.SteamCommonPath);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Failed to Restore Original Folder Names");                
+            }
+
+            Logger.Log("Launcher Successfully Shutdown");
         }
     }
 }

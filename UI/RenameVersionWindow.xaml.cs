@@ -110,6 +110,20 @@ namespace SubnauticaLauncher.UI
             string newDisplay = DisplayNameBox.Text.Trim();
             string newFolder = FolderNameBox.Text.Trim();
 
+            // 🔥 HARD BLOCK: Subnautica folder name
+            if (string.Equals(newFolder, "Subnautica", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    "The folder name cannot be 'Subnautica'.\n\n" +
+                    "This name is reserved for the active game folder.\n" +
+                    "Please choose a different name.",
+                    "Invalid Folder Name",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning
+                );
+                return;
+            }
+
             bool displayChanged = newDisplay != Version.DisplayName;
             bool folderChanged = newFolder != Version.FolderName;
 
@@ -120,7 +134,7 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            // Rename folder if needed
+            // ================= RENAME FOLDER =================
             if (folderChanged)
             {
                 string newPath = Path.Combine(
@@ -144,7 +158,7 @@ namespace SubnauticaLauncher.UI
                 Version.FolderName = newFolder;
             }
 
-            // Update display name
+            // ================= DISPLAY NAME =================
             if (displayChanged)
             {
                 Version.DisplayName = newDisplay;

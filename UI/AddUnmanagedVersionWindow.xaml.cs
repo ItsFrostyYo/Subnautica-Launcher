@@ -142,21 +142,47 @@ namespace SubnauticaLauncher.UI
 
         private void ValidateFolder(string folder)
         {
+            string folderName = Path.GetFileName(folder);
+
+            // ❌ HARD BLOCK: Subnautica folder name
+            if (string.Equals(folderName, "Subnautica", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(
+                    "The folder name cannot be 'Subnautica'.\n\n" +
+                    "This name is reserved for the active game folder.\n" +
+                    "Please rename the folder before adding it.",
+                    "Invalid Folder Name",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning
+                );
+                return;
+            }
+
             if (!File.Exists(Path.Combine(folder, "Subnautica.exe")))
             {
-                MessageBox.Show("Selected folder does not contain Subnautica.exe");
+                MessageBox.Show(
+                    "Selected folder does not contain Subnautica.exe",
+                    "Invalid Folder",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error
+                );
                 return;
             }
 
             if (File.Exists(Path.Combine(folder, "Version.info")))
             {
-                MessageBox.Show("This version is already managed by the launcher.");
+                MessageBox.Show(
+                    "This version is already managed by the launcher.",
+                    "Already Managed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information
+                );
                 return;
             }
 
             FolderPathBox.Text = folder;
-            FolderNameBox.Text = Path.GetFileName(folder);
-            DisplayNameBox.Text = Path.GetFileName(folder);
+            FolderNameBox.Text = folderName;
+            DisplayNameBox.Text = folderName;
         }
 
         private void Add_Click(object sender, RoutedEventArgs e)

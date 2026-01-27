@@ -32,13 +32,13 @@ namespace SubnauticaLauncher.Macros
             // ================= MAIN MENU: INSTANT PATH =================
             if (state == GameState.MainMenu)
             {
-                await NativeInput.Click(display.ScalePoint(steps.PlayButton), steps.ClickDelayFast);
-                await NativeInput.Click(display.ScalePoint(steps.StartNewGame), steps.ClickDelaySlow);
+                await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
+                await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
 
                 if (needsGamemodeDelay)
-                    await Task.Delay(250); // 👀 verifier-visible delay
+                    await Task.Delay(150); // 👀 verifier-visible delay
 
-                await NativeInput.Click(display.ScalePoint(steps.SelectGameMode), steps.ClickDelayMedium);
+                await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);                
                 return;
             }
 
@@ -46,11 +46,11 @@ namespace SubnauticaLauncher.Macros
             if (state == GameState.InGame)
             {
                 NativeInput.PressEsc();
-                await Task.Delay(200);
+                await Task.Delay(25);
 
-                await NativeInput.Click(display.ScalePoint(steps.QuitButton), steps.ClickDelayMedium);
-                await NativeInput.Click(display.ScalePoint(steps.ConfirmQuit1), steps.ClickDelaySlow);
-                await NativeInput.Click(display.ScalePoint(steps.ConfirmQuit2), steps.ClickDelaySlow);
+                await NativeInput.Click(steps.QuitButton, steps.ClickDelayMedium);
+                await NativeInput.Click(steps.ConfirmQuit1, steps.ClickDelayMedium);
+                await NativeInput.Click(steps.ConfirmQuit2, steps.ClickDelayMedium);                
             }
 
             // ================= BLACK SCREEN DETECTION =================
@@ -73,7 +73,7 @@ namespace SubnauticaLauncher.Macros
                 while (GameStateDetector.IsBlackScreen(profile, display))
                     await Task.Delay(50);
 
-                await Task.Delay(250);
+                await Task.Delay(150);
             }
             else
             {
@@ -87,17 +87,17 @@ namespace SubnauticaLauncher.Macros
                     await Task.Delay(50);
                 }
 
-                await Task.Delay(250);
+                await Task.Delay(150);
             }
 
             // ================= START NEW GAME =================
-            await NativeInput.Click(display.ScalePoint(steps.PlayButton), steps.ClickDelayFast);
-            await NativeInput.Click(display.ScalePoint(steps.StartNewGame), steps.ClickDelaySlow);
+            await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
+            await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);            
 
             if (needsGamemodeDelay)
-                await Task.Delay(250); // 👀 verifier-visible delay
-
-            await NativeInput.Click(display.ScalePoint(steps.SelectGameMode), steps.ClickDelayMedium);
+                await Task.Delay(150); // 👀 verifier-visible delay
+            
+            await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);            
         }
     }
 }

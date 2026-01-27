@@ -8,10 +8,24 @@ namespace SubnauticaLauncher.Updates;
 
 public static class Updates
 {
-    public static readonly string CurrentVersion = "1.0.3";
+    public static readonly string CurrentVersion = "1.0.4";
 
     public static readonly UpdateEntry[] History =
     {
+        new UpdateEntry
+        {
+            Version = "1.0.4",
+            Title = "Reset Macro and Folder Management Hotfix",
+            Date = "Jan 27, 2026",
+            Changes = new[]
+            {
+                "Fixed Folder Management",
+                "Finalized Reset Macros (No Early Access Versions)",
+                "Added Logging"               
+
+            }
+        },
+
         new UpdateEntry
         {
             Version = "1.0.3",

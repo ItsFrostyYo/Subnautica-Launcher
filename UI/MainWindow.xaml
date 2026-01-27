@@ -110,7 +110,7 @@ UseAeroCaptionButtons="False" />
                        FontWeight="SemiBold"/>
             
             <TextBlock Grid.Column="1"
-           Text="v1.0.3"
+           Text="v1.0.4"
            VerticalAlignment="Center"
            FontSize="13"  
            Margin="150,3,0,0"
@@ -501,9 +501,9 @@ UseAeroCaptionButtons="False" />
                                         <ComboBoxItem Content="Hardcore"/>
                                         <ComboBoxItem Content="Creative"/>
                                         <ComboBoxItem Content="Freedom"/>
-                                        <ComboBoxItem Content="Save File Slot 1"/>
-                                        <ComboBoxItem Content="Save File Slot 2"/>
-                                        <ComboBoxItem Content="Save File Slot 3"/>a
+                                        <ComboBoxItem Content="SaveSlot1"/>
+                                        <ComboBoxItem Content="SaveSlot2"/>
+                                        <ComboBoxItem Content="SaveSlot3"/>
                                     </ComboBox>
 
                                     <!-- ENABLE TOGGLE -->
