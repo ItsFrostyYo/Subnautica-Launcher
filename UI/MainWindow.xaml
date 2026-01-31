@@ -22,7 +22,7 @@
 
     <!-- ================= RESOURCES ================= -->
     <Window.Resources>
-        
+
         <local:ActiveColorConverter x:Key="ActiveColorConverter"/>
 
         <Style TargetType="TextBlock">
@@ -62,6 +62,56 @@
             </Setter>
         </Style>
 
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Height" Value="35"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="White"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton
+                        Background="Transparent"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                        Focusable="False"/>
+
+                            <ContentPresenter
+                        Content="{TemplateBinding SelectionBoxItem}"
+                        Margin="8,2,30,2"
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Left"
+                        TextElement.Foreground="White"/>
+
+                            <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                          Fill="White"
+                          HorizontalAlignment="Right"
+                          Margin="0,0,10,0"
+                          VerticalAlignment="Center"/>
+
+                            <Popup x:Name="PART_Popup"
+                           Placement="Bottom"
+                           IsOpen="{TemplateBinding IsDropDownOpen}"
+                           AllowsTransparency="True">
+                                <Border Background="Black"
+                                BorderBrush="White"
+                                BorderThickness="2"
+                                CornerRadius="5"
+                                Margin="0,4,0,0">
+                                    <ScrollViewer>
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
     <shell:WindowChrome.WindowChrome>
@@ -72,7 +122,7 @@ CornerRadius="0"
 GlassFrameThickness="0"
 UseAeroCaptionButtons="False" />
     </shell:WindowChrome.WindowChrome>
-    
+
     <!-- ================= ROOT ================= -->
     <Grid>
 
@@ -104,23 +154,23 @@ UseAeroCaptionButtons="False" />
             <!-- TITLE -->
             <TextBlock Grid.Column="1"
                        Text="Subnautica Launcher"
-                       VerticalAlignment="Center"
+                       VerticalAlignment="Top"
                        FontSize="13"  
-                       Margin="0,3,0,0"
+                       Margin="0,6,552,0"
                        FontWeight="SemiBold"/>
-            
+
             <TextBlock Grid.Column="1"
-           Text="v1.0.4"
-           VerticalAlignment="Center"
+           Text="v1.0.5"
+           VerticalAlignment="Top"
            FontSize="13"  
-           Margin="150,3,0,0"
+           Margin="135,6,510,0"
            FontWeight="SemiBold"/>
 
             <!-- WINDOW BUTTONS -->
             <StackPanel Grid.Column="2"
             Orientation="Horizontal">
 
-           <Button Content="—"
+                <Button Content="—"
             Width="44"
             Height="25"
             Background="Transparent"
@@ -129,7 +179,7 @@ UseAeroCaptionButtons="False" />
             Click="Minimize_Click"
             shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
 
-           <Button Content="□"
+                <Button Content="□"
             Width="44"
             Height="25"
             Background="Transparent"
@@ -176,10 +226,10 @@ UseAeroCaptionButtons="False" />
                         <StackPanel Grid.Row="0"
                         VerticalAlignment="Center">
 
-                            <Button Content="Installations"
+                            <Button Content="Versions List"
                         Width="185"
                         Height="60"
-                        Margin="0,45"
+                        Margin="0,5"
                         FontSize="25"
                         Background="#154966"
                         Style="{StaticResource RoundedButton}"
@@ -188,16 +238,27 @@ UseAeroCaptionButtons="False" />
                             <Button Content="Settings"
                         Width="185"
                         Height="60"
-                        FontSize="25"            
+                        FontSize="25" 
+                        Margin="0,25,0,0"            
                         Background="#154966"
                         Style="{StaticResource RoundedButton}"
                         Click="SettingsTab_Click"/>
+
+                            <Button Content="Tools"
+        Width="185"
+        Height="60"
+        FontSize="25"
+        Margin="0,25,0,0"
+        Background="#154966"
+        Style="{StaticResource RoundedButton}"
+        Click="ToolsTab_Click"/>
+
 
                             <Button Content="Updates"
                         Width="185"
                         Height="60"
                         FontSize="25"
-                        Margin="0,50"
+                        Margin="0,25"
                         Background="#154966"
                         Style="{StaticResource RoundedButton}"
                         Click="InfoTab_Click"/>
@@ -225,21 +286,16 @@ UseAeroCaptionButtons="False" />
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Text="Versions List"
-                           HorizontalAlignment="Center"
-                           FontSize="25"
-                           FontWeight="UltraBold"                          
-                           Margin="-55,0,0,12"/>
-
                             <!-- ROUNDED VERSIONS LIST -->
                             <Border Grid.Row="1"
-        Margin="10"
+        Margin="0,50,10,15"
         Background="#90000000"
         CornerRadius="14"
         Padding="6">
 
                                 <ListBox x:Name="InstalledVersionsList"
              FontSize="17"
+             Margin="0,0,0,0"                            
              FontWeight="UltraLight"
              Background="Transparent"
              BorderThickness="0">
@@ -259,121 +315,68 @@ UseAeroCaptionButtons="False" />
 
                             <StackPanel Grid.Row="2"
                             Orientation="Horizontal"
-                            HorizontalAlignment="Right"
+                            HorizontalAlignment="Center"
                             Margin="0,12,0,0">
 
-                                <Button Content="Add Version"
-                            Width="145"
+                                <Button Content="Open Folder"
+Width="140"
+Height="44"
+Margin="0,0,15,0"
+Background="#154966"
+Style="{StaticResource RoundedButton}"
+Click="OpenInstallFolder_Click"/>
+
+                                <Button Content="Add"
+                            Width="76"
                             Height="44"
                             Margin="0,0,15,0"
                             Background="#154966"
                             Style="{StaticResource RoundedButton}"
                             Click="InstallVersion_Click"/>
 
-                                <Button Content="Open Folder"
-                            Width="140"
-                            Height="44"
-                            Margin="0,0,15,0"
-                            Background="#154966"
-                            Style="{StaticResource RoundedButton}"
-                            Click="OpenInstallFolder_Click"/>
-
-                                <Button Content="Rename"
-                            Width="120"
-                            Height="44"
-                            Margin="0,0,15,0"
-                            Background="#154966"
-                            Style="{StaticResource RoundedButton}"
-                            Click="RenameVersion_Click"/>
-
-                                <Button Content="Delete"
-                            Width="120"
-                            Height="44"
-                            Margin="0,0,15,0"
-                            Background="#8B2C2C"
-                            Style="{StaticResource RoundedButton}"
-                            Click="DeleteVersion_Click"/>
+                                <Button Content="Edit"
+Width="76"
+Height="44"
+Margin="0,0,15,0"
+Background="#154966"
+Style="{StaticResource RoundedButton}"
+Click="EditVersion_Click"/>
                             </StackPanel>
                         </Grid>
 
                         <!-- ===== SETTINGS VIEW ===== -->
                         <Grid x:Name="SettingsView"
-                  Visibility="Collapsed"
-                  Margin="24">
+      Visibility="Collapsed"
+      Margin="24">
+
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
+                            <!-- ================= LEFT: CUSTOMIZE ================= -->
                             <Border Grid.Column="0"
-                        Margin="0,0,12,0"
-                        Background="#80000000"
-                        CornerRadius="12"
-                        Padding="16">
+            Margin="0,0,12,0"
+            Background="#80000000"
+            CornerRadius="12"
+            Padding="16">
 
                                 <StackPanel>
                                     <TextBlock Text="Customize"
-                                   FontSize="20"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,12"/>
+                       FontSize="20"
+                       FontWeight="Bold"
+                       Margin="0,0,0,12"/>
 
                                     <TextBlock Text="Background"
-                                   FontWeight="SemiBold"
-                                   Margin="0,0,0,6"/>
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,6"/>
 
-                                    <!-- ✅ FIXED COMBOBOX -->
                                     <ComboBox x:Name="ThemeDropdown"
-          Height="34"
-          Foreground="White"
-          BorderBrush="White"
-          BorderThickness="1"
-          Background="Transparent"
-          SelectionChanged="ThemeDropdown_SelectionChanged">
+                      Style="{StaticResource DarkComboBox}"
+                      SelectionChanged="ThemeDropdown_SelectionChanged">
 
-                                        <!-- ✅ THIS IS THE FIX -->
-                                        <ComboBox.Template>
-                                            <ControlTemplate TargetType="ComboBox">
-                                                <Grid>
-                                                    <ToggleButton x:Name="ToggleButton"
-                              Background="Transparent"
-                              BorderBrush="{TemplateBinding BorderBrush}"
-                              BorderThickness="{TemplateBinding BorderThickness}"
-                              IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
-                              Focusable="False"/>
-
-                                                    <ContentPresenter
-                    Content="{TemplateBinding SelectionBoxItem}"
-                    Margin="8,2,30,2"
-                    VerticalAlignment="Center"
-                    HorizontalAlignment="Left"
-                    TextElement.Foreground="White"/>
-
-                                                    <Path Data="M 0 0 L 4 4 L 8 0 Z"
-                      Fill="White"
-                      HorizontalAlignment="Right"
-                      Margin="0,0,10,0"
-                      VerticalAlignment="Center"/>
-
-                                                    <Popup x:Name="PART_Popup"
-                       Placement="Bottom"
-                       IsOpen="{TemplateBinding IsDropDownOpen}"
-                       AllowsTransparency="True">
-                                                        <Border Background="Black"
-                            BorderBrush="White"
-                            BorderThickness="2"
-                            CornerRadius="5"
-                            Margin="0,4,0,0">
-                                                            <ScrollViewer>
-                                                                <ItemsPresenter/>
-                                                            </ScrollViewer>
-                                                        </Border>
-                                                    </Popup>
-                                                </Grid>
-                                            </ControlTemplate>
-                                        </ComboBox.Template>
-
-                                        <!-- items unchanged -->
                                         <ComboBoxItem Content="Lifepod"/>
+                                        <ComboBoxItem Content="Safe Shallows"/>
                                         <ComboBoxItem Content="Kelp Forest"/>
                                         <ComboBoxItem Content="Grassy Plateau"/>
                                         <ComboBoxItem Content="Lost River"/>
@@ -388,115 +391,117 @@ UseAeroCaptionButtons="False" />
                                     </ComboBox>
 
                                     <Button Content="Choose Custom Background"
-                                Height="35"
-                                Margin="0,15,0,0"
-                                Background="#154966"
-                                Style="{StaticResource RoundedButton}"
-                                Click="ChooseCustomBackground_Click"/>
+                    Height="35"
+                    Margin="0,15,0,0"
+                    Background="#154966"
+                    Style="{StaticResource RoundedButton}"
+                    Click="ChooseCustomBackground_Click"/>
                                 </StackPanel>
                             </Border>
-                            <!-- ================= RESET MACRO ================= -->
-                            <Border Margin="0,200,0,0"
-        Background="Transparent"
-        CornerRadius="10"
-        Padding="12">
+
+                            <!-- ================= RIGHT: OPTIONS ================= -->
+                            <Border Grid.Column="1"
+            Margin="12,0,0,0"
+            Background="#60000000"
+            CornerRadius="12"
+            Padding="16">
+
+                                <StackPanel>
+                                    <TextBlock Text="Options"
+                       FontSize="20"
+                       FontWeight="Bold"
+                       Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="(More options coming soon)"
+                       Foreground="#AAAAAA"
+                       FontStyle="Italic"/>
+                                </StackPanel>
+
+                            </Border>
+
+                        </Grid>
+
+                        <!-- ===== TOOLS VIEW ===== -->
+                        <Grid x:Name="ToolsView"
+      Visibility="Collapsed"
+      Margin="24">
+
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- ================= LEFT: RESET MACRO + EXPLOSION ================= -->
+                            <Border Grid.Column="0"
+            Background="#80000000"
+            CornerRadius="12"
+            Padding="16"
+            Margin="0,0,12,0">
 
                                 <StackPanel>
 
-                                    <TextBlock Text="Reset Macro"
-                   FontSize="18"
-                   FontWeight="Bold"
-                   Margin="0,0,0,12"/>
-
-                                    <!-- HOTKEY -->
-                                    <TextBlock Text="Hotkey"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,4"/>
-
-                                    <Grid Margin="0,0,0,10">
+                                    <!-- ===== RESET MACRO HEADER ===== -->
+                                    <Grid Margin="0,0,0,16">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <!-- Hotkey display -->
+                                        <TextBlock Text="Reset Macro"
+                           FontSize="20"
+                           FontWeight="Bold"
+                           VerticalAlignment="Center"/>
+
+                                        <Button x:Name="ResetMacroToggleButton"
+                        Grid.Column="1"
+                        Width="110"
+                        Height="30"
+                        Margin="8,0,0,0"
+                        Background="#8B2C2C"
+                        Content="Disabled"
+                        Style="{StaticResource RoundedButton}"
+                        Click="ResetMacroToggleButton_Click"/>
+                                    </Grid>
+
+                                    <!-- HOTKEY -->
+                                    <TextBlock Text="Hotkey"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,4"/>
+
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
                                         <TextBox x:Name="ResetHotkeyBox"
-         Height="32"
-         IsReadOnly="True"
-         Text="Not set"
-         Foreground="#CCCCCC"
-         Background="#22000000"
-         BorderBrush="White"
-         BorderThickness="1"
-         Padding="8"
-         VerticalContentAlignment="Center"/>
+                         Height="32"
+                         IsReadOnly="True"
+                         Text="Not set"
+                         Foreground="#CCCCCC"
+                         Background="#22000000"
+                         BorderBrush="White"
+                         BorderThickness="1"
+                         Padding="8"/>
 
-
-                                        <!-- Set button -->
-                                        <Button Content="Set"
-        Grid.Column="1"
-        Width="70"
-        Height="32"
-        Margin="8,0,10,0"
-        Background="#154966"
-        Style="{StaticResource RoundedButton}"
-        Click="SetResetHotkey_Click"/>
+                                        <Button Grid.Column="1"
+                        Content="Set"
+                        Width="70"
+                        Height="32"
+                        Margin="8,0,0,0"
+                        Background="#154966"
+                        Style="{StaticResource RoundedButton}"
+                        Click="SetResetHotkey_Click"/>
                                     </Grid>
 
                                     <!-- GAMEMODE -->
                                     <TextBlock Text="Gamemode"
-                   FontWeight="SemiBold"
-                   Margin="0,0,0,4"/>
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,4"/>
 
                                     <ComboBox x:Name="ResetGamemodeDropdown"
-          Height="35"
-          Margin="0,0,15,0"
-          Foreground="White"
-          BorderBrush="White"
-          BorderThickness="1"
-          Background="Transparent"
-          SelectionChanged="ResetGamemodeDropdown_SelectionChanged">
-
-                                        <!-- reuse SAME template -->
-                                        <ComboBox.Template>
-                                            <ControlTemplate TargetType="ComboBox">
-                                                <Grid>
-                                                    <ToggleButton Background="Transparent"
-                                      BorderBrush="{TemplateBinding BorderBrush}"
-                                      BorderThickness="{TemplateBinding BorderThickness}"
-                                      IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"/>
-
-                                                    <ContentPresenter
-                            Content="{TemplateBinding SelectionBoxItem}"
-                            Margin="8,2,30,2"
-                            VerticalAlignment="Center"
-                            HorizontalAlignment="Left"
-                            TextElement.Foreground="White"/>
-
-                                                    <Path Data="M 0 0 L 4 4 L 8 0 Z"
-                              Fill="White"
-                              HorizontalAlignment="Right"
-                              Margin="0,0,10,0"
-                              VerticalAlignment="Center"/>
-
-                                                    <Popup x:Name="PART_Popup"
-                               Placement="Bottom"
-                               IsOpen="{TemplateBinding IsDropDownOpen}"
-                               AllowsTransparency="True">
-                                                        <Border Background="#22000000"
-                                    BorderBrush="White"
-                                    BorderThickness="1"
-                                    CornerRadius="6"
-                                    Margin="0,4,0,0">
-                                                            <ScrollViewer>
-                                                                <ItemsPresenter/>
-                                                            </ScrollViewer>
-                                                        </Border>
-                                                    </Popup>
-                                                </Grid>
-                                            </ControlTemplate>
-                                        </ComboBox.Template>
-
+                      Style="{StaticResource DarkComboBox}"
+                      SelectionChanged="ResetGamemodeDropdown_SelectionChanged">
                                         <ComboBoxItem Content="Survival"/>
                                         <ComboBoxItem Content="Hardcore"/>
                                         <ComboBoxItem Content="Creative"/>
@@ -506,42 +511,63 @@ UseAeroCaptionButtons="False" />
                                         <ComboBoxItem Content="SaveSlot3"/>
                                     </ComboBox>
 
-                                    <!-- ENABLE TOGGLE -->
-                                    <Grid Margin="0,-265,10,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
+                                    <!-- ===== SEPARATOR ===== -->
+                                    <Border Height="1"
+                    Background="#55FFFFFF"
+                    Margin="0,16"/>
 
-                                        <Button x:Name="ResetMacroToggleButton"
-        Grid.Column="1"
-        Click="ResetMacroToggleButton_Click"                                        
-        Width="120"
-        Height="34"
-        Margin="8,0,0,0"
-        Background="#8B2C2C"
-        Content="Disabled"
-        Style="{StaticResource RoundedButton}"/>
-                                    </Grid>
+                                    <!-- ===== EXPLOSION RESET ===== -->
+                                    <TextBlock Text="Reset Until Explosion"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Margin="0,0,0,8"/>
+
+                                    <Button x:Name="ExplosionResetToggleButton"
+                    Width="160"
+                    Height="32"
+                    Background="#8B2C2C"
+                    Content="Disabled"
+                    Style="{StaticResource RoundedButton}"
+                    Click="ExplosionResetToggle_Click"/>
+
+                                    <TextBlock Text="Explosion Time Window"
+                       FontWeight="SemiBold"
+                       Margin="0,12,0,4"/>
+
+                                    <ComboBox x:Name="ExplosionPresetDropdown"
+                      IsEnabled="False"
+                      Style="{StaticResource DarkComboBox}"
+                      SelectionChanged="ExplosionPresetDropdown_SelectionChanged">
+                                        <ComboBoxItem Content="46:00 → 46:30" Tag="Min46_To_4630"/>
+                                        <ComboBoxItem Content="46:00 → 47:00"  Tag="Min46_To_47"/>
+                                        <ComboBoxItem Content="46:00 → 48:00"  Tag="Min46_To_48"/>
+                                        <ComboBoxItem Content="46:00 → 50:00"  Tag="Min46_To_50"/>
+                                        <ComboBoxItem Content="Under 1 Hour"   Tag="Under1Hour"/>
+                                        <ComboBoxItem Content="1h+"            Tag="OneHourPlus"/>
+                                    </ComboBox>
 
                                 </StackPanel>
                             </Border>
 
+                            <!-- ================= RIGHT: FUTURE TOOLS ================= -->
                             <Border Grid.Column="1"
-                        Margin="12,0,0,0"
-                        Background="#60000000"
-                        CornerRadius="12"
-                        Padding="16">
+            Background="#60000000"
+            CornerRadius="12"
+            Padding="16">
+
                                 <StackPanel>
-                                    <TextBlock Text="Options"
-                                   FontSize="20"
-                                   FontWeight="Bold"
-                                   Margin="0,0,0,12"/>
-                                    <TextBlock Text="(More options coming soon)"
-                                   Foreground="#AAAAAA"
-                                   FontStyle="Italic"/>
+                                    <TextBlock Text="Future Tools"
+                       FontSize="20"
+                       FontWeight="Bold"
+                       Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="(More Tools Coming Soon)"
+                       Foreground="#AAAAAA"
+                       FontStyle="Italic"/>
                                 </StackPanel>
+
                             </Border>
+
                         </Grid>
 
                         <!-- ===== UPDATES VIEW ===== -->
@@ -580,6 +606,6 @@ UseAeroCaptionButtons="False" />
                     </Grid>
                 </Grid>
             </Border>
-    </Viewbox>
+        </Viewbox>
     </Grid>
 </Window>

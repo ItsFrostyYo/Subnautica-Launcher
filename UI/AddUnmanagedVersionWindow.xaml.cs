@@ -21,7 +21,7 @@ namespace SubnauticaLauncher.UI
         private static readonly string BgPreset =
     Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
-        private const string DefaultBg = "Grassy Plateau";
+        private const string DefaultBg = "Lifepod";
 
         private ImageBrush GetBackgroundBrush()
         {

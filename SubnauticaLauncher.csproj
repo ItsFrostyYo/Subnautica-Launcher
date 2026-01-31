@@ -7,9 +7,9 @@
 		<UseWindowsForms>true</UseWindowsForms>
 
 		<!-- 🔥 ADD THESE -->
-		<Version>1.0.4</Version>
-		<AssemblyVersion>1.0.4.0</AssemblyVersion>
-		<FileVersion>1.0.4.0</FileVersion>
+		<Version>1.0.5</Version>
+		<AssemblyVersion>1.0.5.0</AssemblyVersion>
+		<FileVersion>1.0.5.0</FileVersion>
 
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -33,6 +33,7 @@
 	  <None Remove="Assets\Backgrounds\Kelp Forest.png" />
 	  <None Remove="Assets\Backgrounds\Lifepod.png" />
 	  <None Remove="Assets\Backgrounds\Lost River.png" />
+	  <None Remove="Assets\Backgrounds\Safe Shallows.png" />
 	  <None Remove="Assets\Backgrounds\Sea Dragon Leviathan.png" />
 	  <None Remove="Assets\Icons\SNL.ico" />
 	  <None Remove="Assets\Icons\SNLIcon.png" />
@@ -75,6 +76,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Backgrounds\Reaper Leviathan.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Safe Shallows.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Backgrounds\Sea Dragon Leviathan.png">

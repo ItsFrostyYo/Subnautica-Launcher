@@ -1,7 +1,8 @@
 ﻿using SubnauticaLauncher; // Logger
+using SubnauticaLauncher.Explosion;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Macros;
-using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Memory;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
 using System;
@@ -46,7 +47,10 @@ namespace SubnauticaLauncher.UI
         private static readonly string BgPreset =
         Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
-        private const string DefaultBg = "Grassy Plateau";      
+        private const string DefaultBg = "Lifepod";
+        private bool _explosionResetEnabled;
+        private ExplosionTimePreset _explosionPreset = ExplosionTimePreset.Min46_To_4630;
+
 
         public MainWindow()
         {
@@ -205,8 +209,26 @@ namespace SubnauticaLauncher.UI
             LoadInstalledVersions();
             LoadMacroSettings();
 
+            ExplosionResetSettings.Load();
+
+            ExplosionResetToggleButton.Content =
+                ExplosionResetSettings.Enabled ? "Enabled" : "Disabled";
+
+            ExplosionResetToggleButton.Background =
+                ExplosionResetSettings.Enabled ? Brushes.Green : Brushes.DarkRed;
+
+            ExplosionPresetDropdown.IsEnabled =
+                ExplosionResetSettings.Enabled;
+
+            ExplosionPresetDropdown.SelectedItem =
+                ExplosionPresetDropdown.Items
+                    .Cast<ComboBoxItem>()
+                    .FirstOrDefault(i =>
+                        (string)i.Tag == ExplosionResetSettings.Preset.ToString());
+
             Logger.Log("Startup Complete");
             ShowView(InstallsView);
+            //new ExplosionTimeWindow().Show(); Disabled (Was for Testing)
         }
 
         private void ApplyBackground(string preset)
@@ -326,14 +348,31 @@ namespace SubnauticaLauncher.UI
                 UpdatesPanel.Children.Add(border);
             }
         }
-        private void InfoTab_Click(object s, RoutedEventArgs e)
+
+        private void ExplosionResetToggle_Click(object sender, RoutedEventArgs e)
         {
-            ShowView(InfoView);
-            BuildUpdatesView();
+            _explosionResetEnabled = !_explosionResetEnabled;
+
+            ExplosionResetToggleButton.Content =
+                _explosionResetEnabled ? "Enabled" : "Disabled";
+
+            ExplosionResetToggleButton.Background =
+                _explosionResetEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            ExplosionPresetDropdown.IsEnabled = _explosionResetEnabled;
+        }
+
+        private void ExplosionPresetDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ExplosionPresetDropdown.SelectedItem is ComboBoxItem item &&
+                item.Tag is string tag)
+            {
+                _explosionPreset = Enum.Parse<ExplosionTimePreset>(tag);
+            }
         }
 
         // ================= BACKGROUND =================
-        
+
         private void SyncThemeDropdown(string bg)
         {
             foreach (ComboBoxItem i in ThemeDropdown.Items)
@@ -590,94 +629,65 @@ namespace SubnauticaLauncher.UI
 
         private void OpenInstallFolder_Click(object s, RoutedEventArgs e)
         {
-            Process.Start("explorer.exe", AppPaths.SteamCommonPath);
-        }
-
-        private void RenameVersion_Click(object s, RoutedEventArgs e)
-        {
-            if (InstalledVersionsList.SelectedItem is not InstalledVersion v)
-                return;
-
-            if (v.IsActive)
+            // If a version is selected, open its folder
+            if (InstalledVersionsList.SelectedItem is InstalledVersion v &&
+                Directory.Exists(v.HomeFolder))
             {
-                MessageBox.Show("Cannot rename active version.");
-                return;
-            }
-
-            new RenameVersionWindow(v) { Owner = this }.ShowDialog();
-            LoadInstalledVersions();
-        }
-
-        private void DeleteVersion_Click(object s, RoutedEventArgs e)
-        {
-            if (InstalledVersionsList.SelectedItem is not InstalledVersion v)
-                return;
-
-            if (v.IsActive)
-            {
-                MessageBox.Show(
-                    "You cannot delete the currently active version.",
-                    "Delete Blocked",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                return;
-            }
-
-            var dialog = new DeleteVersionDialog
-            {
-                Owner = this
-            };
-
-            dialog.ShowDialog();
-
-            try
-            {
-                switch (dialog.Choice)
+                Process.Start(new ProcessStartInfo
                 {
-                    case DeleteChoice.Cancel:
-                        return;
+                    FileName = "explorer.exe",
+                    Arguments = v.HomeFolder,
+                    UseShellExecute = true
+                });
 
-                    case DeleteChoice.RemoveFromLauncher:
-                        string infoPath = Path.Combine(v.HomeFolder, "Version.info");
-                        if (File.Exists(infoPath))
-                            File.Delete(infoPath);
-                        break;
-
-                    case DeleteChoice.DeleteGame:
-                        Directory.Delete(v.HomeFolder, true);
-                        break;
-                }
-
-                LoadInstalledVersions();
+                return;
             }
-            catch (Exception ex)
+
+            // Fallback: open Steam common directory
+            Process.Start(new ProcessStartInfo
             {
-                MessageBox.Show(
-                    ex.Message,
-                    "Delete Failed",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
-            }
+                FileName = "explorer.exe",
+                Arguments = AppPaths.SteamCommonPath,
+                UseShellExecute = true
+            });
+        }
+
+        private void EditVersion_Click(object sender, RoutedEventArgs e)
+        {
+            if (InstalledVersionsList.SelectedItem is not InstalledVersion v)
+                return;
+
+            var win = new EditVersionWindow(v) { Owner = this };
+            if (win.ShowDialog() == true)
+                LoadInstalledVersions();
         }
 
         // ================= NAV =================        
 
         private async Task OnResetHotkeyPressed()
         {
+            if (!_macroEnabled)
+                return;
+
             if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
+                return;
+
+            var mode = Enum.Parse<GameMode>((string)item.Content);
+
+            // 🔀 ROUTER
+            if (_explosionResetEnabled && ExplosionResetService.IsSupportedVersion())
             {
-                Logger.Warn("Macro Reset Hotkey Pressed, Macro Failed - No Gamemode Selected");
-                return;
+                Logger.Log("Running EXPLOSION reset macro");
+                await ExplosionResetService.RunAsync(
+                    mode,
+                    _explosionPreset
+                );
             }
-
-            if (item.Content is not string modeText)
-                return;
-
-            var mode = Enum.Parse<GameMode>(modeText);
-
-            Logger.Log($"Running Reset Macro Successfully: Gamemode={mode}");
-
-            await ResetMacroService.RunAsync(mode);
+            else
+            {
+                Logger.Log("Running NORMAL reset macro");
+                await ResetMacroService.RunAsync(mode);
+            }
         }
 
         private void ResetMacroToggleButton_Click(object sender, RoutedEventArgs e)
@@ -764,16 +774,37 @@ namespace SubnauticaLauncher.UI
         {
             SaveMacroSettings();
         }
-        private void ShowView(UIElement v)
+        private void ShowView(UIElement view)
         {
             InstallsView.Visibility = Visibility.Collapsed;
             SettingsView.Visibility = Visibility.Collapsed;
+            ToolsView.Visibility = Visibility.Collapsed;
             InfoView.Visibility = Visibility.Collapsed;
-            v.Visibility = Visibility.Visible;
+
+            view.Visibility = Visibility.Visible;
         }
 
-        private void InstallsTab_Click(object s, RoutedEventArgs e) => ShowView(InstallsView);
-        private void SettingsTab_Click(object s, RoutedEventArgs e) => ShowView(SettingsView);
+        private void InstallsTab_Click(object sender, RoutedEventArgs e)
+        {
+            ShowView(InstallsView);
+        }
+
+        private void SettingsTab_Click(object sender, RoutedEventArgs e)
+        {
+            ShowView(SettingsView);
+        }
+
+        private void ToolsTab_Click(object sender, RoutedEventArgs e)
+        {
+            ShowView(ToolsView);
+        }
+
+        private void InfoTab_Click(object sender, RoutedEventArgs e)
+        {
+            ShowView(InfoView);
+            BuildUpdatesView();
+        }
+
 
         // ================= SHUTDOWN =================
 

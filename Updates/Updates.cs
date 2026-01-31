@@ -8,10 +8,27 @@ namespace SubnauticaLauncher.Updates;
 
 public static class Updates
 {
-    public static readonly string CurrentVersion = "1.0.4";
+    public static readonly string CurrentVersion = "1.0.5";
 
     public static readonly UpdateEntry[] History =
     {
+        new UpdateEntry
+        {
+            Version = "1.0.5",
+            Title = "Cleanup and Explosion Time Addition",
+            Date = "Jan 31, 2026",
+            Changes = new[]
+            {
+                "Small Fixes and UI Updates",
+                "Added Edit Button instead of Delete and Rename",
+                "Open Folder now opens the Selected Version",
+                "Added Explosion Time Reset Macro",
+                "More Backgrounds",
+                "More Logging"
+
+            }
+        },
+
         new UpdateEntry
         {
             Version = "1.0.4",
@@ -20,7 +37,7 @@ public static class Updates
             Changes = new[]
             {
                 "Fixed Folder Management",
-                "Finalized Reset Macros (No Early Access Versions)",
+                "Finalized Reset Macros (EA Only for 2017)",
                 "Added Logging"               
 
             }
@@ -33,7 +50,7 @@ public static class Updates
             Date = "Jan 27, 2026",
             Changes = new[]
             {
-                "Added the Most Advanced Speedrunning Reset Macros Yet",
+                "Added the Advanced Speedrunning Reset Macros",
                 "Reset Macros UI",                
                 "UI Updated to Prioritize Readability",
                 "Window is now Resizable",
