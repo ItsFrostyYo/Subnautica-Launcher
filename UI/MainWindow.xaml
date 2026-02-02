@@ -412,9 +412,6 @@ Click="EditVersion_Click"/>
                        FontWeight="Bold"
                        Margin="0,0,0,12"/>
 
-                                    <TextBlock Text="(More options coming soon)"
-                       Foreground="#AAAAAA"
-                       FontStyle="Italic"/>
                                 </StackPanel>
 
                             </Border>
@@ -543,7 +540,7 @@ Click="EditVersion_Click"/>
                                         <ComboBoxItem Content="46:00 → 48:00"  Tag="Min46_To_48"/>
                                         <ComboBoxItem Content="46:00 → 50:00"  Tag="Min46_To_50"/>
                                         <ComboBoxItem Content="Under 1 Hour"   Tag="Under1Hour"/>
-                                        <ComboBoxItem Content="1h+"            Tag="OneHourPlus"/>
+                                        <ComboBoxItem Content="Over 1 Hour"            Tag="Over1Hour"/>
                                     </ComboBox>
 
                                 </StackPanel>

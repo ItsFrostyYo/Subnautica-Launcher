@@ -5,34 +5,30 @@ namespace SubnauticaLauncher.Explosion
 {
     public static class ExplosionResetSettings
     {
-        private static readonly string SettingsPath =
+        private static readonly string FilePath =
             Path.Combine(AppPaths.DataPath, "ExplosionReset.info");
 
         public static bool Enabled { get; set; } = false;
 
-        public static ExplosionTimePreset Preset { get; set; } =
-            ExplosionTimePreset.Min46_To_4630;
+        public static ExplosionResetPreset Preset { get; set; }
+            = ExplosionResetPreset.Min46_To_4630;
 
         public static void Load()
         {
-            if (!File.Exists(SettingsPath))
+            if (!File.Exists(FilePath))
                 return;
 
-            foreach (var line in File.ReadAllLines(SettingsPath))
+            foreach (var line in File.ReadAllLines(FilePath))
             {
                 var split = line.Split('=');
                 if (split.Length != 2)
                     continue;
 
                 if (split[0] == "Enabled")
-                {
-                    Enabled = bool.TryParse(split[1], out var v) && v;
-                }
-                else if (split[0] == "Preset")
-                {
-                    if (Enum.TryParse(split[1], out ExplosionTimePreset preset))
-                        Preset = preset;
-                }
+                    Enabled = bool.Parse(split[1]);
+
+                if (split[0] == "Preset")
+                    Preset = Enum.Parse<ExplosionResetPreset>(split[1]);
             }
         }
 
@@ -40,7 +36,7 @@ namespace SubnauticaLauncher.Explosion
         {
             Directory.CreateDirectory(AppPaths.DataPath);
 
-            File.WriteAllLines(SettingsPath, new[]
+            File.WriteAllLines(FilePath, new[]
             {
                 $"Enabled={Enabled}",
                 $"Preset={Preset}"

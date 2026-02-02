@@ -37,10 +37,18 @@
 	  <None Remove="Assets\Backgrounds\Sea Dragon Leviathan.png" />
 	  <None Remove="Assets\Icons\SNL.ico" />
 	  <None Remove="Assets\Icons\SNLIcon.png" />
+	  <None Remove="tools\ExplosionResetHelper2018.exe" />
+	  <None Remove="tools\ExplosionResetHelper2022.exe" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <Content Include="Assets\Icons\SNL.ico" />
+	  <Content Include="tools\ExplosionResetHelper2018.exe">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="tools\ExplosionResetHelper2022.exe">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
 	</ItemGroup>
 
 	<ItemGroup>

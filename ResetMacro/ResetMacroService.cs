@@ -98,6 +98,6 @@ namespace SubnauticaLauncher.Macros
                 await Task.Delay(150); // 👀 verifier-visible delay
             
             await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);            
-        }
+        }               
     }
 }

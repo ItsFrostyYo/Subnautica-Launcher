@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -33,7 +34,56 @@ namespace SubnauticaLauncher.Macros
             KeyController.HoldStop(VK_ESCAPE);
         }
 
+        public static void HoldEsc2022(Process proc)
+        {
+            HoldEscFor(1550, proc);
+        }
+
+        public static void HoldEsc2018(Process proc)
+        {
+            HoldEscFor(1050, proc);
+        }
+
         // ================= NATIVE =================
+
+        public static async Task HoldEscExactAsync(Process proc, int durationMs)
+        {
+            FocusGame(proc);
+
+            await Task.Delay(50); // Unity input sync
+
+            keybd_event(VK_ESCAPE, 0, 0, UIntPtr.Zero); // key down
+            await Task.Delay(durationMs);
+            keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero); // key up
+        }
+
+        public static void ForceReleaseEsc()
+        {
+            KeyController.HoldStop(VK_ESCAPE);
+        }
+
+        public static void HoldEscFor(int durationMs, Process proc)
+        {
+            FocusGame(proc);
+
+            // key down
+            keybd_event(VK_ESCAPE, 0, 0, UIntPtr.Zero);
+
+            Thread.Sleep(durationMs);
+
+            // key up
+            keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+
+        private static void SendKeyDown(byte vk)
+        {
+            keybd_event(vk, 0, 0, UIntPtr.Zero);
+        }
+
+        private static void SendKeyUp(byte vk)
+        {
+            keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
 
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
         private const uint MOUSEEVENTF_LEFTUP = 0x0004;
@@ -50,6 +100,19 @@ namespace SubnauticaLauncher.Macros
         [DllImport("user32.dll")]
         private static extern void keybd_event(
             byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        public static void FocusGame(Process proc)
+        {
+            try
+            {
+                if (proc.MainWindowHandle != IntPtr.Zero)
+                    SetForegroundWindow(proc.MainWindowHandle);
+            }
+            catch { }
+        }
 
         private static void MouseDown()
             => mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);

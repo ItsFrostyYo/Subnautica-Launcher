@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -27,6 +28,7 @@ using UpdatesData = SubnauticaLauncher.Updates.Updates;
 
 namespace SubnauticaLauncher.UI
 {
+    [SupportedOSPlatform("windows")]
     public partial class MainWindow : Window
     {
         private const string ACTIVE = "Subnautica";
@@ -48,9 +50,8 @@ namespace SubnauticaLauncher.UI
         Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
         private const string DefaultBg = "Lifepod";
-        private bool _explosionResetEnabled;
-        private ExplosionTimePreset _explosionPreset = ExplosionTimePreset.Min46_To_4630;
-
+        private static CancellationTokenSource? _explosionCts;
+        private static bool _explosionRunning;      
 
         public MainWindow()
         {
@@ -85,7 +86,7 @@ namespace SubnauticaLauncher.UI
 
             RegisterResetHotkey();
         }
-
+        [SupportedOSPlatform("windows")]
         private void RegisterResetHotkey()
         {
             UnregisterHotKey(
@@ -228,7 +229,7 @@ namespace SubnauticaLauncher.UI
 
             Logger.Log("Startup Complete");
             ShowView(InstallsView);
-            //new ExplosionTimeWindow().Show(); Disabled (Was for Testing)
+            //new ExplosionTimeWindow().Show();            
         }
 
         private void ApplyBackground(string preset)
@@ -351,15 +352,19 @@ namespace SubnauticaLauncher.UI
 
         private void ExplosionResetToggle_Click(object sender, RoutedEventArgs e)
         {
-            _explosionResetEnabled = !_explosionResetEnabled;
+            ExplosionResetSettings.Enabled = !ExplosionResetSettings.Enabled;
+            ExplosionResetSettings.Save();
 
             ExplosionResetToggleButton.Content =
-                _explosionResetEnabled ? "Enabled" : "Disabled";
+                ExplosionResetSettings.Enabled ? "Enabled" : "Disabled";
 
             ExplosionResetToggleButton.Background =
-                _explosionResetEnabled ? Brushes.Green : Brushes.DarkRed;
+                ExplosionResetSettings.Enabled ? Brushes.Green : Brushes.DarkRed;
 
-            ExplosionPresetDropdown.IsEnabled = _explosionResetEnabled;
+            ExplosionPresetDropdown.IsEnabled =
+                ExplosionResetSettings.Enabled;
+
+            Logger.Log($"Explosion reset enabled = {ExplosionResetSettings.Enabled}");
         }
 
         private void ExplosionPresetDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -367,7 +372,12 @@ namespace SubnauticaLauncher.UI
             if (ExplosionPresetDropdown.SelectedItem is ComboBoxItem item &&
                 item.Tag is string tag)
             {
-                _explosionPreset = Enum.Parse<ExplosionTimePreset>(tag);
+                ExplosionResetSettings.Preset =
+                    Enum.Parse<ExplosionResetPreset>(tag);
+
+                ExplosionResetSettings.Save();
+
+                Logger.Log($"Explosion reset preset set to {ExplosionResetSettings.Preset}");
             }
         }
 
@@ -663,33 +673,56 @@ namespace SubnauticaLauncher.UI
         }
 
         // ================= NAV =================        
-
+        [SupportedOSPlatform("windows")]
         private async Task OnResetHotkeyPressed()
+{
+    if (!_macroEnabled)
+        return;
+
+    if (_explosionRunning)
+    {
+        Logger.Warn("[ExplosionReset] ABORT requested");
+
+        _explosionCts?.Cancel();
+        _explosionCts = null;
+        _explosionRunning = false;
+
+        ExplosionResetService.Abort();
+        return;
+    }
+
+    if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
+        return;
+
+    var mode = Enum.Parse<GameMode>((string)item.Content);
+
+    if (ExplosionResetSettings.Enabled)
+    {
+        _explosionCts = new CancellationTokenSource();
+        _explosionRunning = true;
+
+        try
         {
-            if (!_macroEnabled)
-                return;
-
-            if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
-                return;
-
-            var mode = Enum.Parse<GameMode>((string)item.Content);
-
-            // 🔀 ROUTER
-            if (_explosionResetEnabled && ExplosionResetService.IsSupportedVersion())
-            {
-                Logger.Log("Running EXPLOSION reset macro");
-                await ExplosionResetService.RunAsync(
-                    mode,
-                    _explosionPreset
-                );
-            }
-            else
-            {
-                Logger.Log("Running NORMAL reset macro");
-                await ResetMacroService.RunAsync(mode);
-            }
+            await ExplosionResetService.RunAsync(
+                mode,
+                ExplosionResetSettings.Preset,
+                _explosionCts.Token
+            );
         }
+        finally
+        {
+            _explosionRunning = false;
+            _explosionCts = null;
+        }
+    }
+    else
+    {
+        await ResetMacroService.RunAsync(mode);
+    }
+}
 
+
+        [SupportedOSPlatform("windows")]
         private void ResetMacroToggleButton_Click(object sender, RoutedEventArgs e)
         {
             _macroEnabled = !_macroEnabled;
@@ -706,7 +739,7 @@ namespace SubnauticaLauncher.UI
             ResetHotkeyBox.Text = "Press a key...";
             PreviewKeyDown += CaptureResetKey;
         }
-
+        [SupportedOSPlatform("windows")]
         private void CaptureResetKey(object sender, KeyEventArgs e)
         {
             _resetKey = e.Key;
@@ -740,7 +773,7 @@ namespace SubnauticaLauncher.UI
 
             Logger.Log($"Reset Macro Settings Saved Successfully. Enabled={_macroEnabled}, Hotkey={_resetKey}, Gamemode={mode}");
         }
-
+        [SupportedOSPlatform("windows")]
         private void LoadMacroSettings()
         {
             if (!File.Exists(SettingsPath))
@@ -805,13 +838,13 @@ namespace SubnauticaLauncher.UI
             BuildUpdatesView();
         }
 
-
+        
         // ================= SHUTDOWN =================
 
         private async void MainWindow_Closing(object? s, CancelEventArgs e)
         {
             Logger.Log("Launcher is now closing");
-
+            
             UnregisterHotKey(
                 new WindowInteropHelper(this).Handle,
                 HOTKEY_ID);
