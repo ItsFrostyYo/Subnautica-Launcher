@@ -19,6 +19,7 @@ public static class Updates
             Date = "Jan 31, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
             Changes = new[]
             {
+                "Ensures Needed Files are Always Installed and Available",
                 "Small Fixes and UI Updates",
                 "Added Edit Button (Delete and Rename Buttons Replaced)",
                 "Open Folder now opens the Selected Version",

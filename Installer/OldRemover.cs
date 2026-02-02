@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace SubnauticaLauncher
+namespace SubnauticaLauncher.Installer
 {
     public static class OldRemover
     {

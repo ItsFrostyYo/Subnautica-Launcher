@@ -1,5 +1,4 @@
-﻿using SubnauticaLauncher; // Logger
-using SubnauticaLauncher.Explosion;
+﻿using SubnauticaLauncher.Explosion;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.Memory;
@@ -187,11 +186,12 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
             }
-
+           
             await CheckForUpdatesOnStartup();
 
             Directory.CreateDirectory(AppPaths.DataPath);
             OldRemover.Run();
+            await NewInstaller.RunAsync();
 
             Logger.Log("Launcher data directory prepared");
 
@@ -281,6 +281,7 @@ namespace SubnauticaLauncher.UI
                     return;
 
                 ShowUpdatingUI();
+                await UpdaterChecker.EnsureUpdaterAsync();
 
                 var newExe = await UpdateDownloader.DownloadAsync(update.DownloadUrl);
                 UpdateHelper.ApplyUpdate(newExe);
