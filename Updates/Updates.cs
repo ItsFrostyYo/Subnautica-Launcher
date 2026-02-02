@@ -8,15 +8,30 @@ namespace SubnauticaLauncher.Updates;
 
 public static class Updates
 {
-    public static readonly string CurrentVersion = "1.0.5";
+    public static readonly string CurrentVersion = "1.0.6";
 
     public static readonly UpdateEntry[] History =
     {
         new UpdateEntry
         {
+            Version = "1.0.6",
+            Title = "Below Zero Support",
+            Date = "Feb 2, 2026 | Contributors (1) - ItsFrosti.",
+            Changes = new[]
+            {              
+                "Below Zero Fully Full Support",
+                "Below Zero Backgrounds",
+                "Below Zero Reset Macro",
+                "All Below Zero Versions",
+                "Only Basic Tools and UI for Below Zero"
+            }
+        },
+
+        new UpdateEntry
+        {
             Version = "1.0.5",
             Title = "Cleanup and Explosion Time Addition",
-            Date = "Jan 31, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
+            Date = "Feb 1, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
             Changes = new[]
             {
                 "Ensures Needed Files are Always Installed and Available",

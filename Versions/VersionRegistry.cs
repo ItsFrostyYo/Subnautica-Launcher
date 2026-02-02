@@ -118,7 +118,7 @@ public static class VersionRegistry
                 "*Early Access* Mar, 2017 (Early Stable EA)",
                 3489434290486619086
             ),
-            
+
             new(
                 "Subnautica_Oct2017",
                 "*Early Access* Oct, 2017",

@@ -1,33 +1,30 @@
-﻿using System;
+﻿using SubnauticaLauncher.Versions;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
 
-namespace SubnauticaLauncher.Installer;
+namespace SubnauticaLauncher.BelowZero;
 
 public static class BZDepotDownloaderService
 {
     // =========================
-    // PUBLIC ENTRY (UI CALLS THIS)
+    // PUBLIC ENTRY
     // =========================
-    public static Task InstallVersionAsync(
-        VersionInstallDefinition version,
+    public static Task BZInstallVersionAsync(
+        BZVersionInstallDefinition version,
         string username,
         string password,
         string installDir)
     {
-        return InstallInternalAsync(version, username, password, installDir);
+        return BZInstallInternalAsync(version, username, password, installDir);
     }
 
     // =========================
     // CONVENIENCE OVERLOAD
     // =========================
-    public static Task InstallVersionAsync(
-        VersionInstallDefinition version,
+    public static Task BZInstallVersionAsync(
+        BZVersionInstallDefinition version,
         string username,
         string password)
     {
@@ -39,14 +36,14 @@ public static class BZDepotDownloaderService
             version.Id
         );
 
-        return InstallInternalAsync(version, username, password, installDir);
+        return BZInstallInternalAsync(version, username, password, installDir);
     }
 
     // =========================
     // CORE IMPLEMENTATION
     // =========================
-    private static async Task InstallInternalAsync(
-        VersionInstallDefinition version,
+    private static async Task BZInstallInternalAsync(
+        BZVersionInstallDefinition version,
         string username,
         string password,
         string installDir)
@@ -58,15 +55,14 @@ public static class BZDepotDownloaderService
 
         Directory.CreateDirectory(installDir);
 
-        string args =
-            $"-app {VersionInstallDefinition.AppId} -depot {VersionInstallDefinition.DepotId} -manifest {version.ManifestId} -username \"{username}\" -password \"{password}\" -dir \"{installDir}\"";
+        string args = $"-app {BZVersionInstallDefinition.AppId} -depot {BZVersionInstallDefinition.DepotId} -manifest {version.ManifestId} -username \"{username}\" -password \"{password}\" -dir \"{installDir}\"";
 
         var psi = new ProcessStartInfo
         {
             FileName = BZDepotDownloaderInstaller.DepotDownloaderExe,
             Arguments = args,
-            UseShellExecute = true,   // REQUIRED for Steam Guard
-            CreateNoWindow = false   // SHOW CONSOLE
+            UseShellExecute = true,
+            CreateNoWindow = false
         };
 
         using var process = Process.Start(psi);
@@ -78,10 +74,7 @@ public static class BZDepotDownloaderService
         if (process.ExitCode != 0)
             throw new Exception("DepotDownloader failed. Check console output.");
 
-        // ✅ CLEANUP FIRST
         CleanupDepotDownloaderFolders(installDir);
-
-        // ✅ THEN WRITE METADATA
         WriteVersionInfo(version, installDir);
     }
 
@@ -90,14 +83,10 @@ public static class BZDepotDownloaderService
     // =========================
     private static void CleanupDepotDownloaderFolders(string installDir)
     {
-        // Remove .DepotDownloader
         string hiddenDepotDir = Path.Combine(installDir, ".DepotDownloader");
         if (Directory.Exists(hiddenDepotDir))
-        {
             Directory.Delete(hiddenDepotDir, true);
-        }
 
-        // Flatten depot_* folders if present
         foreach (var depotFolder in Directory.GetDirectories(installDir, "depot_*"))
         {
             foreach (var entry in Directory.GetFileSystemEntries(depotFolder))
@@ -126,13 +115,13 @@ public static class BZDepotDownloaderService
     // VERSION.INFO
     // =========================
     private static void WriteVersionInfo(
-        VersionInstallDefinition version,
+        BZVersionInstallDefinition version,
         string installDir)
     {
-        string infoPath = Path.Combine(installDir, "Version.info");
+        string infoPath = Path.Combine(installDir, "BZVersion.info");
 
         File.WriteAllText(infoPath,
-$@"IsSubnauticaLauncherVersion=true
+$@"IsBelowZeroLauncherVersion=true
 DisplayName={version.DisplayName}
 FolderName={version.Id}
 OriginalDownload={version.Id}

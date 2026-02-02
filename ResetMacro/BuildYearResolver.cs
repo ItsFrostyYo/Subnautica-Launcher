@@ -5,6 +5,7 @@ namespace SubnauticaLauncher.Macros
 {
     public static class BuildYearResolver
     {
+        // Existing Subnautica logic (UNCHANGED)
         public static int ResolveGroupedYear(string root)
         {
             string[] paths =
@@ -23,6 +24,15 @@ namespace SubnauticaLauncher.Macros
 
             return 2022; // safe default
         }
+
+        // ✅ BELOW ZERO: fixed group (no detection)
+        public static int ResolveBelowZero()
+        {
+            return BELOW_ZERO_GROUP;
+        }
+
+        // 🔒 single constant used everywhere
+        public const int BELOW_ZERO_GROUP = -1;
 
         private static int Normalize(int year)
         {

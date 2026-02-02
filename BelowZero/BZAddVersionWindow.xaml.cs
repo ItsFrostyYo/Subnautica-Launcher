@@ -2,6 +2,7 @@
 using SubnauticaLauncher.UI;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
+using SubnauticaLauncher.BelowZero;
 using System;
 using System.IO;
 using System.Windows;
@@ -11,9 +12,9 @@ using System.Windows.Media.Imaging;
 using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
-namespace SubnauticaLauncher.UI
+namespace SubnauticaLauncher.BelowZero
 {
-    public partial class AddVersionWindow : Window
+    public partial class BZAddVersionWindow : Window
     {       
         
             private static readonly string BgPreset =
@@ -21,19 +22,19 @@ namespace SubnauticaLauncher.UI
 
             private const string DefaultBg = "Lifepod";
 
-            public AddVersionWindow()
+            public BZAddVersionWindow()
         {
             InitializeComponent();
-            Loaded += AddVersionWindow_Loaded;
-            AvailableVersionsList.ItemsSource = VersionRegistry.AllVersions;
-            AvailableVersionsList.DisplayMemberPath = "DisplayName"; // ✅ REQUIRED
+            Loaded += BZAddVersionWindow_Loaded;
+            BZAvailableVersionsList.ItemsSource = BZVersionRegistry.AllVersions;
+            BZAvailableVersionsList.DisplayMemberPath = "DisplayName"; // ✅ REQUIRED
         }
 
         private ImageBrush GetBackgroundBrush()
         {
             return (ImageBrush)Resources["BackgroundBrush"];
         }
-        private void AddVersionWindow_Loaded(object sender, RoutedEventArgs e)
+        private void BZAddVersionWindow_Loaded(object sender, RoutedEventArgs e)
         {
             string bg = DefaultBg;
 
@@ -117,7 +118,7 @@ namespace SubnauticaLauncher.UI
         // ================= Rest =================
         private async void Install_Click(object sender, RoutedEventArgs e)
         {
-            if (AvailableVersionsList.SelectedItem is not VersionInstallDefinition version)
+            if (BZAvailableVersionsList.SelectedItem is not BZVersionInstallDefinition version)
                 return;
 
             // 🔐 Prompt login ONLY when installing
@@ -139,7 +140,7 @@ namespace SubnauticaLauncher.UI
                     version.Id
                 );
 
-                await BZDepotDownloaderService.InstallVersionAsync(
+                await BZDepotDownloaderService.BZInstallVersionAsync(
                     version,
                     login.Username,
                     login.Password,
@@ -173,7 +174,7 @@ namespace SubnauticaLauncher.UI
 
         private void AddUnmanaged_Click(object sender, RoutedEventArgs e)
         {
-            var win = new AddUnmanagedVersionWindow
+            var win = new BZAddUnmanagedVersionWindow
             {
                 Owner = this
             };

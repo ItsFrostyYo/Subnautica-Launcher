@@ -4,6 +4,7 @@ using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.Memory;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
+using SubnauticaLauncher.BelowZero;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -28,16 +29,16 @@ using UpdatesData = SubnauticaLauncher.Updates.Updates;
 namespace SubnauticaLauncher.UI
 {
     [SupportedOSPlatform("windows")]
-    public partial class MainWindow : Window
+    public partial class BZMainWindow : Window
     {
-        private const string ACTIVE = "Subnautica";
-        private const string UNMANAGED = "SubnauticaUnmanagedVersion";
+        private const string ACTIVE = "SubnauticaZero";
+        private const string UNMANAGED = "SubnauticaZeroUnmanagedVersion";
         private Key _resetKey = Key.None;
         private bool _macroEnabled;
         private const int HOTKEY_ID = 9001;
         [DllImport("user32.dll")]
         private static extern bool RegisterHotKey(
-    IntPtr hWnd, int id, uint fsModifiers, uint vk);
+        IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(
@@ -49,24 +50,24 @@ namespace SubnauticaLauncher.UI
         Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
         private const string DefaultBg = "Lifepod";
-        private static CancellationTokenSource? _explosionCts;
-        private static bool _explosionRunning;       
-        public MainWindow()
+
+        public BZMainWindow()
         {
-            Logger.Log("MainWindow constructor");
+
+            Logger.Log("BZMainWindow constructor");
 
             InitializeComponent();
-            Loaded += MainWindow_Loaded;
-            Closing += MainWindow_Closing;
+            Loaded += BZMainWindow_Loaded;
+            Closing += BZMainWindow_Closing;
         }
 
         // ================= TITLE BAR =================
         private void GameToggleButton_Click(object sender, RoutedEventArgs e)
         {
-            var bz = new BZMainWindow();
-            bz.Show();
+            var sn = new MainWindow();
+            sn.Show();
             Close();
-        }       
+        }
 
         private void UpdateResetMacroVisualState()
         {
@@ -81,7 +82,7 @@ namespace SubnauticaLauncher.UI
         {
             base.OnSourceInitialized(e);
 
-            Logger.Log("Window source initialized");
+            Logger.Log("BZ Window source initialized");
 
             var source = HwndSource.FromHwnd(
                 new WindowInteropHelper(this).Handle);
@@ -172,26 +173,10 @@ namespace SubnauticaLauncher.UI
 
         // ================= STARTUP =================
 
-        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private async void BZMainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            Logger.Log("Launcher UI Loaded Successfully");
+            Logger.Log("BZ Launcher UI Loaded Successfully");
             
-            if (!Directory.Exists(AppPaths.ToolsPath) ||
-                !File.Exists(BZDepotDownloaderInstaller.DepotDownloaderExe))
-            {
-                Logger.Warn("Required tools missing, opening setup window");
-
-                var setup = new SetupWindow { Owner = this };
-                bool? result = setup.ShowDialog();
-
-                if (result != true)
-                {
-                    Logger.Warn("Setup cancelled, shutting down");
-                    Application.Current.Shutdown();
-                    return;
-                }
-            }
-           
             await CheckForUpdatesOnStartup();
 
             Directory.CreateDirectory(AppPaths.DataPath);
@@ -213,24 +198,7 @@ namespace SubnauticaLauncher.UI
             SyncThemeDropdown(bg);
 
             LoadInstalledVersions();
-            LoadMacroSettings();
-
-            ExplosionResetSettings.Load();
-
-            ExplosionResetToggleButton.Content =
-                ExplosionResetSettings.Enabled ? "Enabled" : "Disabled";
-
-            ExplosionResetToggleButton.Background =
-                ExplosionResetSettings.Enabled ? Brushes.Green : Brushes.DarkRed;
-
-            ExplosionPresetDropdown.IsEnabled =
-                ExplosionResetSettings.Enabled;
-
-            ExplosionPresetDropdown.SelectedItem =
-                ExplosionPresetDropdown.Items
-                    .Cast<ComboBoxItem>()
-                    .FirstOrDefault(i =>
-                        (string)i.Tag == ExplosionResetSettings.Preset.ToString());
+            LoadMacroSettings();            
 
             Logger.Log("Startup Complete");
             ShowView(InstallsView);
@@ -354,38 +322,7 @@ namespace SubnauticaLauncher.UI
                 border.Child = panel;
                 UpdatesPanel.Children.Add(border);
             }
-        }
-
-        private void ExplosionResetToggle_Click(object sender, RoutedEventArgs e)
-        {
-            ExplosionResetSettings.Enabled = !ExplosionResetSettings.Enabled;
-            ExplosionResetSettings.Save();
-
-            ExplosionResetToggleButton.Content =
-                ExplosionResetSettings.Enabled ? "Enabled" : "Disabled";
-
-            ExplosionResetToggleButton.Background =
-                ExplosionResetSettings.Enabled ? Brushes.Green : Brushes.DarkRed;
-
-            ExplosionPresetDropdown.IsEnabled =
-                ExplosionResetSettings.Enabled;
-
-            Logger.Log($"Explosion reset enabled = {ExplosionResetSettings.Enabled}");
-        }
-
-        private void ExplosionPresetDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (ExplosionPresetDropdown.SelectedItem is ComboBoxItem item &&
-                item.Tag is string tag)
-            {
-                ExplosionResetSettings.Preset =
-                    Enum.Parse<ExplosionResetPreset>(tag);
-
-                ExplosionResetSettings.Save();
-
-                Logger.Log($"Explosion reset preset set to {ExplosionResetSettings.Preset}");
-            }
-        }
+        }        
 
         // ================= BACKGROUND =================
 
@@ -433,7 +370,7 @@ namespace SubnauticaLauncher.UI
 
         private async void Launch_Click(object sender, RoutedEventArgs e)
         {
-            if (InstalledVersionsList.SelectedItem is not InstalledVersion target)
+            if (BZInstalledVersionsList.SelectedItem is not BZInstalledVersion target)
                 return;
 
             string common = AppPaths.SteamCommonPath;
@@ -442,7 +379,7 @@ namespace SubnauticaLauncher.UI
             try
             {
                 bool isGameRunning =
-                    Process.GetProcessesByName("Subnautica").Length > 0;
+                    Process.GetProcessesByName("SubnauticaZero").Length > 0;
 
                 bool isAlreadyActive =
                     Directory.Exists(activePath) &&
@@ -454,34 +391,34 @@ namespace SubnauticaLauncher.UI
                 if (isAlreadyActive && isGameRunning)
                 {
                     MessageBox.Show(
-                        "This Subnautica version is already running.",
+                        "This Below Zero version is already running.",
                         "Launch Blocked",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information
                     );
 
-                    SetStatus(target, VersionStatus.Active);
+                    SetStatus(target, BZVersionStatus.Active);
                     return;
                 }
 
                 // ✅ Same version + not running → just launch
                 if (isAlreadyActive && !isGameRunning)
                 {
-                    SetStatus(target, VersionStatus.Launching);
+                    SetStatus(target, BZVersionStatus.Launching);
 
                     Process.Start(new ProcessStartInfo
                     {
-                        FileName = Path.Combine(activePath, "Subnautica.exe"),
+                        FileName = Path.Combine(activePath, "SubnauticaZero.exe"),
                         WorkingDirectory = activePath,
                         UseShellExecute = true
                     });
 
-                    SetStatus(target, VersionStatus.Active);
+                    SetStatus(target, BZVersionStatus.Active);
                     return;
                 }
 
                 // 🔁 Different version → switch required
-                SetStatus(target, VersionStatus.Switching);
+                SetStatus(target, BZVersionStatus.Switching);
 
                 bool wasRunning = await CloseGameIfRunning();
 
@@ -497,7 +434,7 @@ namespace SubnauticaLauncher.UI
                 await RestoreUntilGone(common);
 
                 if (Directory.Exists(activePath))
-                    throw new IOException("Subnautica folder still exists after restore.");
+                    throw new IOException("Below Zero folder still exists after restore.");
 
                 // Safe swap (Unity file-lock tolerant)
                 var start = DateTime.UtcNow;
@@ -527,25 +464,25 @@ namespace SubnauticaLauncher.UI
                 await Task.Delay(250);
 
                 // 🚀 LAUNCH
-                SetStatus(target, VersionStatus.Launching);
+                SetStatus(target, BZVersionStatus.Launching);
 
                 // allow UI to repaint
                 await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
 
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = Path.Combine(activePath, "Subnautica.exe"),
+                    FileName = Path.Combine(activePath, "SubnauticaZero.exe"),
                     WorkingDirectory = activePath,
                     UseShellExecute = true
                 });
                 await Task.Delay(250);
-                SetStatus(target, VersionStatus.Active);
+                SetStatus(target, BZVersionStatus.Active);
                 LoadInstalledVersions();
 
             }
             catch (Exception ex)
             {
-                SetStatus(target, VersionStatus.Idle);
+                SetStatus(target, BZVersionStatus.Idle);
 
                 MessageBox.Show(
                     ex.Message,
@@ -568,13 +505,13 @@ namespace SubnauticaLauncher.UI
 
             while (Directory.Exists(active))
             {
-                string info = Path.Combine(active, "Version.info");
+                string info = Path.Combine(active, "BZVersion.info");
                 string target;
 
                 if (File.Exists(info))
                 {
-                    var v = InstalledVersion.FromInfo(active, info)
-                        ?? throw new IOException("Invalid Version.info");
+                    var v = BZInstalledVersion.FromInfo(active, info)
+                        ?? throw new IOException("Invalid BZVersion.info");
 
                     target = Path.Combine(common, v.FolderName);
                 }
@@ -635,7 +572,7 @@ namespace SubnauticaLauncher.UI
 
         private void LoadInstalledVersions()
         {
-            var list = VersionLoader.LoadInstalled();
+            var list = BZVersionLoader.LoadInstalled();
             string active = Path.Combine(AppPaths.SteamCommonPath, ACTIVE);
 
             foreach (var v in list)
@@ -644,31 +581,31 @@ namespace SubnauticaLauncher.UI
                     .Equals(Path.GetFullPath(active),
                         StringComparison.OrdinalIgnoreCase);
 
-                v.Status = isActive ? VersionStatus.Active : VersionStatus.Idle;
+                v.Status = isActive ? BZVersionStatus.Active : BZVersionStatus.Idle;
             }
 
-            InstalledVersionsList.ItemsSource = list;
-            InstalledVersionsList.Items.Refresh();
+            BZInstalledVersionsList.ItemsSource = list;
+            BZInstalledVersionsList.Items.Refresh();
         }
 
-        private void SetStatus(InstalledVersion v, VersionStatus status)
+        private void SetStatus(BZInstalledVersion v, BZVersionStatus status)
         {
             v.Status = status;
-            InstalledVersionsList.Items.Refresh();
+            BZInstalledVersionsList.Items.Refresh();
         }
 
         // ================= BUTTONS =================
 
         private void InstallVersion_Click(object s, RoutedEventArgs e)
         {
-            new AddVersionWindow { Owner = this }.ShowDialog();
+            new BZAddVersionWindow { Owner = this }.ShowDialog();
             LoadInstalledVersions();
         }
 
         private void OpenInstallFolder_Click(object s, RoutedEventArgs e)
         {
             // If a version is selected, open its folder
-            if (InstalledVersionsList.SelectedItem is InstalledVersion v &&
+            if (BZInstalledVersionsList.SelectedItem is BZInstalledVersion v &&
                 Directory.Exists(v.HomeFolder))
             {
                 Process.Start(new ProcessStartInfo
@@ -692,10 +629,10 @@ namespace SubnauticaLauncher.UI
 
         private void EditVersion_Click(object sender, RoutedEventArgs e)
         {
-            if (InstalledVersionsList.SelectedItem is not InstalledVersion v)
+            if (BZInstalledVersionsList.SelectedItem is not BZInstalledVersion v)
                 return;
 
-            var win = new EditVersionWindow(v) { Owner = this };
+            var win = new BZEditVersionWindow(v) { Owner = this };
             if (win.ShowDialog() == true)
                 LoadInstalledVersions();
         }
@@ -703,51 +640,24 @@ namespace SubnauticaLauncher.UI
         // ================= NAV =================        
         [SupportedOSPlatform("windows")]
         private async Task OnResetHotkeyPressed()
-{
-    if (!_macroEnabled)
-        return;
-
-    if (_explosionRunning)
-    {
-        Logger.Warn("[ExplosionReset] ABORT requested");
-
-        _explosionCts?.Cancel();
-        _explosionCts = null;
-        _explosionRunning = false;
-
-        ExplosionResetService.Abort();
-        return;
-    }
-
-    if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
-        return;
-
-    var mode = Enum.Parse<GameMode>((string)item.Content);
-
-    if (ExplosionResetSettings.Enabled)
-    {
-        _explosionCts = new CancellationTokenSource();
-        _explosionRunning = true;
-
-        try
         {
-            await ExplosionResetService.RunAsync(
-                mode,
-                ExplosionResetSettings.Preset,
-                _explosionCts.Token
-            );
+            if (!_macroEnabled)
+                return;
+
+            if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
+                return;
+
+            var mode = Enum.Parse<GameMode>((string)item.Content);
+
+            try
+            {
+                await BZResetMacroService.RunAsync(mode);
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "BZ Reset Macro Failed");
+            }
         }
-        finally
-        {
-            _explosionRunning = false;
-            _explosionCts = null;
-        }
-    }
-    else
-    {
-        await ResetMacroService.RunAsync(mode);
-    }
-}
 
 
         [SupportedOSPlatform("windows")]
@@ -866,13 +776,13 @@ namespace SubnauticaLauncher.UI
             BuildUpdatesView();
         }
 
-        
+
         // ================= SHUTDOWN =================
 
-        private async void MainWindow_Closing(object? s, CancelEventArgs e)
+        private async void BZMainWindow_Closing(object? s, CancelEventArgs e)
         {
             Logger.Log("Launcher is now closing");
-            
+
             UnregisterHotKey(
                 new WindowInteropHelper(this).Handle,
                 HOTKEY_ID);
@@ -883,7 +793,7 @@ namespace SubnauticaLauncher.UI
             }
             catch (Exception ex)
             {
-                Logger.Exception(ex, "Failed to Restore Original Folder Names");                
+                Logger.Exception(ex, "Failed to Restore Original Folder Names");
             }
 
             Logger.Log("Launcher Successfully Shutdown");

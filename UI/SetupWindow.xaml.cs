@@ -101,7 +101,7 @@ namespace SubnauticaLauncher.UI
                 Directory.CreateDirectory(AppPaths.DataPath);
 
                 StatusText.Text = "Installing DepotDownloader...";
-                await DepotDownloaderInstaller.EnsureInstalledAsync();
+                await BZDepotDownloaderInstaller.EnsureInstalledAsync();
 
                 StatusText.Text = "Finalizing setup...";
                 await Task.Delay(600);

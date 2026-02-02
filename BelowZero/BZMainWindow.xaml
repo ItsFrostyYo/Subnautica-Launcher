@@ -1,7 +1,7 @@
-﻿<Window x:Class="SubnauticaLauncher.UI.MainWindow"
+﻿<Window x:Class="SubnauticaLauncher.UI.BZMainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="clr-namespace:SubnauticaLauncher"
+        xmlns:ui="clr-namespace:SubnauticaLauncher.UI"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Subnautica Launcher"
         Width="850"
@@ -23,7 +23,7 @@
     <!-- ================= RESOURCES ================= -->
     <Window.Resources>
 
-        <local:ActiveColorConverter x:Key="ActiveColorConverter"/>
+        <ui:BZActiveColorConverter x:Key="BZActiveColorConverter"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
@@ -155,7 +155,7 @@ UseAeroCaptionButtons="False" />
 
             <!-- ICON -->
             <Image Grid.Column="0"
-           Source="pack://application:,,,/Assets/Icons/SNLIcon.png"
+           Source="pack://application:,,,/Assets/Icons/SNLIconBZ.png"
            Width="16"
            Height="16"
            Margin="12,0,8,0"
@@ -165,7 +165,7 @@ UseAeroCaptionButtons="False" />
             <StackPanel Grid.Column="1"
                 Orientation="Horizontal"
                 VerticalAlignment="Center">
-                <TextBlock Text="Subnautica Launcher"
+                <TextBlock Text="Below Zero Launcher"
                    FontSize="13"
                    FontWeight="SemiBold"
                    Margin="0,0,6,0"/>
@@ -188,7 +188,7 @@ UseAeroCaptionButtons="False" />
                 <Grid ClipToBounds="True">
                     <!-- BACKGROUND IMAGE (FILLS ENTIRE BUTTON) -->
                     <Image x:Name="GameToggleImage"
-               Source="pack://application:,,,/Assets/Icons/SNLBZButton.png"
+               Source="pack://application:,,,/Assets/Icons/SNLButton.png"
                Stretch="Fill"/>
 
                     <!-- DARK OVERLAY FOR TEXT READABILITY -->
@@ -196,7 +196,7 @@ UseAeroCaptionButtons="False" />
 
                     <!-- CENTER TEXT -->
                     <TextBlock x:Name="GameToggleText"
-                   Text="Switch to Below Zero"
+                   Text="Switch to Subnautica"
                    Foreground="White"
                    FontSize="12"
                    FontWeight="Bold"
@@ -336,7 +336,7 @@ UseAeroCaptionButtons="False" />
         CornerRadius="14"
         Padding="6">
 
-                                <ListBox x:Name="InstalledVersionsList"
+                                <ListBox x:Name="BZInstalledVersionsList"
              FontSize="17"
              Margin="0,0,0,0"                            
              FontWeight="UltraLight"
@@ -348,7 +348,7 @@ UseAeroCaptionButtons="False" />
                                             <TextBlock Text="{Binding DisplayLabel}"
                            Margin="6,4"
                            Foreground="{Binding Status,
-                           Converter={StaticResource ActiveColorConverter}}"/>
+                           Converter={StaticResource BZActiveColorConverter}}"/>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
 
@@ -560,46 +560,7 @@ Click="EditVersion_Click"/>
                                         <ComboBoxItem Content="SaveSlot3"/>
                                     </ComboBox>
 
-                                    <!-- ===== SEPARATOR ===== -->
-                                    <Border Height="1"
-                    Background="#55FFFFFF"
-                    Margin="0,16"/>
-
-                                    <!-- ===== EXPLOSION RESET ===== -->
-                                    <TextBlock Text="Reset Until Explosion"
-                       FontSize="18"
-                       FontWeight="Bold"
-                       Margin="0,0,0,8"/>
-
-                                    <Button x:Name="ExplosionResetToggleButton"
-                    Width="160"
-                    Height="32"
-                    Background="#8B2C2C"
-                    Content="Disabled"
-                    Style="{StaticResource RoundedButton}"
-                    Click="ExplosionResetToggle_Click"/>
-
-                                    <TextBlock Text="Explosion Time Window"
-                       FontWeight="SemiBold"
-                       Margin="0,12,0,4"/>
-
-                                    <ComboBox x:Name="ExplosionPresetDropdown"
-                      IsEnabled="False"
-                      Style="{StaticResource DarkComboBox}"
-                      SelectionChanged="ExplosionPresetDropdown_SelectionChanged">
-                                        <ComboBoxItem Content="46:00 → 46:30" Tag="Min46_To_4630"/>
-                                        <ComboBoxItem Content="46:00 → 47:00"  Tag="Min46_To_47"/>
-                                        <ComboBoxItem Content="46:00 → 48:00"  Tag="Min46_To_48"/>
-                                        <ComboBoxItem Content="46:00 → 50:00"  Tag="Min46_To_50"/>
-                                        <ComboBoxItem Content="Under 1 Hour"   Tag="Under1Hour"/>
-                                        <ComboBoxItem Content="Over 1 Hour"            Tag="Over1Hour"/>
-                                    </ComboBox>
-
-                                    <TextBlock Text="Explosion Time Reset Macros are for 2018,"
-FontWeight="SemiBold"
-Margin="0,12,0,4"/>
-
-                                    <TextBlock Text="OR 2023 Versions ONLY."
+                                    <TextBlock Text="Only work on 1.00/Default Ingame UI Scale"
 FontWeight="SemiBold"
 Margin="0,12,0,4"/>
                                 </StackPanel>

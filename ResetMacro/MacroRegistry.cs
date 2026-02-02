@@ -4,8 +4,10 @@ using System.Drawing;
 namespace SubnauticaLauncher.Macros
 {
     public sealed class MacroSteps
-    {
+    {        
+
         public Point QuitButton { get; init; }
+        public Point QuitButton2 { get; init; }
         public Point ConfirmQuit1 { get; init; }
         public Point ConfirmQuit2 { get; init; }
 
@@ -62,7 +64,7 @@ namespace SubnauticaLauncher.Macros
                     ConfirmQuit1 = new Point(1058, 565),
                     ConfirmQuit2 = new Point(1058, 565),
                     PlayButton = new Point(788, 793),
-                    StartNewGame = new Point(1172, 554),                    
+                    StartNewGame = new Point(1172, 554),
                     SelectGameMode = new Point(1184, 681)
                 },
 
@@ -239,8 +241,85 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1176, 932),
                     SelectGameMode = new Point(1160, 932)
                 }
-            }
-        };
+            },
+
+            // ================= BELOW ZERO =================
+            [BuildYearResolver.BELOW_ZERO_GROUP] = new Dictionary<GameMode, MacroSteps>
+            {
+                [GameMode.Survival] = new MacroSteps
+                {
+                    QuitButton = new Point(1005, 728),
+                    QuitButton2 = new Point(961, 689),                   
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(986, 552)
+                },
+                [GameMode.Hardcore] = new MacroSteps
+                {
+                    QuitButton = new Point(1067, 691),
+                    QuitButton2 = new Point(961, 689),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(1093, 781)
+                },
+                [GameMode.Creative] = new MacroSteps
+                {
+                    QuitButton = new Point(1021, 728),
+                    QuitButton2 = new Point(961, 689),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(1125, 878)
+                },
+
+                [GameMode.Freedom] = new MacroSteps
+                {
+                    QuitButton = new Point(1021, 728),
+                    QuitButton2 = new Point(961, 689),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1300, 569),
+                    SelectGameMode = new Point(1154, 674)
+                },
+
+                [GameMode.SaveSlot1] = new MacroSteps
+                {
+                    QuitButton = new Point(1005, 728),
+                    QuitButton2 = new Point(961, 689),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1190, 692),
+                    SelectGameMode = new Point(1180, 692)
+                },
+                [GameMode.SaveSlot2] = new MacroSteps
+                {
+                    QuitButton = new Point(1005, 728),
+                    QuitButton2 = new Point(961, 689),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1167, 812),
+                    SelectGameMode = new Point(1150, 812)
+                },
+                [GameMode.SaveSlot3] = new MacroSteps
+                {
+                    QuitButton = new Point(1005, 728),
+                    QuitButton2 = new Point(961, 689),
+                    ConfirmQuit1 = new Point(903, 568),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 728),
+                    StartNewGame = new Point(1176, 932),
+                    SelectGameMode = new Point(1160, 932)
+                }           
+              }
+            };
 
         public static MacroSteps Get(int yearGroup, GameMode mode)
         {

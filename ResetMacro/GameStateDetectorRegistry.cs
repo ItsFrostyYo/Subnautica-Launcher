@@ -44,7 +44,22 @@ namespace SubnauticaLauncher.Macros
             
                 BlackPixel = new Point(960, 540),
                 ColorTolerance = 8
+            },
+
+            // ================= BELOW ZERO =================
+            [BuildYearResolver.BELOW_ZERO_GROUP] = new GameStateProfile
+            {
+                MainMenuPixel = new Point(634, 729),
+                MainMenuColor = Color.FromArgb(255, 27, 81, 154),
+
+                InGamePixel = new Point(1025, 94),
+                InGameColor = Color.FromArgb(255, 48, 181, 156),
+                ColorTolerance = 30,
+
+                BlackPixel = new Point(960, 540),           
+
             }
+
         };
 
         public static GameStateProfile Get(int yearGroup)

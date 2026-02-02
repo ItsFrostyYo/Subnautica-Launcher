@@ -7,7 +7,7 @@ using SubnauticaLauncher.Versions;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Installer;
 
-namespace SubnauticaLauncher.Installer;
+namespace SubnauticaLauncher.BelowZero;
 
 public static class BZDepotDownloaderInstaller
 {

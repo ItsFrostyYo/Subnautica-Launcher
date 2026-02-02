@@ -7,9 +7,9 @@
 		<UseWindowsForms>true</UseWindowsForms>
 
 		<!-- 🔥 ADD THESE -->
-		<Version>1.0.5</Version>
-		<AssemblyVersion>1.0.5.0</AssemblyVersion>
-		<FileVersion>1.0.5.0</FileVersion>
+		<Version>1.0.6</Version>
+		<AssemblyVersion>1.0.6.0</AssemblyVersion>
+		<FileVersion>1.0.6.0</FileVersion>
 
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
@@ -27,6 +27,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <None Remove="Assets\Backgrounds\Aurora Borealis.png" />
 	  <None Remove="Assets\Backgrounds\Cove Tree.png" />
 	  <None Remove="Assets\Backgrounds\Floating Island.png" />
 	  <None Remove="Assets\Backgrounds\Jellyshroom Caves.png" />
@@ -35,14 +36,18 @@
 	  <None Remove="Assets\Backgrounds\Lost River.png" />
 	  <None Remove="Assets\Backgrounds\Safe Shallows.png" />
 	  <None Remove="Assets\Backgrounds\Sea Dragon Leviathan.png" />
+	  <None Remove="Assets\Backgrounds\Snow Stalker.png" />
+	  <None Remove="Assets\Backgrounds\Squid Shark.png" />
 	  <None Remove="Assets\Icons\SNL.ico" />
+	  <None Remove="Assets\Icons\SNLBZ.ico" />
 	  <None Remove="Assets\Icons\SNLIcon.png" />
+	  <None Remove="Assets\Icons\SNLIconBZ.png" />
 	  <None Remove="tools\ExplosionResetHelper2018.exe" />
 	  <None Remove="tools\ExplosionResetHelper2022.exe" />
+	  <None Remove="Updates\Possible Updates.txt" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Content Include="Assets\Icons\SNL.ico" />
 	  <Content Include="tools\ExplosionResetHelper2018.exe">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	  </Content>
@@ -56,6 +61,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Resource Include="Assets\Backgrounds\Arcitect Facility.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Aurora Borealis.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Assets\Backgrounds\Cove Tree.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -66,6 +77,12 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Backgrounds\Grassy Plateau.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Ice Worm.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Icy Land.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Backgrounds\Jellyshroom Caves.png">
@@ -86,16 +103,46 @@
 	  <Resource Include="Assets\Backgrounds\Reaper Leviathan.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Red Crystals.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Assets\Backgrounds\Safe Shallows.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Backgrounds\Sea Dragon Leviathan.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Shadow Leviathan.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Snow Stalker.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Snowfox.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Squid Shark.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Backgrounds\Twisty Bridges.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\SNLButton.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\SNLBZ.ico">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\SNLBZButton.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Assets\Icons\SNL.ico">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Icons\SNLIcon.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\SNLIconBZ.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	</ItemGroup>
