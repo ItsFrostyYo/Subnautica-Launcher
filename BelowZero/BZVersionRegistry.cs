@@ -26,7 +26,7 @@ public static class BZVersionRegistry
 
             new(
                 "SubnauticaZero_Aug2025",
-                "*Latest* Aug, 2025 (Below Zero 2025 Patch)",
+                "Aug, 2025 (Below Zero 2025 Patch)",
                 4887349951766836612
             ),
 

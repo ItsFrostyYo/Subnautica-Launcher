@@ -19,7 +19,7 @@ public static class Updates
             Date = "Feb 2, 2026 | Contributors (1) - ItsFrosti.",
             Changes = new[]
             {              
-                "Below Zero Fully Full Support",
+                "Below Zero Full Support",
                 "Below Zero Backgrounds",
                 "Below Zero Reset Macro",
                 "All Below Zero Versions",

@@ -3,7 +3,7 @@
 ✓ More Versions
 ✓ Explosion Time Reset Macros
 • Update Popup
-• Below Zero Support
+✓ Below Zero Support
 • Explo Time Reset Overlay
 • Mods Support
 • RNG Mod Support
