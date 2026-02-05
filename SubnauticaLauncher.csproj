@@ -38,10 +38,13 @@
 	  <None Remove="Assets\Backgrounds\Sea Dragon Leviathan.png" />
 	  <None Remove="Assets\Backgrounds\Snow Stalker.png" />
 	  <None Remove="Assets\Backgrounds\Squid Shark.png" />
+	  <None Remove="Assets\Icons\DiscordIcon.png" />
+	  <None Remove="Assets\Icons\GithubIcon.png" />
 	  <None Remove="Assets\Icons\SNL.ico" />
 	  <None Remove="Assets\Icons\SNLBZ.ico" />
 	  <None Remove="Assets\Icons\SNLIcon.png" />
 	  <None Remove="Assets\Icons\SNLIconBZ.png" />
+	  <None Remove="Assets\Icons\YoutubeIcon.png" />
 	  <None Remove="tools\ExplosionResetHelper2018.exe" />
 	  <None Remove="tools\ExplosionResetHelper2022.exe" />
 	  <None Remove="Updates\Possible Updates.txt" />
@@ -127,6 +130,12 @@
 	  <Resource Include="Assets\Backgrounds\Twisty Bridges.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
+	  <Resource Include="Assets\Icons\DiscordIcon.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\GithubIcon.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
 	  <Resource Include="Assets\Icons\SNLButton.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
@@ -143,6 +152,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Icons\SNLIconBZ.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Icons\YoutubeIcon.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	</ItemGroup>

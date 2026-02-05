@@ -753,6 +753,36 @@ namespace SubnauticaLauncher.UI
             InfoView.Visibility = Visibility.Collapsed;
 
             view.Visibility = Visibility.Visible;
+            // ✅ Launch button ONLY visible on Versions List
+            LaunchButton.Visibility =
+                view == InstallsView ? Visibility.Visible : Visibility.Hidden;
+        }
+
+        private void OpenGitHub_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/ItsFrostyYo/Subnautica-Launcher/releases/tag/v1.0.6",
+                UseShellExecute = true
+            });
+        }
+
+        private void OpenYouTube_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://www.youtube.com/@ItsFrostiSR",
+                UseShellExecute = true
+            });
+        }
+
+        private void OpenDiscord_Click(object sender, RoutedEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://discord.com/invite/yfNYgBDcmC",
+                UseShellExecute = true
+            });
         }
 
         private void InstallsTab_Click(object sender, RoutedEventArgs e)

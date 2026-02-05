@@ -15,11 +15,12 @@ public static class Updates
         new UpdateEntry
         {
             Version = "1.0.7",
-            Title = "#",
-            Date = "Feb #, 2026 | Contributors (#) - #.",
+            Title = "UI Updates and Small Fixes",
+            Date = "Feb 4, 2026 | Contributors (1) - ItsFrosti.",
             Changes = new[]
             {
-                "Fixed 2 Spelling Errors"             
+                "Fixed 2 Spelling Errors",            
+                "Launcher Info View (Updates and Additional Info)"             
             }
         },
 
