@@ -8,10 +8,14 @@ namespace SubnauticaLauncher.Explosion
         private static readonly string FilePath =
             Path.Combine(AppPaths.DataPath, "ExplosionReset.info");
 
+        // Existing
         public static bool Enabled { get; set; } = false;
-
         public static ExplosionResetPreset Preset { get; set; }
             = ExplosionResetPreset.Min46_To_4630;
+
+        // 🔥 NEW SETTINGS
+        public static bool OverlayEnabled { get; set; } = true;   // default ON
+        public static bool TrackResets { get; set; } = false;     // default OFF
 
         public static void Load()
         {
@@ -24,11 +28,24 @@ namespace SubnauticaLauncher.Explosion
                 if (split.Length != 2)
                     continue;
 
-                if (split[0] == "Enabled")
-                    Enabled = bool.Parse(split[1]);
+                switch (split[0])
+                {
+                    case "Enabled":
+                        Enabled = bool.Parse(split[1]);
+                        break;
 
-                if (split[0] == "Preset")
-                    Preset = Enum.Parse<ExplosionResetPreset>(split[1]);
+                    case "Preset":
+                        Preset = Enum.Parse<ExplosionResetPreset>(split[1]);
+                        break;
+
+                    case "OverlayEnabled":
+                        OverlayEnabled = bool.Parse(split[1]);
+                        break;
+
+                    case "TrackResets":
+                        TrackResets = bool.Parse(split[1]);
+                        break;
+                }
             }
         }
 
@@ -37,10 +54,12 @@ namespace SubnauticaLauncher.Explosion
             Directory.CreateDirectory(AppPaths.DataPath);
 
             File.WriteAllLines(FilePath, new[]
-            {
-                $"Enabled={Enabled}",
-                $"Preset={Preset}"
-            });
+{
+    $"Enabled={Enabled}",
+    $"Preset={Preset}",
+    $"OverlayEnabled={OverlayEnabled}",
+    $"TrackResets={TrackResets}"
+});
         }
     }
 }

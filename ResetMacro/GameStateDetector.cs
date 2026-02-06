@@ -32,7 +32,7 @@ namespace SubnauticaLauncher.Macros
         {
             var c = GetPixel(display.ScalePoint(p.BlackPixel));
             return c.R < 8 && c.G < 8 && c.B < 8;
-        }
+        }      
 
         // ================= INTERNAL =================
 

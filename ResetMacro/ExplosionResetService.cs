@@ -4,12 +4,6 @@ using System.IO;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
-using Application = System.Windows.Application;
-using Brushes = System.Windows.Media.Brushes;
-using KeyEventArgs = System.Windows.Input.KeyEventArgs;
-using MessageBox = System.Windows.MessageBox;
-using UpdatesData = SubnauticaLauncher.Updates.Updates;
 
 namespace SubnauticaLauncher.Explosion
 {
@@ -22,7 +16,7 @@ namespace SubnauticaLauncher.Explosion
         private static readonly string SignalFile =
             Path.Combine(ToolsDir, "explode.signal");
 
-        private static volatile bool _abortRequested;       
+        private static volatile bool _abortRequested;
 
         public static void Abort()
         {
@@ -38,9 +32,11 @@ namespace SubnauticaLauncher.Explosion
 
                 foreach (var p in Process.GetProcessesByName("ExplosionResetHelper2022"))
                     p.Kill();
-                
             }
             catch { }
+
+            // 🔴 ALWAYS close overlay on abort
+            ExplosionResetDisplayController.Stop("Macro Canceled");
         }
 
         public static async Task RunAsync(
@@ -54,90 +50,114 @@ namespace SubnauticaLauncher.Explosion
             if (proc == null)
                 return;
 
-            string root = Path.GetDirectoryName(proc.MainModule!.FileName!)!;
-            int yearGroup = BuildYearResolver.ResolveGroupedYear(root);
+            int yearGroup = BuildYearResolver.ResolveGroupedYear(
+                Path.GetDirectoryName(proc.MainModule!.FileName!)!);
 
-            bool is2018 = yearGroup == 2018;
-            bool is2022Plus = yearGroup >= 2022;
-            if (!is2018 && !is2022Plus)
+            if (yearGroup != 2018 && yearGroup < 2022)
                 return;
-
-            string ahkExe = Path.Combine(
-                ToolsDir,
-                is2018 ? "ExplosionResetHelper2018.exe"
-                       : "ExplosionResetHelper2022.exe"
-            );
-
-            if (!File.Exists(ahkExe))
-            {
-                Logger.Warn($"Explosion helper missing: {ahkExe}");
-                return;
-            }
 
             var resolver = ExplosionResolverFactory.Get(yearGroup);
-            var display = Display.DisplayInfo.GetPrimary();
-            var profile = GameStateDetectorRegistry.Get(yearGroup);
+
+            ExplosionResetDisplayController.Start(proc, resolver);
 
             while (!_abortRequested && !token.IsCancellationRequested)
             {
+                // 🔹 SELECT GAMEMODE                
+                await Task.Delay(250, token); // ✅ requested delay
+                ExplosionResetDisplayController.SetStep($"Selecting \"{mode}\"");
                 await ResetMacroService.RunAsync(mode);
 
-                // wait for black screen
-                var sw = Stopwatch.StartNew();
-                while (sw.ElapsedMilliseconds < 15000)
-                {
-                                       
-                    if (_abortRequested || token.IsCancellationRequested)
-                        return;
+                if (_abortRequested || token.IsCancellationRequested)
+                    goto CANCELED;
 
-                    if (GameStateDetector.IsBlackScreen(profile, display))
+                await Task.Delay(50, token); // ✅ extra input spacing
+
+                // 🔹 WAIT FOR BLACK SCREEN
+                ExplosionResetDisplayController.SetStep("Waiting for Loading...");
+
+                var sw = Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < 45000)
+                {
+                    if (_abortRequested || token.IsCancellationRequested)
+                        goto CANCELED;
+
+                    if (GameStateDetector.IsBlackScreen(
+                        GameStateDetectorRegistry.Get(yearGroup),
+                        Display.DisplayInfo.GetPrimary()))
                         break;
 
                     await Task.Delay(50, token);
                 }
 
-                await Task.Delay(1500, token);
+                await Task.Delay(2000, token);
 
+                // 🔹 EXPLOSION CHECK (ONLY HERE)
                 if (!resolver.TryRead(proc, out var snap))
-                    return;
-                
+                    goto CANCELED;
+
                 var (min, max) = ExplosionPresetRanges.Get(preset);
 
+                // ✅ GOOD TIME — DO NOTHING ELSE
                 if (snap.ExplosionTime >= min && snap.ExplosionTime <= max)
                 {
-                    Logger.Log("[ExplosionReset] GOOD RUN");
-                    Abort(); // ensure helpers closed
-                                     
-                    return;
+                    ExplosionResetDisplayController.SetStep("Good Time - Closing Window");
+
+                    ExplosionResetTracker.WriteGood(
+                        snap.ExplosionTime,
+                        ExplosionResetDisplayController.ResetCount);
+
+                    ExplosionResetDisplayController.Stop(
+                        "Good Time - Closing Window",
+                        closeDelayMs: 2000); // ✅ requested
+
+                    return; // 🔒 NOTHING AFTER THIS
                 }
 
-                // BAD RUN → skip cutscene
-                if (File.Exists(SignalFile))
-                    File.Delete(SignalFile);
-                
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = ahkExe,
-                    WorkingDirectory = ToolsDir,
-                    UseShellExecute = true
-                });
+                // ❌ BAD TIME
+                ExplosionResetDisplayController.SetStep("Bad Time - Skipping Cutscene");
 
-                await Task.Delay(100, token);
-                File.WriteAllText(SignalFile, "go");
+                TriggerExplosionHelper(yearGroup);
 
-                // wait helper
-                var wait = Stopwatch.StartNew();
-                while (File.Exists(SignalFile) && wait.ElapsedMilliseconds < 5000)
+                while (File.Exists(SignalFile))
                 {
                     if (_abortRequested || token.IsCancellationRequested)
-                        return;
+                        goto CANCELED;
 
                     await Task.Delay(50, token);
                 }
 
-                await Task.Delay(250, token);
-                await ResetMacroService.RunAsync(mode);
+                ExplosionResetDisplayController.IncrementResetCount();
             }
+
+        CANCELED:
+            ExplosionResetTracker.WriteCanceled(
+                ExplosionResetDisplayController.ResetCount);
+
+            ExplosionResetDisplayController.Stop("Macro Canceled");
+        }
+
+        private static void TriggerExplosionHelper(int yearGroup)
+        {
+            string exe = Path.Combine(
+                ToolsDir,
+                yearGroup == 2018
+                    ? "ExplosionResetHelper2018.exe"
+                    : "ExplosionResetHelper2022.exe");
+
+            if (!File.Exists(exe))
+                return;
+
+            if (File.Exists(SignalFile))
+                File.Delete(SignalFile);
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = exe,
+                WorkingDirectory = ToolsDir,
+                UseShellExecute = true
+            });
+
+            File.WriteAllText(SignalFile, "go");
         }
     }
 }

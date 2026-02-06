@@ -50,7 +50,9 @@ namespace SubnauticaLauncher.UI
 
         private const string DefaultBg = "Lifepod";
         private static CancellationTokenSource? _explosionCts;
-        private static bool _explosionRunning;       
+        private static bool _explosionRunning;
+        public static bool Enabled => ExplosionResetSettings.OverlayEnabled;
+
         public MainWindow()
         {
             Logger.Log("MainWindow constructor");
@@ -232,9 +234,18 @@ namespace SubnauticaLauncher.UI
                     .FirstOrDefault(i =>
                         (string)i.Tag == ExplosionResetSettings.Preset.ToString());
 
+            ExplosionDisplayToggleButton.Content =
+    ExplosionResetSettings.OverlayEnabled ? "Enabled" : "Disabled";
+            ExplosionDisplayToggleButton.Background =
+                ExplosionResetSettings.OverlayEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            ExplosionTrackToggleButton.Content =
+                ExplosionResetSettings.TrackResets ? "Enabled" : "Disabled";
+            ExplosionTrackToggleButton.Background =
+                ExplosionResetSettings.TrackResets ? Brushes.Green : Brushes.DarkRed;
+
             Logger.Log("Startup Complete");
-            ShowView(InstallsView);
-            //new ExplosionTimeWindow().Show();           
+            ShowView(InstallsView);                   
         }
 
         private void ApplyBackground(string preset)
@@ -703,51 +714,91 @@ namespace SubnauticaLauncher.UI
         // ================= NAV =================        
         [SupportedOSPlatform("windows")]
         private async Task OnResetHotkeyPressed()
-{
-    if (!_macroEnabled)
-        return;
-
-    if (_explosionRunning)
-    {
-        Logger.Warn("[ExplosionReset] ABORT requested");
-
-        _explosionCts?.Cancel();
-        _explosionCts = null;
-        _explosionRunning = false;
-
-        ExplosionResetService.Abort();
-        return;
-    }
-
-    if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
-        return;
-
-    var mode = Enum.Parse<GameMode>((string)item.Content);
-
-    if (ExplosionResetSettings.Enabled)
-    {
-        _explosionCts = new CancellationTokenSource();
-        _explosionRunning = true;
-
-        try
         {
-            await ExplosionResetService.RunAsync(
-                mode,
-                ExplosionResetSettings.Preset,
-                _explosionCts.Token
-            );
+            if (!_macroEnabled)
+                return;
+
+            // 🔴 Abort if already running
+            if (_explosionRunning)
+            {
+                Logger.Warn("[ExplosionReset] ABORT requested");
+
+                _explosionCts?.Cancel();
+                _explosionCts = null;
+                _explosionRunning = false;
+
+                ExplosionResetService.Abort();
+                return;
+            }
+
+            if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
+                return;
+
+            var mode = Enum.Parse<GameMode>((string)item.Content);
+
+            // ❌ Explosion reset disabled → normal reset
+            if (!ExplosionResetSettings.Enabled)
+            {
+                await ResetMacroService.RunAsync(mode);
+                return;
+            }
+
+            // ================= BUILD YEAR CHECK (INLINE COPY) =================
+            var proc = Process.GetProcessesByName("Subnautica").FirstOrDefault();
+            if (proc == null)
+            {
+                await ResetMacroService.RunAsync(mode);
+                return;
+            }
+
+            string root = Path.GetDirectoryName(proc.MainModule!.FileName!)!;
+            int buildYear = -1;
+
+            string[] paths =
+            {
+        Path.Combine(root, "__buildtime.txt"),
+        Path.Combine(root, "Subnautica_Data", "StreamingAssets", "__buildtime.txt")
+    };
+
+            foreach (var p in paths)
+            {
+                if (!File.Exists(p)) continue;
+
+                if (DateTime.TryParse(File.ReadAllText(p), out var dt))
+                {
+                    buildYear = dt.Year;
+                    break;
+                }
+            }
+
+            // ✅ ONLY 2018 OR 2023 USE EXPLOSION RESET
+            bool canUseExplosionReset = buildYear == 2018 || buildYear == 2023;
+
+            if (!canUseExplosionReset)
+            {
+                Logger.Warn($"[ExplosionReset] Unsupported build year {buildYear}, falling back");
+                await ResetMacroService.RunAsync(mode);
+                return;
+            }
+
+            // ================= RUN EXPLOSION RESET =================
+            _explosionCts = new CancellationTokenSource();
+            _explosionRunning = true;
+
+            try
+            {
+                await ExplosionResetService.RunAsync(
+                    mode,
+                    ExplosionResetSettings.Preset,
+                    _explosionCts.Token
+                );
+            }
+            finally
+            {
+                _explosionRunning = false;
+                _explosionCts = null;
+            }
         }
-        finally
-        {
-            _explosionRunning = false;
-            _explosionCts = null;
-        }
-    }
-    else
-    {
-        await ResetMacroService.RunAsync(mode);
-    }
-}
 
 
         [SupportedOSPlatform("windows")]
@@ -760,6 +811,34 @@ namespace SubnauticaLauncher.UI
             UpdateResetMacroVisualState();
             SaveMacroSettings();
             RegisterResetHotkey();
+        }
+
+        private void ExplosionDisplayToggle_Click(object sender, RoutedEventArgs e)
+        {
+            ExplosionResetSettings.OverlayEnabled = !ExplosionResetSettings.OverlayEnabled;
+            ExplosionResetSettings.Save();
+
+            ExplosionDisplayToggleButton.Content =
+                ExplosionResetSettings.OverlayEnabled ? "Enabled" : "Disabled";
+
+            ExplosionDisplayToggleButton.Background =
+                ExplosionResetSettings.OverlayEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            Logger.Log($"Explosion reset overlay enabled = {ExplosionResetSettings.OverlayEnabled}");
+        }
+
+        private void ExplosionTrackToggle_Click(object sender, RoutedEventArgs e)
+        {
+            ExplosionResetSettings.TrackResets = !ExplosionResetSettings.TrackResets;
+            ExplosionResetSettings.Save();
+
+            ExplosionTrackToggleButton.Content =
+                ExplosionResetSettings.TrackResets ? "Enabled" : "Disabled";
+
+            ExplosionTrackToggleButton.Background =
+                ExplosionResetSettings.TrackResets ? Brushes.Green : Brushes.DarkRed;
+
+            Logger.Log($"Track explosion resets = {ExplosionResetSettings.TrackResets}");
         }
 
         private void SetResetHotkey_Click(object sender, RoutedEventArgs e)
@@ -897,13 +976,15 @@ namespace SubnauticaLauncher.UI
             BuildUpdatesView();
         }
 
-        
+
         // ================= SHUTDOWN =================
 
         private async void MainWindow_Closing(object? s, CancelEventArgs e)
         {
             Logger.Log("Launcher is now closing");
-            
+
+            ExplosionResetDisplayController.ForceClose(); // 🔥 REQUIRED
+
             UnregisterHotKey(
                 new WindowInteropHelper(this).Handle,
                 HOTKEY_ID);
@@ -914,7 +995,7 @@ namespace SubnauticaLauncher.UI
             }
             catch (Exception ex)
             {
-                Logger.Exception(ex, "Failed to Restore Original Folder Names");                
+                Logger.Exception(ex, "Failed to Restore Original Folder Names");
             }
 
             Logger.Log("Launcher Successfully Shutdown");

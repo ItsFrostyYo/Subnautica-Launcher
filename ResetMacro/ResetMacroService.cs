@@ -33,12 +33,13 @@ namespace SubnauticaLauncher.Macros
             if (state == GameState.MainMenu)
             {
                 await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
+                await Task.Delay(50);
                 await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
-
+                await Task.Delay(50);
                 if (needsGamemodeDelay)
-                    await Task.Delay(150); // 👀 verifier-visible delay
+                    await Task.Delay(100); // 👀 verifier-visible delay
 
-                await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);                
+                await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
                 return;
             }
 
@@ -46,10 +47,12 @@ namespace SubnauticaLauncher.Macros
             if (state == GameState.InGame)
             {
                 NativeInput.PressEsc();
-                await Task.Delay(25);
-
+                await Task.Delay(50);
+                
                 await NativeInput.Click(steps.QuitButton, steps.ClickDelayMedium);
+                await Task.Delay(50);
                 await NativeInput.Click(steps.ConfirmQuit1, steps.ClickDelayMedium);
+                await Task.Delay(50);
                 await NativeInput.Click(steps.ConfirmQuit2, steps.ClickDelayMedium);                
             }
 
@@ -92,10 +95,11 @@ namespace SubnauticaLauncher.Macros
 
             // ================= START NEW GAME =================
             await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
-            await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);            
-
+            await Task.Delay(50);
+            await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
+            await Task.Delay(50);
             if (needsGamemodeDelay)
-                await Task.Delay(150); // 👀 verifier-visible delay
+                await Task.Delay(100); // 👀 verifier-visible delay
             
             await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);            
         }               

@@ -15,12 +15,15 @@ public static class Updates
         new UpdateEntry
         {
             Version = "1.0.7",
-            Title = "UI Updates and Small Fixes",
-            Date = "Feb 4, 2026 | Contributors (1) - ItsFrosti.",
+            Title = "ExploTime Macro and UI Hotfix",
+            Date = "Feb 6, 2026 | Contributors (1) - ItsFrosti.",
             Changes = new[]
             {
-                "Fixed 2 Spelling Errors",            
-                "Launcher Info View (Updates and Additional Info)"             
+                "Fixed Explosion Time Reset Macro Consistancy (Still 2018 and 2023 Only)",                                      
+                "Toggleable Explosion Time Reset Macro Display",                                      
+                "Toggleable Explosion Time Macro Time+Resets Logger",                                                                          
+                "Replaced Updates Tab with Info Tab (Updates and Additional Info)",
+                "Small UI Updates"
             }
         },
 
