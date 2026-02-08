@@ -15,7 +15,7 @@ namespace SubnauticaLauncher.Explosion
 
         // 🔥 NEW SETTINGS
         public static bool OverlayEnabled { get; set; } = true;   // default ON
-        public static bool TrackResets { get; set; } = false;     // default OFF
+        public static bool TrackResets { get; set; } = false;     // default OFF        
 
         public static void Load()
         {
@@ -45,6 +45,7 @@ namespace SubnauticaLauncher.Explosion
                     case "TrackResets":
                         TrackResets = bool.Parse(split[1]);
                         break;
+                                        
                 }
             }
         }
@@ -58,7 +59,7 @@ namespace SubnauticaLauncher.Explosion
     $"Enabled={Enabled}",
     $"Preset={Preset}",
     $"OverlayEnabled={OverlayEnabled}",
-    $"TrackResets={TrackResets}"
+    $"TrackResets={TrackResets}",    
 });
         }
     }

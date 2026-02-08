@@ -169,7 +169,7 @@ UseAeroCaptionButtons="False" />
                    FontSize="13"
                    FontWeight="SemiBold"
                    Margin="0,0,6,0"/>
-                <TextBlock Text="v1.0.7"
+                <TextBlock Text="v1.0.9"
                    FontSize="13"
                    Opacity="0.7"/>
             </StackPanel>
@@ -455,17 +455,41 @@ Click="EditVersion_Click"/>
 
                             <!-- ================= RIGHT: OPTIONS ================= -->
                             <Border Grid.Column="1"
-            Margin="12,0,0,0"
-            Background="#60000000"
-            CornerRadius="12"
-            Padding="16">
+        Margin="12,0,0,0"
+        Background="#60000000"
+        CornerRadius="12"
+        Padding="16">
 
                                 <StackPanel>
                                     <TextBlock Text="Options"
-                       FontSize="20"
-                       FontWeight="Bold"
-                       Margin="0,0,0,12"/>
+               FontSize="20"
+               FontWeight="Bold"
+               Margin="0,0,0,12"/>
 
+                                    <!-- RENAME ON CLOSE -->
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock
+Text="Disable Renaming Folders on Close (Fixes Steam Replacing/Updating the Version or Deleting it.) Disable this if you only use the Launcher."
+FontWeight="SemiBold"
+TextWrapping="Wrap"
+Margin="0,0,0,6"/>
+
+                                        <Button
+x:Name="RenameOnCloseButton"
+Grid.Row="1"
+Width="110"
+Height="30"
+HorizontalAlignment="Center"
+Background="#8B2C2C"
+Content="Disabled"
+Style="{StaticResource RoundedButton}"
+Click="RenameOnCloseButton_Click"/>
+                                    </Grid>
                                 </StackPanel>
 
                             </Border>

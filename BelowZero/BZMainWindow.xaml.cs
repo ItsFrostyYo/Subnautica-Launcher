@@ -50,7 +50,7 @@ namespace SubnauticaLauncher.UI
         Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
         private const string DefaultBg = "Lifepod";
-
+        private bool _renameOnCloseEnabled = true; // ✅ enabled by default
         public BZMainWindow()
         {
 
@@ -198,11 +198,16 @@ namespace SubnauticaLauncher.UI
             SyncThemeDropdown(bg);
 
             LoadInstalledVersions();
-            LoadMacroSettings();            
+            LoadMacroSettings();
+
+            RenameOnCloseButton.Content =
+    _renameOnCloseEnabled ? "Enabled" : "Disabled";
+
+            RenameOnCloseButton.Background =
+                _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
 
             Logger.Log("Startup Complete");
-            ShowView(InstallsView);
-            //new ExplosionTimeWindow().Show();           
+            ShowView(InstallsView);                       
         }
 
         private void ApplyBackground(string preset)
@@ -694,23 +699,21 @@ namespace SubnauticaLauncher.UI
 
         private void SaveMacroSettings()
         {
-            if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
-                return;
+            ComboBoxItem? item = ResetGamemodeDropdown.SelectedItem as ComboBoxItem;
 
-            if (item.Content is not string modeText)
-                return;
-
-            var mode = Enum.Parse<GameMode>(modeText);
+            var mode = item != null
+                ? Enum.Parse<GameMode>((string)item.Content)
+                : GameMode.Survival; // or your default
 
             File.WriteAllLines(SettingsPath, new[]
             {
         $"Enabled={_macroEnabled}",
         $"Hotkey={_resetKey}",
-        $"Mode={mode}"
+        $"Mode={mode}",
+        $"RenameOnClose={_renameOnCloseEnabled}"
     });
-
-            Logger.Log($"Reset Macro Settings Saved Successfully. Enabled={_macroEnabled}, Hotkey={_resetKey}, Gamemode={mode}");
         }
+
         [SupportedOSPlatform("windows")]
         private void LoadMacroSettings()
         {
@@ -728,6 +731,10 @@ namespace SubnauticaLauncher.UI
             _macroEnabled = bool.Parse(dict["Enabled"]);
             _resetKey = Enum.Parse<Key>(dict["Hotkey"]);
             var mode = Enum.Parse<GameMode>(dict["Mode"]);
+            _renameOnCloseEnabled =
+    dict.TryGetValue("RenameOnClose", out var roc)
+    ? bool.Parse(roc)
+    : true; // ✅ default enabled
 
             Logger.Log($"Reset Macro Settings Loaded Successfully. Enabled={_macroEnabled}, Hotkey={_resetKey}, Mode={mode}");
 
@@ -805,25 +812,44 @@ namespace SubnauticaLauncher.UI
             ShowView(InfoView);
             BuildUpdatesView();
         }
+        private void RenameOnCloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            _renameOnCloseEnabled = !_renameOnCloseEnabled;
 
+            RenameOnCloseButton.Content =
+                _renameOnCloseEnabled ? "Enabled" : "Disabled";
+
+            RenameOnCloseButton.Background =
+                _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            SaveMacroSettings();
+
+            Logger.Log($"Rename on close enabled = {_renameOnCloseEnabled}");
+        }
 
         // ================= SHUTDOWN =================
 
         private async void BZMainWindow_Closing(object? s, CancelEventArgs e)
         {
+            await Task.Yield(); // 👈 satisfies compiler, zero behavior change
             Logger.Log("Launcher is now closing");
+
+            ExplosionResetDisplayController.ForceClose(); // 🔥 REQUIRED
 
             UnregisterHotKey(
                 new WindowInteropHelper(this).Handle,
                 HOTKEY_ID);
 
-            try
+            if (!_renameOnCloseEnabled)
             {
-                await RestoreUntilGone(AppPaths.SteamCommonPath);
-            }
-            catch (Exception ex)
-            {
-                Logger.Exception(ex, "Failed to Restore Original Folder Names");
+                try
+                {
+                    await RestoreUntilGone(AppPaths.SteamCommonPath);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Exception(ex, "Failed to Restore Original Folder Names");
+                }
             }
 
             Logger.Log("Launcher Successfully Shutdown");

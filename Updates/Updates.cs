@@ -8,10 +8,36 @@ namespace SubnauticaLauncher.Updates;
 
 public static class Updates
 {
-    public static readonly string CurrentVersion = "1.0.7";
+    public static readonly string CurrentVersion = "1.0.9";
 
     public static readonly UpdateEntry[] History =
     {
+        new UpdateEntry
+        {
+            Version = "1.0.9",
+            Title = "Folder Renaming Full Fix",
+            Date = "Feb 8 2026 | Contributors (1) - ItsFrosti.",
+            Changes = new[]
+            {
+                "Added Back Folder Renaming on Launcher Close",
+                "Added New Button in Settings",
+                "Enable/Disable Button for Folder Renaming on Launcher Close",
+                "Prevents steam replacing version with newest when manually launching through steam."
+            }
+        },
+
+        new UpdateEntry
+        {
+            Version = "1.0.8",
+            Title = "Folder Renaming Quick Hotfix",
+            Date = "Feb 8, 2026 | Contributors (1) - ItsFrosti.",
+            Changes = new[]
+            {
+                "Temporary removal of folder renaming on launcher close.",
+                "Prevents steam replacing version with newest when manually launching through steam."
+            }
+        },
+
         new UpdateEntry
         {
             Version = "1.0.7",

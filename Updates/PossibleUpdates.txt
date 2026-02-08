@@ -7,4 +7,5 @@
 ✓ Explo Time Reset Overlay
 • Mods Support
 • RNG Mod Support
+• Hardcore Save Deleter
 • 

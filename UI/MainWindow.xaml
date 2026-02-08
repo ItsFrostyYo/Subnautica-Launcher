@@ -169,7 +169,7 @@ UseAeroCaptionButtons="False" />
                    FontSize="13"
                    FontWeight="SemiBold"
                    Margin="0,0,6,0"/>
-                <TextBlock Text="v1.0.7"
+                <TextBlock Text="v1.0.9"
                    FontSize="13"
                    Opacity="0.7"/>
             </StackPanel>
@@ -466,6 +466,31 @@ Click="EditVersion_Click"/>
                FontWeight="Bold"
                Margin="0,0,0,12"/>
 
+                                    <!-- RENAME ON CLOSE -->
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock
+        Text="Disable Renaming Folders on Close (Fixes Steam Replacing/Updating the Version or Deleting it.) Disable this if you only use the Launcher."
+        FontWeight="SemiBold"
+        TextWrapping="Wrap"
+        Margin="0,0,0,6"/>
+
+                                        <Button
+        x:Name="RenameOnCloseButton"
+        Grid.Row="1"
+        Width="110"
+        Height="30"
+        HorizontalAlignment="Center"
+        Background="#8B2C2C"
+        Content="Disabled"
+        Style="{StaticResource RoundedButton}"
+        Click="RenameOnCloseButton_Click"/>
+                                    </Grid>
+
                                     <!-- EXPLOSION RESET DISPLAY -->
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
@@ -474,19 +499,19 @@ Click="EditVersion_Click"/>
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock
-        Text="Explosion Reset Display"
-        VerticalAlignment="Center"
-        FontWeight="SemiBold"/>
+Text="Explosion Reset Display"
+VerticalAlignment="Center"
+FontWeight="SemiBold"/>
 
                                         <Button
-        x:Name="ExplosionDisplayToggleButton"
-        Grid.Column="1"
-        Width="110"
-        Height="30"
-        Background="#8B2C2C"
-        Content="Disabled"
-        Style="{StaticResource RoundedButton}"
-        Click="ExplosionDisplayToggle_Click"/>
+x:Name="ExplosionDisplayToggleButton"
+Grid.Column="1"
+Width="110"
+Height="30"
+Background="#8B2C2C"
+Content="Disabled"
+Style="{StaticResource RoundedButton}"
+Click="ExplosionDisplayToggle_Click"/>
                                     </Grid>
 
                                     <!-- TRACK EXPLOSION RESETS -->
@@ -497,19 +522,19 @@ Click="EditVersion_Click"/>
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock
-        Text="Track Explosion Resets"
-        VerticalAlignment="Center"
-        FontWeight="SemiBold"/>
+Text="Track Explosion Resets"
+VerticalAlignment="Center"
+FontWeight="SemiBold"/>
 
                                         <Button
-        x:Name="ExplosionTrackToggleButton"
-        Grid.Column="1"
-        Width="110"
-        Height="30"
-        Background="#8B2C2C"
-        Content="Disabled"
-        Style="{StaticResource RoundedButton}"
-        Click="ExplosionTrackToggle_Click"/>
+x:Name="ExplosionTrackToggleButton"
+Grid.Column="1"
+Width="110"
+Height="30"
+Background="#8B2C2C"
+Content="Disabled"
+Style="{StaticResource RoundedButton}"
+Click="ExplosionTrackToggle_Click"/>
                                     </Grid>
                                 </StackPanel>
 
