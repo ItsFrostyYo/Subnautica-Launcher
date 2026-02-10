@@ -6,6 +6,7 @@ using SubnauticaLauncher.Memory;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
 using SubnauticaLauncher.BelowZero;
+using System.Collections.Generic;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -759,38 +760,11 @@ namespace SubnauticaLauncher.UI
 
         private void HardcoreSaveDeleterPurge_Click(object sender, RoutedEventArgs e)
         {
-            var gameChoice = MessageBox.Show(
-                "Delete Hardcore saves for Subnautica?\nYes = Subnautica\nNo = Below Zero\nCancel = Abort",
-                "Choose Game",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Warning);
-
-            if (gameChoice == MessageBoxResult.Cancel)
+            var win = new HardcoreSaveDeleterWindow { Owner = this };
+            if (win.ShowDialog() != true)
                 return;
 
-            bool isSubnautica = gameChoice == MessageBoxResult.Yes;
-
-            var scopeChoice = MessageBox.Show(
-                "Delete from the active version only?\nYes = Active Only\nNo = All Managed Versions\nCancel = Abort",
-                "Choose Scope",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Warning);
-
-            if (scopeChoice == MessageBoxResult.Cancel)
-                return;
-
-            bool activeOnly = scopeChoice == MessageBoxResult.Yes;
-
-            var confirm = MessageBox.Show(
-                $"This will permanently delete Hardcore saves for {(isSubnautica ? "Subnautica" : "Below Zero")}.\nAre you sure?",
-                "Confirm Delete",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning);
-
-            if (confirm != MessageBoxResult.Yes)
-                return;
-
-            string[] roots = GetTargetRoots(isSubnautica, activeOnly);
+            string[] roots = GetTargetRoots(win.SelectedGame, win.SelectedScope);
 
             if (roots.Length == 0)
             {
@@ -813,24 +787,42 @@ namespace SubnauticaLauncher.UI
                 MessageBoxImage.Information);
         }
 
-        private string[] GetTargetRoots(bool isSubnautica, bool activeOnly)
+        private string[] GetTargetRoots(
+            HardcoreSaveTargetGame game,
+            HardcoreSaveTargetScope scope)
         {
-            if (!isSubnautica)
-            {
-                if (activeOnly)
-                    return FindActiveRoots("SubnauticaZero");
+            bool activeOnly = scope == HardcoreSaveTargetScope.ActiveOnly;
 
-                return BZVersionLoader.LoadInstalled()
-                    .Select(v => v.HomeFolder)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .ToArray();
-            }
+            if (game == HardcoreSaveTargetGame.Subnautica)
+                return activeOnly
+                    ? FindActiveRoots("Subnautica")
+                    : VersionLoader.LoadInstalled()
+                        .Select(v => v.HomeFolder)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+
+            if (game == HardcoreSaveTargetGame.BelowZero)
+                return activeOnly
+                    ? FindActiveRoots("SubnauticaZero")
+                    : BZVersionLoader.LoadInstalled()
+                        .Select(v => v.HomeFolder)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+
+            var roots = new List<string>();
 
             if (activeOnly)
-                return FindActiveRoots("Subnautica");
+            {
+                roots.AddRange(FindActiveRoots("Subnautica"));
+                roots.AddRange(FindActiveRoots("SubnauticaZero"));
+            }
+            else
+            {
+                roots.AddRange(VersionLoader.LoadInstalled().Select(v => v.HomeFolder));
+                roots.AddRange(BZVersionLoader.LoadInstalled().Select(v => v.HomeFolder));
+            }
 
-            return VersionLoader.LoadInstalled()
-                .Select(v => v.HomeFolder)
+            return roots
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
         }
