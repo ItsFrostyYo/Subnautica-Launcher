@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Hardcore Save Deleter"
-        Width="520"
+        Width="440"
         SizeToContent="Height"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
@@ -174,23 +174,23 @@
             <Border Grid.Row="1"
                     Background="#90000000"
                     CornerRadius="14"
-                    Padding="16"
-                    Margin="16,12,16,16">
+                    Padding="12"
+                    Margin="12,8,12,12">
 
                 <StackPanel>
                     <TextBlock Text="Delete all Hardcore saves"
-                               FontSize="20"
+                               FontSize="18"
                                FontWeight="SemiBold"
-                               Margin="0,0,0,10"/>
+                               Margin="0,0,0,8"/>
 
                     <TextBlock Text="This will permanently delete Hardcore save folders."
                                Style="{StaticResource MutedText}"
                                TextWrapping="Wrap"
-                               Margin="0,0,0,16"/>
+                               Margin="0,0,0,10"/>
 
                     <TextBlock Text="Game"
                                FontWeight="SemiBold"
-                               Margin="0,0,0,6"/>
+                               Margin="0,0,0,4"/>
                     <ComboBox x:Name="GameChoiceDropdown"
                               Style="{StaticResource DarkComboBox}">
                         <ComboBoxItem Content="Subnautica"/>
@@ -200,7 +200,7 @@
 
                     <TextBlock Text="Scope"
                                FontWeight="SemiBold"
-                               Margin="0,12,0,6"/>
+                               Margin="0,10,0,4"/>
                     <ComboBox x:Name="ScopeChoiceDropdown"
                               Style="{StaticResource DarkComboBox}">
                         <ComboBoxItem Content="Active Version(s) Only"/>
@@ -209,14 +209,14 @@
 
                     <CheckBox x:Name="ConfirmCheckBox"
                               Content="I understand this is permanent."
-                              Margin="0,14,0,6"
+                              Margin="0,10,0,6"
                               Foreground="White"
                               Checked="ConfirmCheckBox_Changed"
                               Unchecked="ConfirmCheckBox_Changed"/>
 
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Center"
-                                Margin="0,8,0,0">
+                                Margin="0,4,0,0">
                         <Button x:Name="DeleteButton"
                                 Content="Delete Hardcore Saves"
                                 Width="200"
