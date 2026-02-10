@@ -37,7 +37,8 @@ public static class Updates
         Date = "Feb 10, 2026 | Contributors (1) - ItsFrosti.",
         Changes = new[]
         {
-            "Added Delete All Hardcore Saves Button"
+            "Added Delete All Hardcore Saves Button",
+            "Added Delete All Hardcore Saves Window"
         }
     },
 
