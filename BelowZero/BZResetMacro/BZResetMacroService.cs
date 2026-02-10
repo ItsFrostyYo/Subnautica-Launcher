@@ -39,11 +39,15 @@ namespace SubnauticaLauncher.BelowZero
             // ================= MAIN MENU =================
             if (state == GameState.MainMenu)
             {
+                string? hardcoreSlotToDelete =
+                    HardcoreSaveDeleter.GetLatestHardcoreSlotToDelete(root, mode);
+
                 await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
                 await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
 
                 await Task.Delay(150);
                 await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
+                await HardcoreSaveDeleter.DeleteSlotAfterDelayAsync(hardcoreSlotToDelete);
                 return;
             }
 
@@ -106,10 +110,14 @@ namespace SubnauticaLauncher.BelowZero
             }
 
             // ================= START NEW GAME =================
+            string? slotToDelete =
+                HardcoreSaveDeleter.GetLatestHardcoreSlotToDelete(root, mode);
+
             await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
             await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
             await Task.Delay(150);
             await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
+            await HardcoreSaveDeleter.DeleteSlotAfterDelayAsync(slotToDelete);
         }
 
         // ================= BUILD YEAR (BZ ONLY) =================

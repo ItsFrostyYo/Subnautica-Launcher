@@ -77,6 +77,13 @@ namespace SubnauticaLauncher.UI
                 _macroEnabled ? Brushes.Green : Brushes.DarkRed;
         }
 
+        private void UpdateHardcoreSaveDeleterVisualState()
+        {
+            bool enabled = LauncherSettings.Current.HardcoreSaveDeleterEnabled;
+            HardcoreSaveDeleterToggleButton.Content = enabled ? "Enabled" : "Disabled";
+            HardcoreSaveDeleterToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
+        }
+
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -208,6 +215,8 @@ namespace SubnauticaLauncher.UI
 
             RenameOnCloseButton.Background =
                 _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            UpdateHardcoreSaveDeleterVisualState();
 
             Logger.Log("Startup Complete");
             ShowView(InstallsView);
@@ -736,6 +745,16 @@ namespace SubnauticaLauncher.UI
 
             UpdateResetMacroVisualState();
             RegisterResetHotkey();
+        }
+
+        private void HardcoreSaveDeleterToggle_Click(object sender, RoutedEventArgs e)
+        {
+            LauncherSettings.Current.HardcoreSaveDeleterEnabled =
+                !LauncherSettings.Current.HardcoreSaveDeleterEnabled;
+            LauncherSettings.Save();
+
+            UpdateHardcoreSaveDeleterVisualState();
+            Logger.Log($"Hardcore save deleter enabled = {LauncherSettings.Current.HardcoreSaveDeleterEnabled}");
         }
 
         private void ResetGamemodeDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)

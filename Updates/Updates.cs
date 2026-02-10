@@ -32,6 +32,18 @@ public static class Updates
     {
          new UpdateEntry
     {
+        Version = "1.6.0",
+        Title = "Hardcore Save Deleter",
+        Date = "Feb 10, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Added Hardcore Save Deleter for Subnautica and Below Zero",
+            "Deletes and Recent Hardcore Saves after use of Reset Macro with Harcore Gamemode Selected"
+        }
+    },
+         
+         new UpdateEntry
+    {
         Version = "1.5.1",
         Title = "Internal Code Cleanup",
         Date = "Feb 10, 2026 | Contributors (1) - ItsFrosti.",

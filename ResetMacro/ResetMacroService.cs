@@ -32,6 +32,9 @@ namespace SubnauticaLauncher.Macros
             // ================= MAIN MENU: INSTANT PATH =================
             if (state == GameState.MainMenu)
             {
+                string? hardcoreSlotToDelete =
+                    HardcoreSaveDeleter.GetLatestHardcoreSlotToDelete(root, mode);
+
                 await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
                 await Task.Delay(50);
                 await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
@@ -40,6 +43,7 @@ namespace SubnauticaLauncher.Macros
                     await Task.Delay(100); // 👀 verifier-visible delay
 
                 await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
+                await HardcoreSaveDeleter.DeleteSlotAfterDelayAsync(hardcoreSlotToDelete);
                 return;
             }
 
@@ -94,6 +98,9 @@ namespace SubnauticaLauncher.Macros
             }
 
             // ================= START NEW GAME =================
+            string? slotToDelete =
+                HardcoreSaveDeleter.GetLatestHardcoreSlotToDelete(root, mode);
+
             await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
             await Task.Delay(50);
             await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
@@ -101,7 +108,8 @@ namespace SubnauticaLauncher.Macros
             if (needsGamemodeDelay)
                 await Task.Delay(100); // 👀 verifier-visible delay
             
-            await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);            
+            await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
+            await HardcoreSaveDeleter.DeleteSlotAfterDelayAsync(slotToDelete);
         }               
     }
 }

@@ -678,21 +678,34 @@ Margin="0,12,0,4"/>
                                 </StackPanel>
                             </Border>
 
-                            <!-- ================= RIGHT: FUTURE TOOLS ================= -->
+                            <!-- ================= RIGHT: TOOLS ================= -->
                             <Border Grid.Column="1"
             Background="#60000000"
             CornerRadius="12"
             Padding="16">
 
                                 <StackPanel>
-                                    <TextBlock Text="Future Tools"
+                                    <TextBlock Text="Hardcore Save Deleter"
                        FontSize="20"
                        FontWeight="Bold"
                        Margin="0,0,0,12"/>
 
-                                    <TextBlock Text="(More Tools Coming Soon)"
+                                    <Button x:Name="HardcoreSaveDeleterToggleButton"
+                        Width="180"
+                        Height="32"
+                        Background="#8B2C2C"
+                        Content="Disabled"
+                        Style="{StaticResource RoundedButton}"
+                        Click="HardcoreSaveDeleterToggle_Click"/>
+
+                                    <TextBlock Text="Deletes the latest Hardcore save after reset"
                        Foreground="#AAAAAA"
-                       FontStyle="Italic"/>
+                       TextWrapping="Wrap"
+                       Margin="0,12,0,0"/>
+                                    <TextBlock Text="Only runs when Hardcore is selected"
+                       Foreground="#AAAAAA"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,0"/>
                                 </StackPanel>
 
                             </Border>

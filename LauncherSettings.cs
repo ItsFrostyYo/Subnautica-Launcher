@@ -34,6 +34,9 @@ namespace SubnauticaLauncher
         public GameMode ResetGameMode { get; set; } = GameMode.Survival;
         public bool RenameOnCloseEnabled { get; set; } = true;
 
+        // Tools
+        public bool HardcoreSaveDeleterEnabled { get; set; } = false;
+
         // Explosion reset settings
         public bool ExplosionResetEnabled { get; set; } = false;
         public ExplosionResetPreset ExplosionPreset { get; set; } =
