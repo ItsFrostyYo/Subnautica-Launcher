@@ -12,13 +12,20 @@ public static class Updates
         var info = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
         if (info != null && !string.IsNullOrWhiteSpace(info.InformationalVersion))
-            return info.InformationalVersion;
+            return TrimInformationalVersion(info.InformationalVersion);
 
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         if (version == null)
             return "0.0.0";
 
         return $"{version.Major}.{version.Minor}.{version.Build}";
+    }
+
+    private static string TrimInformationalVersion(string value)
+    {
+        // Strip SemVer build metadata like "1.1.0+githash" so UI shows only major.minor.build
+        int plusIndex = value.IndexOf('+');
+        return plusIndex >= 0 ? value[..plusIndex] : value;
     }
 
     public static readonly UpdateEntry[] History =
