@@ -1,16 +1,18 @@
-﻿using System;
+﻿using SubnauticaLauncher.BelowZero;
+using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Versions;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
-using SubnauticaLauncher.BelowZero;
+using System.Runtime.Versioning;
 
 namespace SubnauticaLauncher.BelowZero;
 
 public static class BZVersionLoader
 {
+    [SupportedOSPlatform("windows")]
     public static List<BZInstalledVersion> LoadInstalled()
     {
         var list = new List<BZInstalledVersion>();

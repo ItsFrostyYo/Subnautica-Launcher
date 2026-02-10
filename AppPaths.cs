@@ -1,15 +1,17 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Versions;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Microsoft.Win32;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
+using System.Runtime.Versioning;
 
 namespace SubnauticaLauncher
 {
+    [SupportedOSPlatform("windows")]
     public static class AppPaths
     {
         // =========================
@@ -58,7 +60,7 @@ namespace SubnauticaLauncher
 
             return SteamCommonPath;
         }
-
+        [SupportedOSPlatform("windows")]
         private static IReadOnlyList<string> GetSteamCommonPaths()
         {
             var paths = new List<string>();
@@ -123,7 +125,7 @@ namespace SubnauticaLauncher
 
             return null;
         }
-
+        [SupportedOSPlatform("windows")]
         private static string? GetSteamRootFromRegistry()
         {
             try

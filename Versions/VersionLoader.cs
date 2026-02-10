@@ -1,15 +1,17 @@
-﻿using System;
+﻿using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.UI;
+using SubnauticaLauncher.Updates;
+using SubnauticaLauncher.Versions;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
+using System.Runtime.Versioning;
 
 namespace SubnauticaLauncher.Versions;
 
 public static class VersionLoader
 {
+    [SupportedOSPlatform("windows")]
     public static List<InstalledVersion> LoadInstalled()
     {
         var list = new List<InstalledVersion>();
