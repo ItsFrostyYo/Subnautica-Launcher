@@ -1,4 +1,5 @@
-﻿using SubnauticaLauncher.Versions;
+﻿using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.Versions;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -59,7 +60,7 @@ public static class BZDepotDownloaderService
 
         var psi = new ProcessStartInfo
         {
-            FileName = BZDepotDownloaderInstaller.DepotDownloaderExe,
+            FileName = DepotDownloaderInstaller.DepotDownloaderExe,
             Arguments = args,
             UseShellExecute = true,
             CreateNoWindow = false

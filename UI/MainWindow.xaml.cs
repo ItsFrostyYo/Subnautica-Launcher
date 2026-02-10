@@ -180,7 +180,7 @@ namespace SubnauticaLauncher.UI
             Logger.Log("Launcher UI Loaded Successfully");
 
             if (!Directory.Exists(AppPaths.ToolsPath) ||
-                !File.Exists(BZDepotDownloaderInstaller.DepotDownloaderExe))
+                !File.Exists(DepotDownloaderInstaller.DepotDownloaderExe))
             {
                 Logger.Warn("Required tools missing, opening setup window");
 

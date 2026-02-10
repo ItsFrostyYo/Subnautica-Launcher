@@ -2,14 +2,10 @@
 using System.IO.Compression;
 using System.Net.Http;
 using System.Threading.Tasks;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
 
 namespace SubnauticaLauncher.Installer;
 
-public static class BZDepotDownloaderInstaller
+public static class DepotDownloaderInstaller
 {
     private const string DepotDownloaderZipUrl =
         "https://github.com/SteamRE/DepotDownloader/releases/latest/download/DepotDownloader-windows-x64.zip";

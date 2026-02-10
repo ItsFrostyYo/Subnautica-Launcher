@@ -63,7 +63,7 @@ public static class BZDepotDownloaderService
 
         var psi = new ProcessStartInfo
         {
-            FileName = BZDepotDownloaderInstaller.DepotDownloaderExe,
+            FileName = DepotDownloaderInstaller.DepotDownloaderExe,
             Arguments = args,
             UseShellExecute = true,   // REQUIRED for Steam Guard
             CreateNoWindow = false   // SHOW CONSOLE
