@@ -169,7 +169,7 @@ UseAeroCaptionButtons="False" />
                    FontSize="13"
                    FontWeight="SemiBold"
                    Margin="0,0,6,0"/>
-                <TextBlock Text="v1.0.9"
+                <TextBlock Text="v1.1.0"
                    FontSize="13"
                    Opacity="0.7"/>
             </StackPanel>

@@ -8,10 +8,21 @@ namespace SubnauticaLauncher.Updates;
 
 public static class Updates
 {
-    public static readonly string CurrentVersion = "1.0.9";
+    public static readonly string CurrentVersion = "1.1.0";
 
     public static readonly UpdateEntry[] History =
     {
+        new UpdateEntry
+        {
+            Version = "1.1.0",
+            Title = "#",
+            Date = "Feb 9 2026 | Contributors (1) - ItsFrosti.",
+            Changes = new[]
+            {
+                ""
+            }
+        },
+
         new UpdateEntry
         {
             Version = "1.0.9",

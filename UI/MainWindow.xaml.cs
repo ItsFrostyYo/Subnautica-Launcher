@@ -5,6 +5,7 @@ using SubnauticaLauncher.Memory;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -50,7 +51,7 @@ namespace SubnauticaLauncher.UI
 
         private const string DefaultBg = "Lifepod";
         private static CancellationTokenSource? _explosionCts;
-        private static bool _explosionRunning;        
+        private static bool _explosionRunning;
         private bool _renameOnCloseEnabled = true; // ✅ enabled by default
 
         public MainWindow()
@@ -68,7 +69,7 @@ namespace SubnauticaLauncher.UI
             var bz = new BZMainWindow();
             bz.Show();
             Close();
-        }       
+        }
 
         private void UpdateResetMacroVisualState()
         {
@@ -177,7 +178,7 @@ namespace SubnauticaLauncher.UI
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             Logger.Log("Launcher UI Loaded Successfully");
-            
+
             if (!Directory.Exists(AppPaths.ToolsPath) ||
                 !File.Exists(BZDepotDownloaderInstaller.DepotDownloaderExe))
             {
@@ -193,7 +194,7 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
             }
-           
+
             await CheckForUpdatesOnStartup();
 
             Directory.CreateDirectory(AppPaths.DataPath);
@@ -251,7 +252,7 @@ namespace SubnauticaLauncher.UI
                 _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
 
             Logger.Log("Startup Complete");
-            ShowView(InstallsView);                   
+            ShowView(InstallsView);
         }
 
         private void ApplyBackground(string preset)
@@ -453,7 +454,7 @@ namespace SubnauticaLauncher.UI
             if (InstalledVersionsList.SelectedItem is not InstalledVersion target)
                 return;
 
-            string common = AppPaths.SteamCommonPath;
+            string common = AppPaths.GetSteamCommonPathFor(target.HomeFolder);
             string activePath = Path.Combine(common, ACTIVE);
 
             try
@@ -653,10 +654,11 @@ namespace SubnauticaLauncher.UI
         private void LoadInstalledVersions()
         {
             var list = VersionLoader.LoadInstalled();
-            string active = Path.Combine(AppPaths.SteamCommonPath, ACTIVE);
 
             foreach (var v in list)
             {
+                string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
+                string active = Path.Combine(common, ACTIVE);
                 bool isActive = Path.GetFullPath(v.HomeFolder)
                     .Equals(Path.GetFullPath(active),
                         StringComparison.OrdinalIgnoreCase);
@@ -1016,7 +1018,12 @@ namespace SubnauticaLauncher.UI
             {
                 try
                 {
-                    await RestoreUntilGone(AppPaths.SteamCommonPath);
+                    var commonPaths = AppPaths.SteamCommonPaths;
+                    if (commonPaths.Count == 0)
+                        commonPaths = new List<string> { AppPaths.SteamCommonPath };
+
+                    foreach (var common in commonPaths)
+                        await RestoreUntilGone(common);
                 }
                 catch (Exception ex)
                 {

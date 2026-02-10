@@ -14,23 +14,21 @@ public static class BZVersionLoader
     public static List<BZInstalledVersion> LoadInstalled()
     {
         var list = new List<BZInstalledVersion>();
-        string common = AppPaths.SteamCommonPath;
-
-        if (!Directory.Exists(common))
-            return list;
-
-        foreach (var dir in Directory.GetDirectories(common))
+        foreach (var common in AppPaths.SteamCommonPaths)
         {
-            string info = Path.Combine(dir, "BZVersion.info");
-            if (!File.Exists(info))
-                continue;
+            foreach (var dir in Directory.GetDirectories(common))
+            {
+                string info = Path.Combine(dir, "BZVersion.info");
+                if (!File.Exists(info))
+                    continue;
 
-            var v = BZInstalledVersion.FromInfo(dir, info);
-            if (v == null)
-                continue;
+                var v = BZInstalledVersion.FromInfo(dir, info);
+                if (v == null)
+                    continue;
 
-            v.HomeFolder = dir;
-            list.Add(v);
+                v.HomeFolder = dir;
+                list.Add(v);
+            }
         }
 
         return list;

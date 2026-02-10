@@ -6,6 +6,7 @@ using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
 using SubnauticaLauncher.BelowZero;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -176,7 +177,7 @@ namespace SubnauticaLauncher.UI
         private async void BZMainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             Logger.Log("BZ Launcher UI Loaded Successfully");
-            
+
             await CheckForUpdatesOnStartup();
 
             Directory.CreateDirectory(AppPaths.DataPath);
@@ -207,7 +208,7 @@ namespace SubnauticaLauncher.UI
                 _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
 
             Logger.Log("Startup Complete");
-            ShowView(InstallsView);                       
+            ShowView(InstallsView);
         }
 
         private void ApplyBackground(string preset)
@@ -327,7 +328,7 @@ namespace SubnauticaLauncher.UI
                 border.Child = panel;
                 UpdatesPanel.Children.Add(border);
             }
-        }        
+        }
 
         // ================= BACKGROUND =================
 
@@ -378,7 +379,7 @@ namespace SubnauticaLauncher.UI
             if (BZInstalledVersionsList.SelectedItem is not BZInstalledVersion target)
                 return;
 
-            string common = AppPaths.SteamCommonPath;
+            string common = AppPaths.GetSteamCommonPathFor(target.HomeFolder);
             string activePath = Path.Combine(common, ACTIVE);
 
             try
@@ -578,10 +579,11 @@ namespace SubnauticaLauncher.UI
         private void LoadInstalledVersions()
         {
             var list = BZVersionLoader.LoadInstalled();
-            string active = Path.Combine(AppPaths.SteamCommonPath, ACTIVE);
 
             foreach (var v in list)
             {
+                string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
+                string active = Path.Combine(common, ACTIVE);
                 bool isActive = Path.GetFullPath(v.HomeFolder)
                     .Equals(Path.GetFullPath(active),
                         StringComparison.OrdinalIgnoreCase);
@@ -844,7 +846,12 @@ namespace SubnauticaLauncher.UI
             {
                 try
                 {
-                    await RestoreUntilGone(AppPaths.SteamCommonPath);
+                    var commonPaths = AppPaths.SteamCommonPaths;
+                    if (commonPaths.Count == 0)
+                        commonPaths = new List<string> { AppPaths.SteamCommonPath };
+
+                    foreach (var common in commonPaths)
+                        await RestoreUntilGone(common);
                 }
                 catch (Exception ex)
                 {

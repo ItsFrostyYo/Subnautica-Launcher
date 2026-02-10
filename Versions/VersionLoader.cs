@@ -13,23 +13,21 @@ public static class VersionLoader
     public static List<InstalledVersion> LoadInstalled()
     {
         var list = new List<InstalledVersion>();
-        string common = AppPaths.SteamCommonPath;
-
-        if (!Directory.Exists(common))
-            return list;
-
-        foreach (var dir in Directory.GetDirectories(common))
+        foreach (var common in AppPaths.SteamCommonPaths)
         {
-            string info = Path.Combine(dir, "Version.info");
-            if (!File.Exists(info))
-                continue;
+            foreach (var dir in Directory.GetDirectories(common))
+            {
+                string info = Path.Combine(dir, "Version.info");
+                if (!File.Exists(info))
+                    continue;
 
-            var v = InstalledVersion.FromInfo(dir, info);
-            if (v == null)
-                continue;
+                var v = InstalledVersion.FromInfo(dir, info);
+                if (v == null)
+                    continue;
 
-            v.HomeFolder = dir;
-            list.Add(v);
+                v.HomeFolder = dir;
+                list.Add(v);
+            }
         }
 
         return list;
