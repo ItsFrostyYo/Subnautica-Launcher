@@ -613,6 +613,13 @@ Click="RenameOnCloseButton_Click"/>
                         Style="{StaticResource RoundedButton}"
                         Click="HardcoreSaveDeleterToggle_Click"/>
 
+                                    <TextBlock Text="Deletes the latest Hardcore save after reset"
+                       TextWrapping="Wrap"
+                       Margin="0,12,0,0"/>
+                                    <TextBlock Text="Only runs when Hardcore is selected"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,0"/>
+
                                     <Button x:Name="HardcoreSaveDeleterPurgeButton"
                         Width="220"
                         Height="32"
@@ -621,13 +628,6 @@ Click="RenameOnCloseButton_Click"/>
                         Content="Delete All Hardcore Saves"
                         Style="{StaticResource RoundedButton}"
                         Click="HardcoreSaveDeleterPurge_Click"/>
-
-                                    <TextBlock Text="Deletes the latest Hardcore save after reset"
-                       TextWrapping="Wrap"
-                       Margin="0,12,0,0"/>
-                                    <TextBlock Text="Only runs when Hardcore is selected"
-                       TextWrapping="Wrap"
-                       Margin="0,4,0,0"/>
                                 </StackPanel>
 
                             </Border>
