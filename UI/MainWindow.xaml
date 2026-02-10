@@ -668,13 +668,14 @@ Click="ExplosionTrackToggle_Click"/>
                                         <ComboBoxItem Content="Over 1 Hour"            Tag="Over1Hour"/>
                                     </ComboBox>
 
-                                    <TextBlock Text="Explosion Time Reset Macros are for 2018,"
-FontWeight="SemiBold"
-Margin="0,12,0,4"/>
-
-                                    <TextBlock Text="OR 2023 Versions ONLY."
-FontWeight="SemiBold"
-Margin="0,12,0,4"/>
+                                    <TextBlock Text="Explosion Time Reset Macros are for 2018"
+                       Foreground="#CCCCCC"
+                       TextWrapping="Wrap"
+                       Margin="0,12,0,0"/>
+                                    <TextBlock Text="or 2023 versions only."
+                       Foreground="#CCCCCC"
+                       TextWrapping="Wrap"
+                       Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
 
@@ -699,11 +700,11 @@ Margin="0,12,0,4"/>
                         Click="HardcoreSaveDeleterToggle_Click"/>
 
                                     <TextBlock Text="Deletes the latest Hardcore save after reset"
-                       Foreground="#AAAAAA"
+                       Foreground="#CCCCCC"
                        TextWrapping="Wrap"
                        Margin="0,12,0,0"/>
                                     <TextBlock Text="Only runs when Hardcore is selected"
-                       Foreground="#AAAAAA"
+                       Foreground="#CCCCCC"
                        TextWrapping="Wrap"
                        Margin="0,4,0,0"/>
                                 </StackPanel>
