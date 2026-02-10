@@ -757,6 +757,92 @@ namespace SubnauticaLauncher.UI
             Logger.Log($"Hardcore save deleter enabled = {LauncherSettings.Current.HardcoreSaveDeleterEnabled}");
         }
 
+        private void HardcoreSaveDeleterPurge_Click(object sender, RoutedEventArgs e)
+        {
+            var gameChoice = MessageBox.Show(
+                "Delete Hardcore saves for Subnautica?\nYes = Subnautica\nNo = Below Zero\nCancel = Abort",
+                "Choose Game",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+
+            if (gameChoice == MessageBoxResult.Cancel)
+                return;
+
+            bool isSubnautica = gameChoice == MessageBoxResult.Yes;
+
+            var scopeChoice = MessageBox.Show(
+                "Delete from the active version only?\nYes = Active Only\nNo = All Managed Versions\nCancel = Abort",
+                "Choose Scope",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Warning);
+
+            if (scopeChoice == MessageBoxResult.Cancel)
+                return;
+
+            bool activeOnly = scopeChoice == MessageBoxResult.Yes;
+
+            var confirm = MessageBox.Show(
+                $"This will permanently delete Hardcore saves for {(isSubnautica ? "Subnautica" : "Below Zero")}.\nAre you sure?",
+                "Confirm Delete",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (confirm != MessageBoxResult.Yes)
+                return;
+
+            string[] roots = GetTargetRoots(isSubnautica, activeOnly);
+
+            if (roots.Length == 0)
+            {
+                MessageBox.Show(
+                    "No matching game folders were found.",
+                    "No Targets",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            int deleted = HardcoreSaveDeleter.DeleteAllHardcoreSaves(roots);
+
+            MessageBox.Show(
+                deleted > 0
+                    ? $"Deleted {deleted} Hardcore save folder(s)."
+                    : "No Hardcore saves were found.",
+                "Hardcore Save Deleter",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
+        private string[] GetTargetRoots(bool isSubnautica, bool activeOnly)
+        {
+            if (!isSubnautica)
+            {
+                if (activeOnly)
+                    return FindActiveRoots("SubnauticaZero");
+
+                return BZVersionLoader.LoadInstalled()
+                    .Select(v => v.HomeFolder)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+            }
+
+            if (activeOnly)
+                return FindActiveRoots("Subnautica");
+
+            return VersionLoader.LoadInstalled()
+                .Select(v => v.HomeFolder)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static string[] FindActiveRoots(string activeFolderName)
+        {
+            return AppPaths.SteamCommonPaths
+                .Select(p => Path.Combine(p, activeFolderName))
+                .Where(Directory.Exists)
+                .ToArray();
+        }
+
         private void ResetGamemodeDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             SaveMacroSettings();

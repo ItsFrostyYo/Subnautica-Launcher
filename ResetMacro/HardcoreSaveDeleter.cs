@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -56,6 +57,47 @@ namespace SubnauticaLauncher.Macros
             {
                 Logger.Exception(ex, "Hardcore save delete failed");
             }
+        }
+
+        public static int DeleteAllHardcoreSaves(IEnumerable<string> gameRoots)
+        {
+            int deleted = 0;
+
+            foreach (var root in gameRoots)
+            {
+                foreach (var slot in GetHardcoreSlots(root))
+                {
+                    try
+                    {
+                        if (Directory.Exists(slot))
+                        {
+                            Directory.Delete(slot, recursive: true);
+                            deleted++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Exception(ex, $"Hardcore save delete failed: {slot}");
+                    }
+                }
+            }
+
+            return deleted;
+        }
+
+        private static IEnumerable<string> GetHardcoreSlots(string gameRoot)
+        {
+            if (string.IsNullOrWhiteSpace(gameRoot))
+                return Enumerable.Empty<string>();
+
+            string savedGamesPath = Path.Combine(gameRoot, "SNAppData", "SavedGames");
+            if (!Directory.Exists(savedGamesPath))
+                return Enumerable.Empty<string>();
+
+            return Directory.GetDirectories(savedGamesPath, "slot*")
+                .Where(IsSlotDirectory)
+                .Where(IsHardcoreSlot)
+                .ToArray();
         }
 
         private static bool IsSlotDirectory(string path)
