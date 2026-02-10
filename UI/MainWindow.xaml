@@ -671,7 +671,7 @@ Click="ExplosionTrackToggle_Click"/>
                                     <TextBlock Text="Explosion Time Reset Macros are for 2018"
                        TextWrapping="Wrap"
                        Margin="0,12,0,0"/>
-                                    <TextBlock Text="or 2023 versions only."
+                                    <TextBlock Text="or 2023 versions only"
                        TextWrapping="Wrap"
                        Margin="0,4,0,0"/>
                                 </StackPanel>

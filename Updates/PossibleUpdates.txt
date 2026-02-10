@@ -4,7 +4,7 @@
 ✓ Explosion Time Reset Macros
 ✓ Below Zero Support
 ✓ Explo Time Reset Overlay
+✓ Hardcore Save Deleter
 • Mods Support
 • RNG Mod Support
-• Hardcore Save Deleter
 • 
