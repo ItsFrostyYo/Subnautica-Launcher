@@ -32,6 +32,17 @@ public static class Updates
     {
          new UpdateEntry
     {
+        Version = "1.6.2",
+        Title = "Delete Saves Button",
+        Date = "Feb 10, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Added Delete All Hardcore Saves Button"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "1.6.1",
         Title = "Hardcore Save Deleter Patch",
         Date = "Feb 10, 2026 | Contributors (1) - ItsFrosti.",
