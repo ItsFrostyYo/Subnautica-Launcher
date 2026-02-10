@@ -32,6 +32,17 @@ public static class Updates
     {
          new UpdateEntry
     {
+        Version = "1.6.1",
+        Title = "Hardcore Save Deleter Patch",
+        Date = "Feb 10, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Now Only Deletes a Save File after one was made, prevents deleting non speedrun saves."       
+        }
+    },
+         
+         new UpdateEntry
+    {
         Version = "1.6.0",
         Title = "Hardcore Save Deleter",
         Date = "Feb 10, 2026 | Contributors (1) - ItsFrosti.",
