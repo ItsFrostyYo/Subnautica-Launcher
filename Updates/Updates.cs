@@ -38,7 +38,8 @@ public static class Updates
         Changes = new[]
         {
             "Added Hardcore Save Deleter for Subnautica and Below Zero",
-            "Deletes and Recent Hardcore Saves after use of Reset Macro with Harcore Gamemode Selected"
+            "Deletes and Recent Hardcore Saves after use of Reset Macro with Harcore Gamemode Selected",
+            "Small UI Updates"
         }
     },
          

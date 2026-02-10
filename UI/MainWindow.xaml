@@ -669,11 +669,9 @@ Click="ExplosionTrackToggle_Click"/>
                                     </ComboBox>
 
                                     <TextBlock Text="Explosion Time Reset Macros are for 2018"
-                       Foreground="#CCCCCC"
                        TextWrapping="Wrap"
                        Margin="0,12,0,0"/>
                                     <TextBlock Text="or 2023 versions only."
-                       Foreground="#CCCCCC"
                        TextWrapping="Wrap"
                        Margin="0,4,0,0"/>
                                 </StackPanel>
@@ -700,11 +698,9 @@ Click="ExplosionTrackToggle_Click"/>
                         Click="HardcoreSaveDeleterToggle_Click"/>
 
                                     <TextBlock Text="Deletes the latest Hardcore save after reset"
-                       Foreground="#CCCCCC"
                        TextWrapping="Wrap"
                        Margin="0,12,0,0"/>
                                     <TextBlock Text="Only runs when Hardcore is selected"
-                       Foreground="#CCCCCC"
                        TextWrapping="Wrap"
                        Margin="0,4,0,0"/>
                                 </StackPanel>

@@ -587,9 +587,9 @@ Click="RenameOnCloseButton_Click"/>
                                         <ComboBoxItem Content="SaveSlot3"/>
                                     </ComboBox>
 
-                                    <TextBlock Text="Only work on 1.00/Default Ingame UI Scale"
-FontWeight="SemiBold"
-Margin="0,12,0,4"/>
+                                    <TextBlock Text="Only works with 1.00/default in-game UI scale"
+                       FontWeight="SemiBold"
+                       Margin="0,12,0,4"/>
                                 </StackPanel>
                             </Border>
 
@@ -614,11 +614,9 @@ Margin="0,12,0,4"/>
                         Click="HardcoreSaveDeleterToggle_Click"/>
 
                                     <TextBlock Text="Deletes the latest Hardcore save after reset"
-                       Foreground="#CCCCCC"
                        TextWrapping="Wrap"
                        Margin="0,12,0,0"/>
                                     <TextBlock Text="Only runs when Hardcore is selected"
-                       Foreground="#CCCCCC"
                        TextWrapping="Wrap"
                        Margin="0,4,0,0"/>
                                 </StackPanel>
