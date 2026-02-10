@@ -1,4 +1,5 @@
-﻿using SubnauticaLauncher.Explosion;
+﻿using SubnauticaLauncher;
+using SubnauticaLauncher.Explosion;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.Memory;
@@ -31,9 +32,6 @@ namespace SubnauticaLauncher.BelowZero
     {
         private readonly BZInstalledVersion _version;
 
-        private static readonly string BgPreset =
-            Path.Combine(AppPaths.DataPath, "BPreset.txt");
-
         private const string DefaultBg = "GrassyPlateau";
 
         public BZEditVersionWindow(BZInstalledVersion version)
@@ -56,14 +54,10 @@ namespace SubnauticaLauncher.BelowZero
 
         private void BZEditVersionWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            string bg = DefaultBg;
-
-            if (File.Exists(BgPreset))
-            {
-                bg = File.ReadAllText(BgPreset).Trim();
-                if (string.IsNullOrWhiteSpace(bg))
-                    bg = DefaultBg;
-            }
+            LauncherSettings.Load();
+            string bg = LauncherSettings.Current.BackgroundPreset;
+            if (string.IsNullOrWhiteSpace(bg))
+                bg = DefaultBg;
 
             ApplyBackground(bg);
         }

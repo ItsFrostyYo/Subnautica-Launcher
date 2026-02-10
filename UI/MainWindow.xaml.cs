@@ -1,4 +1,5 @@
-﻿using SubnauticaLauncher.Explosion;
+﻿using SubnauticaLauncher;
+using SubnauticaLauncher.Explosion;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.Memory;
@@ -45,9 +46,6 @@ namespace SubnauticaLauncher.UI
             IntPtr hWnd, int id);
 
         private const int WM_HOTKEY = 0x0312;
-
-        private static readonly string BgPreset =
-        Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
         private const string DefaultBg = "Lifepod";
         private static CancellationTokenSource? _explosionCts;
@@ -203,12 +201,16 @@ namespace SubnauticaLauncher.UI
 
             Logger.Log("Launcher data directory prepared");
 
-            if (!File.Exists(BgPreset))
-                File.WriteAllText(BgPreset, DefaultBg);
+            LauncherSettings.Load();
+            var settings = LauncherSettings.Current;
 
-            string bg = File.ReadAllText(BgPreset).Trim();
+            string bg = settings.BackgroundPreset;
             if (string.IsNullOrWhiteSpace(bg))
+            {
                 bg = DefaultBg;
+                settings.BackgroundPreset = bg;
+                LauncherSettings.Save();
+            }
 
             Logger.Log($"Applying background: {bg}");
 
@@ -426,7 +428,8 @@ namespace SubnauticaLauncher.UI
             if (ThemeDropdown.SelectedItem is ComboBoxItem i &&
                 i.Content is string name)
             {
-                File.WriteAllText(BgPreset, name);
+                LauncherSettings.Current.BackgroundPreset = name;
+                LauncherSettings.Save();
                 ApplyBackground(name);
             }
         }
@@ -442,7 +445,8 @@ namespace SubnauticaLauncher.UI
             if (dlg.ShowDialog() != true)
                 return;
 
-            File.WriteAllText(BgPreset, dlg.FileName);
+            LauncherSettings.Current.BackgroundPreset = dlg.FileName;
+            LauncherSettings.Save();
             ApplyBackground(dlg.FileName);
             ThemeDropdown.SelectedItem = null;
         }
@@ -881,9 +885,6 @@ namespace SubnauticaLauncher.UI
             RegisterResetHotkey(); // 🔥 THIS WAS MISSING
         }
 
-        private static readonly string SettingsPath =
-    Path.Combine(AppPaths.DataPath, "Settings.info");
-
         private void SaveMacroSettings()
         {
             ComboBoxItem? item = ResetGamemodeDropdown.SelectedItem as ComboBoxItem;
@@ -892,36 +893,23 @@ namespace SubnauticaLauncher.UI
                 ? Enum.Parse<GameMode>((string)item.Content)
                 : GameMode.Survival; // or your default
 
-            File.WriteAllLines(SettingsPath, new[]
-            {
-        $"Enabled={_macroEnabled}",
-        $"Hotkey={_resetKey}",
-        $"Mode={mode}",
-        $"RenameOnClose={_renameOnCloseEnabled}"
-    });
+            LauncherSettings.Current.ResetMacroEnabled = _macroEnabled;
+            LauncherSettings.Current.ResetHotkey = _resetKey;
+            LauncherSettings.Current.ResetGameMode = mode;
+            LauncherSettings.Current.RenameOnCloseEnabled = _renameOnCloseEnabled;
+            LauncherSettings.Save();
         }
 
         [SupportedOSPlatform("windows")]
         private void LoadMacroSettings()
         {
-            if (!File.Exists(SettingsPath))
-            {
-                Logger.Log("Reset Macro Settings could not be found Setting to Default.");
-                UpdateResetMacroVisualState();
-                return;
-            }
+            LauncherSettings.Load();
+            var settings = LauncherSettings.Current;
 
-            var dict = File.ReadAllLines(SettingsPath)
-                .Select(l => l.Split('='))
-                .ToDictionary(x => x[0], x => x[1]);
-
-            _macroEnabled = bool.Parse(dict["Enabled"]);
-            _resetKey = Enum.Parse<Key>(dict["Hotkey"]);
-            var mode = Enum.Parse<GameMode>(dict["Mode"]);
-            _renameOnCloseEnabled =
-    dict.TryGetValue("RenameOnClose", out var roc)
-    ? bool.Parse(roc)
-    : true; // ✅ default enabled
+            _macroEnabled = settings.ResetMacroEnabled;
+            _resetKey = settings.ResetHotkey;
+            var mode = settings.ResetGameMode;
+            _renameOnCloseEnabled = settings.RenameOnCloseEnabled;
 
             Logger.Log($"Reset Macro Settings Loaded Successfully. Enabled={_macroEnabled}, Hotkey={_resetKey}, Mode={mode}");
 
@@ -929,7 +917,7 @@ namespace SubnauticaLauncher.UI
             ResetGamemodeDropdown.SelectedItem =
                 ResetGamemodeDropdown.Items
                     .Cast<ComboBoxItem>()
-                    .First(i => (string)i.Content == mode.ToString());
+                    .FirstOrDefault(i => (string)i.Content == mode.ToString());
 
             UpdateResetMacroVisualState();
             RegisterResetHotkey();

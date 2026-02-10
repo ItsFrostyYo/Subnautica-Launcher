@@ -15,9 +15,6 @@ namespace SubnauticaLauncher.UI
 {
     public partial class DepotDownloaderLoginWindow : Window
     {
-        private static readonly string BgPreset =
-            Path.Combine(AppPaths.DataPath, "BPreset.txt");
-
         private const string DefaultBg = "GrassyPlateau";
 
         public string Username => UsernameBox.Text;
@@ -38,14 +35,11 @@ namespace SubnauticaLauncher.UI
 
         private void DepotDownloaderLoginWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            string bg = DefaultBg;
+            LauncherSettings.Load();
+            string bg = LauncherSettings.Current.BackgroundPreset;
+            if (string.IsNullOrWhiteSpace(bg))
+                bg = DefaultBg;
             Logger.Log("Login Window has been Opened Successfully");
-            if (File.Exists(BgPreset))
-            {
-                bg = File.ReadAllText(BgPreset).Trim();
-                if (string.IsNullOrWhiteSpace(bg))
-                    bg = DefaultBg;
-            }
             Logger.Log("Login Window Background Applied Successfully");
             ApplyBackground(bg);
         }

@@ -1,4 +1,5 @@
-﻿using SubnauticaLauncher.Installer;
+﻿using SubnauticaLauncher;
+using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.UI;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
@@ -17,9 +18,6 @@ namespace SubnauticaLauncher.BelowZero
     public partial class BZAddVersionWindow : Window
     {       
         
-            private static readonly string BgPreset =
-        Path.Combine(AppPaths.DataPath, "BPreset.txt");
-
             private const string DefaultBg = "Lifepod";
 
             public BZAddVersionWindow()
@@ -36,14 +34,10 @@ namespace SubnauticaLauncher.BelowZero
         }
         private void BZAddVersionWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            string bg = DefaultBg;
-
-            if (File.Exists(BgPreset))
-            {
-                bg = File.ReadAllText(BgPreset).Trim();
-                if (string.IsNullOrWhiteSpace(bg))
-                    bg = DefaultBg;
-            }
+            LauncherSettings.Load();
+            string bg = LauncherSettings.Current.BackgroundPreset;
+            if (string.IsNullOrWhiteSpace(bg))
+                bg = DefaultBg;
 
             ApplyBackground(bg);
         }

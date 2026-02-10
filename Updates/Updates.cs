@@ -33,11 +33,12 @@ public static class Updates
          new UpdateEntry
     {
         Version = "1.5.1",
-        Title = "",
+        Title = "Internal Code Cleanup",
         Date = "Feb 10, 2026 | Contributors (1) - ItsFrosti.",
         Changes = new[]
         {
-            ""
+            "Unified all settings into one file",
+            "Internal Workings slight change/cleanup"
         }
     },
 

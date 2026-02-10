@@ -1,4 +1,5 @@
-﻿using SubnauticaLauncher.Versions;
+﻿using SubnauticaLauncher;
+using SubnauticaLauncher.Versions;
 using System;
 using System.IO;
 using System.Windows;
@@ -12,9 +13,6 @@ namespace SubnauticaLauncher.UI
     public partial class EditVersionWindow : Window
     {
         private readonly InstalledVersion _version;
-
-        private static readonly string BgPreset =
-            Path.Combine(AppPaths.DataPath, "BPreset.txt");
 
         private const string DefaultBg = "GrassyPlateau";
 
@@ -38,14 +36,10 @@ namespace SubnauticaLauncher.UI
 
         private void EditVersionWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            string bg = DefaultBg;
-
-            if (File.Exists(BgPreset))
-            {
-                bg = File.ReadAllText(BgPreset).Trim();
-                if (string.IsNullOrWhiteSpace(bg))
-                    bg = DefaultBg;
-            }
+            LauncherSettings.Load();
+            string bg = LauncherSettings.Current.BackgroundPreset;
+            if (string.IsNullOrWhiteSpace(bg))
+                bg = DefaultBg;
 
             ApplyBackground(bg);
         }
