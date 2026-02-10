@@ -1,14 +1,25 @@
-﻿using System.Collections.Generic;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
+﻿using System.Reflection;
 
 namespace SubnauticaLauncher.Updates;
 
 public static class Updates
 {
-    public static readonly string CurrentVersion = "1.1.0";
+    public static readonly string CurrentVersion = GetAssemblyVersion();
+    public static readonly string DisplayVersion = $"v{CurrentVersion}";
+
+    private static string GetAssemblyVersion()
+    {
+        var info = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+        if (info != null && !string.IsNullOrWhiteSpace(info.InformationalVersion))
+            return info.InformationalVersion;
+
+        var version = Assembly.GetExecutingAssembly().GetName().Version;
+        if (version == null)
+            return "0.0.0";
+
+        return $"{version.Major}.{version.Minor}.{version.Build}";
+    }
 
     public static readonly UpdateEntry[] History =
     {

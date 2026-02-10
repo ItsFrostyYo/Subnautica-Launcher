@@ -6,10 +6,9 @@
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 
-		<!-- 🔥 ADD THESE -->
 		<Version>1.1.0</Version>
-		<AssemblyVersion>1.1.0.0</AssemblyVersion>
-		<FileVersion>1.1.0.0</FileVersion>
+		<AssemblyVersion>$(Version).0</AssemblyVersion>
+		<FileVersion>$(Version).0</FileVersion>
 
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
