@@ -6,5 +6,6 @@
 ✓ Explo Time Reset Overlay
 ✓ Hardcore Save Deleter
 • Mods Support
-• RNG Mod Support
+• RNG Mod Downloadable
+• Combine SN1 and BZ to one UI
 • 
