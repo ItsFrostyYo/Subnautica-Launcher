@@ -53,9 +53,6 @@ namespace SubnauticaLauncher.Explosion
             int yearGroup = BuildYearResolver.ResolveGroupedYear(
                 Path.GetDirectoryName(proc.MainModule!.FileName!)!);
 
-            if (yearGroup != 2018 && yearGroup < 2022)
-                return;
-
             var resolver = ExplosionResolverFactory.Get(yearGroup);
 
             ExplosionResetDisplayController.Start(proc, resolver);

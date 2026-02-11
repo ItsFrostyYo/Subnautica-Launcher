@@ -3,7 +3,7 @@ using SubnauticaLauncher.Memory;
 
 namespace SubnauticaLauncher.Explosion
 {
-    public sealed class ExplosionResolver2018 : IExplosionResolver
+    public sealed class ExplosionResolver : IExplosionResolver
     {
         private readonly DeepPointer _countdown;
         private readonly DeepPointer _warning;
@@ -11,7 +11,7 @@ namespace SubnauticaLauncher.Explosion
         private readonly DeepPointer _y;
         private readonly DeepPointer _z;
 
-        public ExplosionResolver2018(
+        public ExplosionResolver(
             DeepPointer countdown,
             DeepPointer warning,
             DeepPointer x,
@@ -38,15 +38,15 @@ namespace SubnauticaLauncher.Explosion
             s.PosY = y;
             s.PosZ = z;
 
-            float c = 0f;
-            float w = 0f;
+            float countdown = 0f;
+            float warning = 0f;
 
             bool hasExplosion =
-                _countdown.TryReadFloat(proc, out c) &&
-                _warning.TryReadFloat(proc, out w) &&
-                c > 0f && w > 0f;
+                _countdown.TryReadFloat(proc, out countdown) &&
+                _warning.TryReadFloat(proc, out warning) &&
+                countdown > 0f && warning > 0f;
 
-            s.ExplosionTime = hasExplosion ? (c - w) : -1f;
+            s.ExplosionTime = hasExplosion ? (countdown - warning) : -1f;
             return true;
         }
     }

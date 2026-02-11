@@ -766,44 +766,6 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            // ================= BUILD YEAR CHECK (INLINE COPY) =================
-            var proc = Process.GetProcessesByName("Subnautica").FirstOrDefault();
-            if (proc == null)
-            {
-                await ResetMacroService.RunAsync(mode);
-                return;
-            }
-
-            string root = Path.GetDirectoryName(proc.MainModule!.FileName!)!;
-            int buildYear = -1;
-
-            string[] paths =
-            {
-        Path.Combine(root, "__buildtime.txt"),
-        Path.Combine(root, "Subnautica_Data", "StreamingAssets", "__buildtime.txt")
-    };
-
-            foreach (var p in paths)
-            {
-                if (!File.Exists(p)) continue;
-
-                if (DateTime.TryParse(File.ReadAllText(p), out var dt))
-                {
-                    buildYear = dt.Year;
-                    break;
-                }
-            }
-
-            // ✅ ONLY 2018 OR 2023 USE EXPLOSION RESET
-            bool canUseExplosionReset = buildYear == 2018 || buildYear == 2023;
-
-            if (!canUseExplosionReset)
-            {
-                Logger.Warn($"[ExplosionReset] Unsupported build year {buildYear}, falling back");
-                await ResetMacroService.RunAsync(mode);
-                return;
-            }
-
             // ================= RUN EXPLOSION RESET =================
             _explosionCts = new CancellationTokenSource();
             _explosionRunning = true;
