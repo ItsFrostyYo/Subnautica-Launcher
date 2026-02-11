@@ -6,7 +6,6 @@ using SubnauticaLauncher.Memory;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
 using SubnauticaLauncher.BelowZero;
-using System.Collections.Generic;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -471,93 +470,44 @@ namespace SubnauticaLauncher.UI
 
             string common = AppPaths.GetSteamCommonPathFor(target.HomeFolder);
             string activePath = Path.Combine(common, ACTIVE);
+            string targetExe = Path.Combine(activePath, "Subnautica.exe");
 
             try
             {
-                bool isGameRunning =
-                    Process.GetProcessesByName("Subnautica").Length > 0;
-
                 bool isAlreadyActive =
                     Directory.Exists(activePath) &&
                     Path.GetFullPath(target.HomeFolder)
                         .Equals(Path.GetFullPath(activePath),
                                 StringComparison.OrdinalIgnoreCase);
 
-                // 🚫 Same version + running → BLOCK
-                if (isAlreadyActive && isGameRunning)
-                {
-                    MessageBox.Show(
-                        "This Subnautica version is already running.",
-                        "Launch Blocked",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information
-                    );
-
-                    SetStatus(target, VersionStatus.Active);
-                    return;
-                }
-
-                // ✅ Same version + not running → just launch
-                if (isAlreadyActive && !isGameRunning)
-                {
-                    SetStatus(target, VersionStatus.Launching);
-
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = Path.Combine(activePath, "Subnautica.exe"),
-                        WorkingDirectory = activePath,
-                        UseShellExecute = true
-                    });
-
-                    SetStatus(target, VersionStatus.Active);
-                    return;
-                }
-
-                // 🔁 Different version → switch required
                 SetStatus(target, VersionStatus.Switching);
 
-                bool wasRunning = await CloseGameIfRunning();
+                bool wasRunning = await LaunchCoordinator.CloseAllGameProcessesAsync();
 
                 if (wasRunning)
                 {
                     await Task.Delay(1000);
-
-                    int yearGroup = BuildYearResolver.ResolveGroupedYear(target.HomeFolder);
-                    if (yearGroup >= 2022)
-                        await Task.Delay(1500);
                 }
 
-                await RestoreUntilGone(common);
-
-                if (Directory.Exists(activePath))
-                    throw new IOException("Subnautica folder still exists after restore.");
-
-                // Safe swap (Unity file-lock tolerant)
-                var start = DateTime.UtcNow;
-                while (true)
+                if (!isAlreadyActive)
                 {
-                    try
-                    {
-                        Directory.Move(target.HomeFolder, activePath);
-                        break;
-                    }
-                    catch (IOException)
-                    {
-                        if ((DateTime.UtcNow - start).TotalMilliseconds > 10000)
-                            throw;
+                    await LaunchCoordinator.RestoreActiveFolderUntilGoneAsync(
+                        common,
+                        ACTIVE,
+                        UNMANAGED,
+                        "Version.info",
+                        static (active, info) => InstalledVersion.FromInfo(active, info)?.FolderName);
 
-                        await Task.Delay(250);
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        if ((DateTime.UtcNow - start).TotalMilliseconds > 10000)
-                            throw;
+                    if (Directory.Exists(activePath))
+                        throw new IOException("Subnautica folder still exists after restore.");
 
-                        await Task.Delay(250);
-                    }
+                    await LaunchCoordinator.MoveFolderWithRetryAsync(target.HomeFolder, activePath);
+
+                    await Task.Delay(250);
                 }
 
-                await Task.Delay(250);
+                if (!File.Exists(targetExe))
+                    throw new FileNotFoundException("Subnautica.exe not found in active folder.", targetExe);
 
                 // 🚀 LAUNCH
                 SetStatus(target, VersionStatus.Launching);
@@ -567,7 +517,7 @@ namespace SubnauticaLauncher.UI
 
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = Path.Combine(activePath, "Subnautica.exe"),
+                    FileName = targetExe,
                     WorkingDirectory = activePath,
                     UseShellExecute = true
                 });
@@ -587,81 +537,6 @@ namespace SubnauticaLauncher.UI
                     MessageBoxImage.Error
                 );
             }
-        }
-
-        // ================= CORE SAFETY =================
-
-        private static async Task RestoreUntilGone(string common)
-        {
-            string active = Path.Combine(common, ACTIVE);
-            if (!Directory.Exists(active))
-                return;
-
-            var start = DateTime.UtcNow;
-
-            while (Directory.Exists(active))
-            {
-                string info = Path.Combine(active, "Version.info");
-                string target;
-
-                if (File.Exists(info))
-                {
-                    var v = InstalledVersion.FromInfo(active, info)
-                        ?? throw new IOException("Invalid Version.info");
-
-                    target = Path.Combine(common, v.FolderName);
-                }
-                else
-                {
-                    target = Path.Combine(common, UNMANAGED);
-                }
-
-                if (Directory.Exists(target))
-                    Directory.Delete(target, true);
-
-                Directory.Move(active, target);
-                await Task.Delay(100);
-
-                if ((DateTime.UtcNow - start).TotalMilliseconds > 5000)
-                    throw new IOException("Timed out restoring Subnautica.");
-            }
-        }
-
-        private static async Task<bool> CloseGameIfRunning()
-        {
-            bool closedAnything = false;
-
-            // Subnautica (Original)
-            closedAnything |= await CloseProcessAsync("Subnautica");
-
-            // Subnautica: Below Zero
-            closedAnything |= await CloseProcessAsync("SubnauticaZero");
-
-            return closedAnything;
-        }
-
-        private static async Task<bool> CloseProcessAsync(string processName)
-        {
-            var processes = Process.GetProcessesByName(processName);
-            if (processes.Length == 0)
-                return false;
-
-            var p = processes[0];
-
-            try
-            {
-                p.CloseMainWindow();
-
-                if (!p.WaitForExit(10_000))
-                    p.Kill(true);
-            }
-            catch
-            {
-                try { p.Kill(true); } catch { }
-            }
-
-            await Task.Delay(500);
-            return true;
         }
 
         // ================= VERSION LIST =================
@@ -1071,7 +946,14 @@ namespace SubnauticaLauncher.UI
                         commonPaths = new List<string> { AppPaths.SteamCommonPath };
 
                     foreach (var common in commonPaths)
-                        await RestoreUntilGone(common);
+                    {
+                        await LaunchCoordinator.RestoreActiveFolderUntilGoneAsync(
+                            common,
+                            ACTIVE,
+                            UNMANAGED,
+                            "Version.info",
+                            static (active, info) => InstalledVersion.FromInfo(active, info)?.FolderName);
+                    }
                 }
                 catch (Exception ex)
                 {
