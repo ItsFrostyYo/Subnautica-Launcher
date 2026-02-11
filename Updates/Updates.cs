@@ -33,11 +33,11 @@ public static class Updates
          new UpdateEntry
     {
         Version = "1.7.0",
-        Title = "Explosion Reset Macro Full Implimentation",
-        Date = "Feb 10, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
+        Title = "Explosion Reset Macro Full Implementations",
+        Date = "Feb 11, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
         Changes = new[]
         {
-            "Explosion Reset Macro can do 2018, 2021, 2023 and 2025/all relivant versions",
+            "Explosion Reset Macro can do 2018, 2021, 2023 and 2025/all relevant versions",
             "Explosion Reset Macro uses Autosplitter Explosion Time Code"        
         }
     },
