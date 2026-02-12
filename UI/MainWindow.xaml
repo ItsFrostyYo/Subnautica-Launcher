@@ -687,6 +687,9 @@ Click="ExplosionTrackToggle_Click"/>
                                     <TextBlock Text="Subnautica only. Not available for Below Zero."
                                                TextWrapping="Wrap"
                                                Margin="0,12,0,0"/>
+                                    <TextBlock Text="Only Works on 1.00/default in-game UI scale for below zero."
+                                               TextWrapping="Wrap"
+                                               Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
 
@@ -697,82 +700,6 @@ Click="ExplosionTrackToggle_Click"/>
             Padding="16">
 
                                 <StackPanel>
-                                    <Grid Margin="0,0,0,16">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBlock Text="BZ Reset Macro"
-                                                   FontSize="18"
-                                                   FontWeight="Bold"
-                                                   VerticalAlignment="Center"/>
-
-                                        <Button x:Name="BZResetMacroToggleButton"
-                                                Grid.Column="1"
-                                                Width="110"
-                                                Height="30"
-                                                Margin="8,0,0,0"
-                                                Background="#8B2C2C"
-                                                Content="Disabled"
-                                                Style="{StaticResource RoundedButton}"
-                                                Click="BZResetMacroToggleButton_Click"/>
-                                    </Grid>
-
-                                    <TextBlock Text="Hotkey"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,4"/>
-
-                                    <Grid Margin="0,0,0,12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-
-                                        <TextBox x:Name="BZResetHotkeyBox"
-                                                 Height="32"
-                                                 IsReadOnly="True"
-                                                 Text="Not set"
-                                                 Foreground="#CCCCCC"
-                                                 Background="#22000000"
-                                                 BorderBrush="White"
-                                                 BorderThickness="1"
-                                                 Padding="8"/>
-
-                                        <Button Grid.Column="1"
-                                                Content="Set"
-                                                Width="70"
-                                                Height="32"
-                                                Margin="8,0,0,0"
-                                                Background="#154966"
-                                                Style="{StaticResource RoundedButton}"
-                                                Click="SetBZResetHotkey_Click"/>
-                                    </Grid>
-
-                                    <TextBlock Text="Gamemode"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,4"/>
-
-                                    <ComboBox x:Name="BZResetGamemodeDropdown"
-                                              Style="{StaticResource DarkComboBox}"
-                                              SelectionChanged="BZResetGamemodeDropdown_SelectionChanged">
-                                        <ComboBoxItem Content="Survival"/>
-                                        <ComboBoxItem Content="Hardcore"/>
-                                        <ComboBoxItem Content="Creative"/>
-                                        <ComboBoxItem Content="Freedom"/>
-                                        <ComboBoxItem Content="SaveSlot1"/>
-                                        <ComboBoxItem Content="SaveSlot2"/>
-                                        <ComboBoxItem Content="SaveSlot3"/>
-                                    </ComboBox>
-
-                                    <TextBlock Text="Only works on 1.00/default in-game UI scale."
-                                               FontWeight="SemiBold"
-                                               Margin="0,12,0,0"/>
-
-                                    <Border Height="1"
-                                            Background="#55FFFFFF"
-                                            Margin="0,16"/>
-
                                     <TextBlock Text="Hardcore Save Deleter"
                                                FontSize="20"
                                                FontWeight="Bold"

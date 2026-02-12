@@ -38,14 +38,11 @@ namespace SubnauticaLauncher.UI
         private const string BzUnmanagedFolder = "SubnauticaZeroUnmanagedVersion";
         private const string DefaultBg = "Lifepod";
 
-        private const int HotkeyIdSn = 9001;
-        private const int HotkeyIdBz = 9002;
+        private const int HotkeyIdReset = 9001;
         private const int WM_HOTKEY = 0x0312;
 
-        private Key _snResetKey = Key.None;
-        private Key _bzResetKey = Key.None;
-        private bool _snMacroEnabled;
-        private bool _bzMacroEnabled;
+        private Key _resetKey = Key.None;
+        private bool _macroEnabled;
         private bool _renameOnCloseEnabled = true;
 
         private static CancellationTokenSource? _explosionCts;
@@ -75,7 +72,7 @@ namespace SubnauticaLauncher.UI
             var source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             source.AddHook(WndProc);
 
-            RegisterResetHotkeys();
+            RegisterResetHotkey();
         }
 
         private IntPtr WndProc(
@@ -89,33 +86,17 @@ namespace SubnauticaLauncher.UI
             {
                 int hotkeyId = wParam.ToInt32();
 
-                if (hotkeyId == HotkeyIdSn)
+                if (hotkeyId == HotkeyIdReset)
                 {
                     _ = Dispatcher.InvokeAsync(async () =>
                     {
                         try
                         {
-                            await OnSubnauticaResetHotkeyPressed();
+                            await OnResetHotkeyPressed();
                         }
                         catch (Exception ex)
                         {
-                            Logger.Exception(ex, "Subnautica reset macro failed");
-                        }
-                    });
-
-                    handled = true;
-                }
-                else if (hotkeyId == HotkeyIdBz)
-                {
-                    _ = Dispatcher.InvokeAsync(async () =>
-                    {
-                        try
-                        {
-                            await OnBelowZeroResetHotkeyPressed();
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Exception(ex, "Below Zero reset macro failed");
+                            Logger.Exception(ex, "Reset macro failed");
                         }
                     });
 
@@ -203,16 +184,10 @@ namespace SubnauticaLauncher.UI
             ShowView(InstallsView);
         }
 
-        private void UpdateSubnauticaResetMacroVisualState()
+        private void UpdateResetMacroVisualState()
         {
-            ResetMacroToggleButton.Content = _snMacroEnabled ? "Enabled" : "Disabled";
-            ResetMacroToggleButton.Background = _snMacroEnabled ? Brushes.Green : Brushes.DarkRed;
-        }
-
-        private void UpdateBelowZeroResetMacroVisualState()
-        {
-            BZResetMacroToggleButton.Content = _bzMacroEnabled ? "Enabled" : "Disabled";
-            BZResetMacroToggleButton.Background = _bzMacroEnabled ? Brushes.Green : Brushes.DarkRed;
+            ResetMacroToggleButton.Content = _macroEnabled ? "Enabled" : "Disabled";
+            ResetMacroToggleButton.Background = _macroEnabled ? Brushes.Green : Brushes.DarkRed;
         }
 
         private void UpdateHardcoreSaveDeleterVisualState()
@@ -222,15 +197,12 @@ namespace SubnauticaLauncher.UI
             HardcoreSaveDeleterToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
         }
 
-        private void RegisterResetHotkeys()
+        private void RegisterResetHotkey()
         {
             var handle = new WindowInteropHelper(this).Handle;
 
-            UnregisterHotKey(handle, HotkeyIdSn);
-            UnregisterHotKey(handle, HotkeyIdBz);
-
-            RegisterHotkey(handle, HotkeyIdSn, _snMacroEnabled, _snResetKey, "Subnautica");
-            RegisterHotkey(handle, HotkeyIdBz, _bzMacroEnabled, _bzResetKey, "Below Zero");
+            UnregisterHotKey(handle, HotkeyIdReset);
+            RegisterHotkey(handle, HotkeyIdReset, _macroEnabled, _resetKey, "Reset Macro");
         }
 
         private static void RegisterHotkey(
@@ -713,9 +685,9 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        private async Task OnSubnauticaResetHotkeyPressed()
+        private async Task OnResetHotkeyPressed()
         {
-            if (!_snMacroEnabled)
+            if (!_macroEnabled)
                 return;
 
             if (_explosionRunning)
@@ -737,13 +709,27 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (runningState != RunningGameState.SubnauticaOnly)
-                return;
-
             if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
                 return;
 
             var mode = Enum.Parse<GameMode>((string)item.Content);
+
+            if (runningState == RunningGameState.BelowZeroOnly)
+            {
+                try
+                {
+                    await BZResetMacroService.RunAsync(mode);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Exception(ex, "BZ reset macro failed");
+                }
+
+                return;
+            }
+
+            if (runningState != RunningGameState.SubnauticaOnly)
+                return;
 
             if (!ExplosionResetSettings.Enabled)
             {
@@ -765,36 +751,6 @@ namespace SubnauticaLauncher.UI
             {
                 _explosionRunning = false;
                 _explosionCts = null;
-            }
-        }
-
-        private async Task OnBelowZeroResetHotkeyPressed()
-        {
-            if (!_bzMacroEnabled)
-                return;
-
-            var runningState = GetRunningGameState();
-            if (runningState == RunningGameState.Both)
-            {
-                Logger.Warn("Reset macro blocked: both Subnautica and Below Zero are running.");
-                return;
-            }
-
-            if (runningState != RunningGameState.BelowZeroOnly)
-                return;
-
-            if (BZResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
-                return;
-
-            var mode = Enum.Parse<GameMode>((string)item.Content);
-
-            try
-            {
-                await BZResetMacroService.RunAsync(mode);
-            }
-            catch (Exception ex)
-            {
-                Logger.Exception(ex, "BZ reset macro failed");
             }
         }
 
@@ -825,20 +781,11 @@ namespace SubnauticaLauncher.UI
 
         private void ResetMacroToggleButton_Click(object sender, RoutedEventArgs e)
         {
-            _snMacroEnabled = !_snMacroEnabled;
+            _macroEnabled = !_macroEnabled;
 
-            UpdateSubnauticaResetMacroVisualState();
-            SaveSubnauticaMacroSettings();
-            RegisterResetHotkeys();
-        }
-
-        private void BZResetMacroToggleButton_Click(object sender, RoutedEventArgs e)
-        {
-            _bzMacroEnabled = !_bzMacroEnabled;
-
-            UpdateBelowZeroResetMacroVisualState();
-            SaveBelowZeroMacroSettings();
-            RegisterResetHotkeys();
+            UpdateResetMacroVisualState();
+            SaveMacroSettings();
+            RegisterResetHotkey();
         }
 
         private void ExplosionDisplayToggle_Click(object sender, RoutedEventArgs e)
@@ -968,62 +915,28 @@ namespace SubnauticaLauncher.UI
 
         private void SetResetHotkey_Click(object sender, RoutedEventArgs e)
         {
-            StopHotkeyCapture();
             ResetHotkeyBox.Text = "Press a key...";
-            PreviewKeyDown += CaptureSubnauticaResetKey;
+            PreviewKeyDown -= CaptureResetKey;
+            PreviewKeyDown += CaptureResetKey;
         }
 
-        private void SetBZResetHotkey_Click(object sender, RoutedEventArgs e)
+        private void CaptureResetKey(object sender, KeyEventArgs e)
         {
-            StopHotkeyCapture();
-            BZResetHotkeyBox.Text = "Press a key...";
-            PreviewKeyDown += CaptureBelowZeroResetKey;
-        }
+            _resetKey = e.Key;
+            ResetHotkeyBox.Text = _resetKey.ToString();
 
-        private void StopHotkeyCapture()
-        {
-            PreviewKeyDown -= CaptureSubnauticaResetKey;
-            PreviewKeyDown -= CaptureBelowZeroResetKey;
-        }
+            PreviewKeyDown -= CaptureResetKey;
 
-        private void CaptureSubnauticaResetKey(object sender, KeyEventArgs e)
-        {
-            _snResetKey = e.Key;
-            ResetHotkeyBox.Text = _snResetKey.ToString();
-
-            StopHotkeyCapture();
-
-            SaveSubnauticaMacroSettings();
-            RegisterResetHotkeys();
+            SaveMacroSettings();
+            RegisterResetHotkey();
             e.Handled = true;
         }
 
-        private void CaptureBelowZeroResetKey(object sender, KeyEventArgs e)
+        private void SaveMacroSettings()
         {
-            _bzResetKey = e.Key;
-            BZResetHotkeyBox.Text = _bzResetKey.ToString();
-
-            StopHotkeyCapture();
-
-            SaveBelowZeroMacroSettings();
-            RegisterResetHotkeys();
-            e.Handled = true;
-        }
-
-        private void SaveSubnauticaMacroSettings()
-        {
-            LauncherSettings.Current.ResetMacroEnabled = _snMacroEnabled;
-            LauncherSettings.Current.ResetHotkey = _snResetKey;
+            LauncherSettings.Current.ResetMacroEnabled = _macroEnabled;
+            LauncherSettings.Current.ResetHotkey = _resetKey;
             LauncherSettings.Current.ResetGameMode = GetSelectedGameMode(ResetGamemodeDropdown, GameMode.Survival);
-            LauncherSettings.Current.RenameOnCloseEnabled = _renameOnCloseEnabled;
-            LauncherSettings.Save();
-        }
-
-        private void SaveBelowZeroMacroSettings()
-        {
-            LauncherSettings.Current.BZResetMacroEnabled = _bzMacroEnabled;
-            LauncherSettings.Current.BZResetHotkey = _bzResetKey;
-            LauncherSettings.Current.BZResetGameMode = GetSelectedGameMode(BZResetGamemodeDropdown, GameMode.Survival);
             LauncherSettings.Current.RenameOnCloseEnabled = _renameOnCloseEnabled;
             LauncherSettings.Save();
         }
@@ -1041,23 +954,17 @@ namespace SubnauticaLauncher.UI
             LauncherSettings.Load();
             var settings = LauncherSettings.Current;
 
-            _snMacroEnabled = settings.ResetMacroEnabled;
-            _snResetKey = settings.ResetHotkey;
-
-            _bzMacroEnabled = settings.BZResetMacroEnabled;
-            _bzResetKey = settings.BZResetHotkey;
+            _macroEnabled = settings.ResetMacroEnabled;
+            _resetKey = settings.ResetHotkey;
 
             _renameOnCloseEnabled = settings.RenameOnCloseEnabled;
 
-            ResetHotkeyBox.Text = _snResetKey.ToString();
-            BZResetHotkeyBox.Text = _bzResetKey.ToString();
+            ResetHotkeyBox.Text = _resetKey.ToString();
 
             SelectGameMode(ResetGamemodeDropdown, settings.ResetGameMode);
-            SelectGameMode(BZResetGamemodeDropdown, settings.BZResetGameMode);
 
-            UpdateSubnauticaResetMacroVisualState();
-            UpdateBelowZeroResetMacroVisualState();
-            RegisterResetHotkeys();
+            UpdateResetMacroVisualState();
+            RegisterResetHotkey();
         }
 
         private static void SelectGameMode(System.Windows.Controls.ComboBox comboBox, GameMode mode)
@@ -1072,12 +979,7 @@ namespace SubnauticaLauncher.UI
 
         private void ResetGamemodeDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            SaveSubnauticaMacroSettings();
-        }
-
-        private void BZResetGamemodeDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            SaveBelowZeroMacroSettings();
+            SaveMacroSettings();
         }
 
         private void ShowView(UIElement view)
@@ -1147,8 +1049,7 @@ namespace SubnauticaLauncher.UI
             ExplosionResetDisplayController.ForceClose();
 
             var handle = new WindowInteropHelper(this).Handle;
-            UnregisterHotKey(handle, HotkeyIdSn);
-            UnregisterHotKey(handle, HotkeyIdBz);
+            UnregisterHotKey(handle, HotkeyIdReset);
 
             if (!_renameOnCloseEnabled)
             {
