@@ -1,3 +1,5 @@
+using SubnauticaLauncher.Display;
+using SubnauticaLauncher.Macros;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,6 +15,7 @@ namespace SubnauticaLauncher.Gameplay
     {
         private static readonly object Sync = new();
         private static readonly Dictionary<string, DynamicMonoGameplayEventTracker> Trackers = new();
+        private static readonly Dictionary<string, GameState> LastStates = new();
         private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
 
         private static CancellationTokenSource? _cts;
@@ -24,6 +27,9 @@ namespace SubnauticaLauncher.Gameplay
             {
                 if (_loopTask != null)
                     return;
+
+                EnsureOutputFileExists();
+                WriteLifecycleEvent("DocumenterStarted");
 
                 _cts = new CancellationTokenSource();
                 _loopTask = Task.Run(() => RunLoopAsync(_cts.Token));
@@ -62,8 +68,10 @@ namespace SubnauticaLauncher.Gameplay
                 lock (Sync)
                 {
                     Trackers.Clear();
+                    LastStates.Clear();
                 }
 
+                WriteLifecycleEvent("DocumenterStopped");
                 Logger.Log("Game event documenter stopped.");
             }
         }
@@ -112,7 +120,10 @@ namespace SubnauticaLauncher.Gameplay
                     .ToList();
 
                 foreach (string key in stale)
+                {
                     Trackers.Remove(key);
+                    LastStates.Remove(key);
+                }
             }
 
             foreach (var process in processes)
@@ -122,16 +133,10 @@ namespace SubnauticaLauncher.Gameplay
 
                 try
                 {
-                    DynamicMonoGameplayEventTracker tracker;
                     string trackerKey = processName + ":" + process.Id;
-                    lock (Sync)
-                    {
-                        if (!Trackers.TryGetValue(trackerKey, out tracker!))
-                        {
-                            tracker = new DynamicMonoGameplayEventTracker(processName);
-                            Trackers[trackerKey] = tracker;
-                        }
-                    }
+                    DynamicMonoGameplayEventTracker tracker = GetOrCreateTracker(processName, trackerKey);
+
+                    TryEmitStateEvents(processName, process, trackerKey);
 
                     if (!tracker.TryPoll(process, out var events) || events.Count == 0)
                         continue;
@@ -150,6 +155,132 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     process.Dispose();
                 }
+            }
+        }
+
+        private static DynamicMonoGameplayEventTracker GetOrCreateTracker(string processName, string trackerKey)
+        {
+            lock (Sync)
+            {
+                if (Trackers.TryGetValue(trackerKey, out var tracker))
+                    return tracker;
+
+                tracker = new DynamicMonoGameplayEventTracker(processName);
+                Trackers[trackerKey] = tracker;
+                return tracker;
+            }
+        }
+
+        private static void TryEmitStateEvents(string processName, Process process, string trackerKey)
+        {
+            try
+            {
+                int yearGroup;
+
+                if (processName.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
+                {
+                    string? exe = process.MainModule?.FileName;
+                    if (string.IsNullOrWhiteSpace(exe))
+                        return;
+
+                    string root = Path.GetDirectoryName(exe)!;
+                    yearGroup = BuildYearResolver.ResolveGroupedYear(root);
+                }
+                else
+                {
+                    yearGroup = BuildYearResolver.ResolveBelowZero();
+                }
+
+                var profile = GameStateDetectorRegistry.Get(yearGroup);
+                var display = DisplayInfo.GetPrimary();
+                var state = GameStateDetector.Detect(processName, profile, display, focusGame: false);
+
+                bool hadPrevious;
+                GameState previous;
+
+                lock (Sync)
+                {
+                    hadPrevious = LastStates.TryGetValue(trackerKey, out previous);
+                    LastStates[trackerKey] = state;
+                }
+
+                if (!hadPrevious)
+                {
+                    WriteEvent(new GameplayEvent
+                    {
+                        TimestampUtc = DateTime.UtcNow,
+                        Game = processName,
+                        ProcessId = process.Id,
+                        Type = GameplayEventType.GameStateChanged,
+                        Key = state.ToString(),
+                        Delta = 0,
+                        Source = "pixel-state"
+                    });
+
+                    return;
+                }
+
+                if (previous != state)
+                {
+                    WriteEvent(new GameplayEvent
+                    {
+                        TimestampUtc = DateTime.UtcNow,
+                        Game = processName,
+                        ProcessId = process.Id,
+                        Type = GameplayEventType.GameStateChanged,
+                        Key = state.ToString(),
+                        Delta = 0,
+                        Source = "pixel-state"
+                    });
+
+                    if (state == GameState.InGame &&
+                        (previous == GameState.MainMenu || previous == GameState.BlackScreen || previous == GameState.Unknown))
+                    {
+                        WriteEvent(new GameplayEvent
+                        {
+                            TimestampUtc = DateTime.UtcNow,
+                            Game = processName,
+                            ProcessId = process.Id,
+                            Type = GameplayEventType.RunStarted,
+                            Key = $"{previous}->InGame",
+                            Delta = 1,
+                            Source = "state-transition"
+                        });
+                    }
+                }
+            }
+            catch
+            {
+                // state detection is best-effort, never break event tracking
+            }
+        }
+
+        private static void WriteLifecycleEvent(string key)
+        {
+            WriteEvent(new GameplayEvent
+            {
+                TimestampUtc = DateTime.UtcNow,
+                Game = "Launcher",
+                ProcessId = Environment.ProcessId,
+                Type = GameplayEventType.GameStateChanged,
+                Key = key,
+                Delta = 0,
+                Source = "documenter"
+            });
+        }
+
+        private static void EnsureOutputFileExists()
+        {
+            try
+            {
+                Directory.CreateDirectory(AppPaths.DataPath);
+                string file = Path.Combine(AppPaths.DataPath, "gameplay_events.jsonl");
+                if (!File.Exists(file))
+                    File.WriteAllText(file, string.Empty);
+            }
+            catch
+            {
+                // ignore file initialization errors
             }
         }
 

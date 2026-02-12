@@ -13,7 +13,13 @@ namespace SubnauticaLauncher.Macros
         // 🔥 NEW: display-aware detect
         public static GameState Detect(GameStateProfile p, DisplayInfo display)
         {
-            FocusSubnautica();
+            return Detect("Subnautica", p, display);
+        }
+
+        public static GameState Detect(string processName, GameStateProfile p, DisplayInfo display, bool focusGame = true)
+        {
+            if (focusGame)
+                FocusGame(processName);
 
             if (IsBlackScreen(p, display))
                 return GameState.BlackScreen;
@@ -52,9 +58,9 @@ namespace SubnauticaLauncher.Macros
             return bmp.GetPixel(0, 0);
         }
 
-        private static void FocusSubnautica()
+        private static void FocusGame(string processName)
         {
-            var p = Process.GetProcessesByName("Subnautica");
+            var p = Process.GetProcessesByName(processName);
             if (p.Length > 0)
                 SetForegroundWindow(p[0].MainWindowHandle);
         }
