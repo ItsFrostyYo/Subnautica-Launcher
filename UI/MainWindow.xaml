@@ -648,11 +648,14 @@ Click="ExplosionTrackToggle_Click"/>
                                         <ComboBoxItem Content="SaveSlot2"/>
                                         <ComboBoxItem Content="SaveSlot3"/>
                                     </ComboBox>
-
+                                    
+                                    <TextBlock Text="Only Works on 1.00/default in-game UI scale."
+           TextWrapping="Wrap"
+           Margin="0,10,0,0"/>
                                     <!-- ===== SEPARATOR ===== -->
                                     <Border Height="1"
                     Background="#55FFFFFF"
-                    Margin="0,16"/>
+                    Margin="0,10"/>
 
                                     <!-- ===== EXPLOSION RESET ===== -->
                                     <TextBlock Text="Reset Until Explosion"
@@ -687,9 +690,6 @@ Click="ExplosionTrackToggle_Click"/>
                                     <TextBlock Text="Subnautica only. Not available for Below Zero."
                                                TextWrapping="Wrap"
                                                Margin="0,12,0,0"/>
-                                    <TextBlock Text="Only Works on 1.00/default in-game UI scale for below zero."
-                                               TextWrapping="Wrap"
-                                               Margin="0,4,0,0"/>
                                 </StackPanel>
                             </Border>
 
