@@ -14,6 +14,8 @@ namespace SubnauticaLauncher.Gameplay
         private const int InitRetryMs = 3000;
         private const uint DONT_RESOLVE_DLL_REFERENCES = 0x00000001;
         private const int MaxCollectionItems = 4096;
+        private const int MaxPlausibleTechType = 200000;
+        private const int MaxPlausibleItemCount = 10000;
 
         private static readonly MonoLayout LayoutV1 = new(
             assemblyImage: 0x58,
@@ -85,10 +87,17 @@ namespace SubnauticaLauncher.Gameplay
         private int _inventoryContainerOffset;
         private bool _hasItemsListOffset;
         private int _itemsListOffset;
+        private readonly List<int> _itemsContainerCollectionOffsets = new();
         private bool _hasInventoryItemOffset;
         private int _inventoryItemOffset;
+        private bool _hasInventoryItemTechTypeOffset;
+        private int _inventoryItemTechTypeOffset;
         private bool _hasPickupableTechTypeOffset;
         private int _pickupableTechTypeOffset;
+
+        private readonly Dictionary<long, int?> _directTechTypeOffsetByClass = new();
+        private readonly Dictionary<long, int?> _nestedObjectOffsetByClass = new();
+        private readonly Dictionary<long, int?> _countFieldOffsetByClass = new();
 
         private bool _hasCrafterIsCraftingOffset;
         private int _crafterIsCraftingOffset;
@@ -250,7 +259,12 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _ready = true;
                     _loggedInitFailure = false;
-                    Logger.Log($"Dynamic mono gameplay tracker initialized ({_gameName}, {_flavor}).");
+                    Logger.Log(
+                        $"Dynamic mono gameplay tracker initialized ({_gameName}, {_flavor}). " +
+                        $"Sources: blueprints={_knownTechField.IsValid || _scannerCompleteField.IsValid}, " +
+                        $"databank={_databankField.IsValid}, " +
+                        $"inventory={_inventoryMainField.IsValid}, " +
+                        $"craft={_crafterMainField.IsValid}");
                     return;
                 }
 
@@ -282,10 +296,17 @@ namespace SubnauticaLauncher.Gameplay
             _inventoryContainerOffset = 0;
             _hasItemsListOffset = false;
             _itemsListOffset = 0;
+            _itemsContainerCollectionOffsets.Clear();
             _hasInventoryItemOffset = false;
             _inventoryItemOffset = 0;
+            _hasInventoryItemTechTypeOffset = false;
+            _inventoryItemTechTypeOffset = 0;
             _hasPickupableTechTypeOffset = false;
             _pickupableTechTypeOffset = 0;
+
+            _directTechTypeOffsetByClass.Clear();
+            _nestedObjectOffsetByClass.Clear();
+            _countFieldOffsetByClass.Clear();
 
             _hasCrafterIsCraftingOffset = false;
             _crafterIsCraftingOffset = 0;
@@ -352,29 +373,46 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             if (inventoryClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, inventoryClass,
-                new[] { "main" }, out _inventoryMainField))
+                new[] { "main", "_main", "s_main" }, out _inventoryMainField))
             {
                 _hasInventoryContainerOffset = TryFindFieldOffsetAny(proc, inventoryClass,
-                    new[] { "container", "_container" }, out _inventoryContainerOffset);
+                    new[] { "container", "_container", "m_container" }, out _inventoryContainerOffset);
                 anyReadableSource = true;
             }
 
             if (itemsContainerClass != IntPtr.Zero)
             {
                 _hasItemsListOffset = TryFindFieldOffsetAny(proc, itemsContainerClass,
-                    new[] { "items", "_items" }, out _itemsListOffset);
+                    new[] { "items", "_items", "m_items" }, out _itemsListOffset);
+
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "items", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "_items", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "m_items", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "itemsByType", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "_itemsByType", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "m_itemsByType", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "itemCounts", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "_itemCounts", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "m_itemCounts", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "techTypeCounts", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "_techTypeCounts", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "countByTechType", _itemsContainerCollectionOffsets);
+                AddCollectionOffsetIfExists(proc, itemsContainerClass, "_countByTechType", _itemsContainerCollectionOffsets);
             }
 
             if (inventoryItemClass != IntPtr.Zero)
             {
                 _hasInventoryItemOffset = TryFindFieldOffsetAny(proc, inventoryItemClass,
-                    new[] { "item", "pickupable" }, out _inventoryItemOffset);
+                    new[] { "item", "pickupable", "_item", "m_item", "_pickupable", "m_pickupable" }, out _inventoryItemOffset);
+
+                _hasInventoryItemTechTypeOffset = TryFindFieldOffsetAny(proc, inventoryItemClass,
+                    new[] { "techType", "_techType", "m_techType" }, out _inventoryItemTechTypeOffset);
             }
 
             if (pickupableClass != IntPtr.Zero)
             {
                 _hasPickupableTechTypeOffset = TryFindFieldOffsetAny(proc, pickupableClass,
-                    new[] { "techType" }, out _pickupableTechTypeOffset);
+                    new[] { "techType", "_techType", "m_techType" }, out _pickupableTechTypeOffset);
             }
 
             if (crafterClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, crafterClass,
@@ -433,38 +471,532 @@ namespace SubnauticaLauncher.Gameplay
         {
             counts = new Dictionary<int, int>();
 
-            if (!_hasInventoryContainerOffset || !_hasItemsListOffset || !_hasInventoryItemOffset || !_hasPickupableTechTypeOffset)
-                return false;
-
             if (!TryReadStaticObject(proc, _inventoryMainField, out var inventoryMain) || inventoryMain == IntPtr.Zero)
                 return false;
 
-            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(inventoryMain, _inventoryContainerOffset), out var container) || container == IntPtr.Zero)
-                return false;
-
-            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(container, _itemsListOffset), out var itemsList) || itemsList == IntPtr.Zero)
-                return false;
-
-            if (!TryReadListObjectPointers(proc, itemsList, out var inventoryItems))
-                return false;
-
-            foreach (IntPtr inventoryItem in inventoryItems)
+            IntPtr container = inventoryMain;
+            if (_hasInventoryContainerOffset &&
+                (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(inventoryMain, _inventoryContainerOffset), out container) ||
+                 container == IntPtr.Zero))
             {
-                if (inventoryItem == IntPtr.Zero)
+                container = inventoryMain;
+            }
+
+            bool parsed = false;
+            var seenCollections = new HashSet<long>();
+
+            if (_hasItemsListOffset &&
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(container, _itemsListOffset), out var itemsList) &&
+                itemsList != IntPtr.Zero)
+            {
+                parsed |= TryReadInventoryFromCollection(proc, itemsList, counts, seenCollections);
+            }
+
+            foreach (int offset in _itemsContainerCollectionOffsets)
+            {
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(container, offset), out var collectionObj) ||
+                    collectionObj == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                parsed |= TryReadInventoryFromCollection(proc, collectionObj, counts, seenCollections);
+            }
+
+            if (!parsed)
+            {
+                // Fallback: some legacy builds expose item collections directly on inventory.
+                parsed = TryReadInventoryFromCollection(proc, container, counts, seenCollections);
+            }
+
+            if (!parsed || counts.Count == 0)
+                return false;
+
+            foreach (int techType in counts.Keys.ToList())
+            {
+                if (!IsPlausibleTechType(techType) || counts[techType] <= 0)
+                    counts.Remove(techType);
+            }
+
+            return counts.Count > 0;
+        }
+
+        private bool TryReadInventoryFromCollection(
+            Process proc,
+            IntPtr collectionObj,
+            Dictionary<int, int> destination,
+            HashSet<long> seenCollections)
+        {
+            if (collectionObj == IntPtr.Zero)
+                return false;
+
+            if (!seenCollections.Add(collectionObj.ToInt64()))
+                return false;
+
+            var best = new Dictionary<int, int>();
+            bool parsed = false;
+
+            if (TryReadListObjectPointers(proc, collectionObj, out var pointers) &&
+                TryBuildCountsFromPointers(proc, pointers, out var pointerCounts))
+            {
+                MergeCountsUsingMax(best, pointerCounts);
+                parsed = true;
+                MergeCountsUsingMax(destination, best);
+                return true;
+            }
+
+            if (TryReadDictionaryIntValueCounts(proc, collectionObj, out var intValueCounts))
+            {
+                MergeCountsUsingMax(best, intValueCounts);
+                parsed = true;
+                MergeCountsUsingMax(destination, best);
+                return true;
+            }
+
+            if (TryReadDictionaryIntKeyObjectCounts(proc, collectionObj, out var intKeyObjectCounts))
+            {
+                MergeCountsUsingMax(best, intKeyObjectCounts);
+                parsed = true;
+                MergeCountsUsingMax(destination, best);
+                return true;
+            }
+
+            if (TryReadDictionaryObjectKeyCounts(proc, collectionObj, out var objectKeyCounts))
+            {
+                MergeCountsUsingMax(best, objectKeyCounts);
+                parsed = true;
+            }
+
+            if (!parsed || best.Count == 0)
+                return false;
+
+            MergeCountsUsingMax(destination, best);
+            return true;
+        }
+
+        private bool TryBuildCountsFromPointers(Process proc, IReadOnlyList<IntPtr> pointers, out Dictionary<int, int> counts)
+        {
+            counts = new Dictionary<int, int>();
+
+            int inspected = 0;
+            int resolved = 0;
+
+            foreach (IntPtr pointer in pointers)
+            {
+                if (pointer == IntPtr.Zero)
                     continue;
 
-                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(inventoryItem, _inventoryItemOffset), out var pickupable) || pickupable == IntPtr.Zero)
-                    continue;
-
-                if (!MemoryReader.ReadInt32(proc, IntPtr.Add(pickupable, _pickupableTechTypeOffset), out int techType))
+                inspected++;
+                if (!TryResolveTechTypeFromObject(proc, pointer, out int techType))
                     continue;
 
                 counts[techType] = counts.TryGetValue(techType, out int current)
                     ? current + 1
                     : 1;
+
+                resolved++;
             }
 
+            if (resolved == 0)
+                return false;
+
+            // Filter out mis-parsed collections where barely any entries resolved.
+            if (inspected > 8 && resolved * 4 < inspected)
+                return false;
+
             return true;
+        }
+
+        private bool TryReadDictionaryIntValueCounts(Process proc, IntPtr dictObj, out Dictionary<int, int> counts)
+        {
+            counts = new Dictionary<int, int>();
+
+            if (!TryReadDictionaryEntriesArray(proc, dictObj, out IntPtr entriesArray, out int count) ||
+                !TryGetArrayLength(proc, entriesArray, out int length))
+            {
+                return false;
+            }
+
+            int entries = Math.Min(Math.Min(length, count <= 0 ? length : count + 32), MaxCollectionItems);
+            if (entries <= 0)
+                return false;
+
+            int[] strideCandidates = { 16, 20, 24, 28, 32, 40, 48 };
+            int[] keyOffsets = { 8, 12, 16, 20, 24, 28 };
+            int[] valueOffsets = { 12, 16, 20, 24, 28, 32 };
+
+            int bestScore = 0;
+            Dictionary<int, int>? best = null;
+
+            foreach (int stride in strideCandidates)
+            {
+                foreach (int keyOffset in keyOffsets)
+                {
+                    foreach (int valueOffset in valueOffsets)
+                    {
+                        if (keyOffset == valueOffset)
+                            continue;
+
+                        var temp = new Dictionary<int, int>();
+                        int score = 0;
+
+                        for (int i = 0; i < entries; i++)
+                        {
+                            IntPtr entry = IntPtr.Add(entriesArray, GetMonoArrayDataOffset() + i * stride);
+
+                            if (!MemoryReader.ReadInt32(proc, entry, out int hashCode))
+                                break;
+
+                            if (hashCode < 0)
+                                continue;
+
+                            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(entry, keyOffset), out int techType) ||
+                                !IsPlausibleTechType(techType))
+                            {
+                                continue;
+                            }
+
+                            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(entry, valueOffset), out int amount) ||
+                                !IsPlausibleItemCount(amount))
+                            {
+                                continue;
+                            }
+
+                            temp[techType] = temp.TryGetValue(techType, out int current)
+                                ? Math.Max(current, amount)
+                                : amount;
+
+                            score++;
+                        }
+
+                        if (score > bestScore && temp.Count > 0)
+                        {
+                            bestScore = score;
+                            best = temp;
+                        }
+                    }
+                }
+            }
+
+            if (best == null)
+                return false;
+
+            counts = best;
+            return true;
+        }
+
+        private bool TryReadDictionaryIntKeyObjectCounts(Process proc, IntPtr dictObj, out Dictionary<int, int> counts)
+        {
+            counts = new Dictionary<int, int>();
+
+            if (!TryReadDictionaryEntriesArray(proc, dictObj, out IntPtr entriesArray, out int count) ||
+                !TryGetArrayLength(proc, entriesArray, out int length))
+            {
+                return false;
+            }
+
+            int entries = Math.Min(Math.Min(length, count <= 0 ? length : count + 32), MaxCollectionItems);
+            if (entries <= 0)
+                return false;
+
+            int[] strideCandidates = { 20, 24, 28, 32, 40, 48 };
+            int[] keyOffsets = { 8, 12, 16, 20, 24 };
+            int[] valuePointerOffsets = { 12, 16, 20, 24, 28, 32 };
+
+            int bestScore = 0;
+            Dictionary<int, int>? best = null;
+
+            foreach (int stride in strideCandidates)
+            {
+                foreach (int keyOffset in keyOffsets)
+                {
+                    foreach (int valuePointerOffset in valuePointerOffsets)
+                    {
+                        if (keyOffset == valuePointerOffset)
+                            continue;
+
+                        var temp = new Dictionary<int, int>();
+                        int score = 0;
+
+                        for (int i = 0; i < entries; i++)
+                        {
+                            IntPtr entry = IntPtr.Add(entriesArray, GetMonoArrayDataOffset() + i * stride);
+
+                            if (!MemoryReader.ReadInt32(proc, entry, out int hashCode))
+                                break;
+
+                            if (hashCode < 0)
+                                continue;
+
+                            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(entry, keyOffset), out int techType) ||
+                                !IsPlausibleTechType(techType))
+                            {
+                                continue;
+                            }
+
+                            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(entry, valuePointerOffset), out var valueObj) ||
+                                valueObj == IntPtr.Zero)
+                            {
+                                continue;
+                            }
+
+                            int amount = 1;
+                            if (TryReadCountFromObject(proc, valueObj, out int objectAmount))
+                                amount = objectAmount;
+
+                            temp[techType] = temp.TryGetValue(techType, out int current)
+                                ? Math.Max(current, amount)
+                                : amount;
+
+                            score++;
+                        }
+
+                        if (score > bestScore && temp.Count > 0)
+                        {
+                            bestScore = score;
+                            best = temp;
+                        }
+                    }
+                }
+            }
+
+            if (best == null)
+                return false;
+
+            counts = best;
+            return true;
+        }
+
+        private bool TryReadDictionaryObjectKeyCounts(Process proc, IntPtr dictObj, out Dictionary<int, int> counts)
+        {
+            counts = new Dictionary<int, int>();
+
+            if (!TryReadDictionaryEntriesArray(proc, dictObj, out IntPtr entriesArray, out int count) ||
+                !TryGetArrayLength(proc, entriesArray, out int length))
+            {
+                return false;
+            }
+
+            int entries = Math.Min(Math.Min(length, count <= 0 ? length : count + 32), MaxCollectionItems);
+            if (entries <= 0)
+                return false;
+
+            int[] strideCandidates = { 20, 24, 28, 32, 40, 48 };
+            int[] pointerOffsets = { 8, 12, 16, 20, 24, 28, 32 };
+            int[] valueOffsets = { 12, 16, 20, 24, 28, 32 };
+
+            int bestScore = 0;
+            Dictionary<int, int>? best = null;
+
+            foreach (int stride in strideCandidates)
+            {
+                foreach (int keyPointerOffset in pointerOffsets)
+                {
+                    foreach (int valueOffset in valueOffsets)
+                    {
+                        if (keyPointerOffset == valueOffset)
+                            continue;
+
+                        var temp = new Dictionary<int, int>();
+                        int score = 0;
+
+                        for (int i = 0; i < entries; i++)
+                        {
+                            IntPtr entry = IntPtr.Add(entriesArray, GetMonoArrayDataOffset() + i * stride);
+
+                            if (!MemoryReader.ReadInt32(proc, entry, out int hashCode))
+                                break;
+
+                            if (hashCode < 0)
+                                continue;
+
+                            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(entry, keyPointerOffset), out var keyObj) ||
+                                keyObj == IntPtr.Zero)
+                            {
+                                continue;
+                            }
+
+                            if (!TryResolveTechTypeFromObject(proc, keyObj, out int techType))
+                                continue;
+
+                            int amount = 1;
+                            if (MemoryReader.ReadInt32(proc, IntPtr.Add(entry, valueOffset), out int valueAsInt) &&
+                                IsPlausibleItemCount(valueAsInt))
+                            {
+                                amount = valueAsInt;
+                            }
+
+                            temp[techType] = temp.TryGetValue(techType, out int current)
+                                ? Math.Max(current, amount)
+                                : amount;
+
+                            score++;
+                        }
+
+                        if (score > bestScore && temp.Count > 0)
+                        {
+                            bestScore = score;
+                            best = temp;
+                        }
+                    }
+                }
+            }
+
+            if (best == null)
+                return false;
+
+            counts = best;
+            return true;
+        }
+
+        private bool TryResolveTechTypeFromObject(Process proc, IntPtr objectPtr, out int techType)
+        {
+            return TryResolveTechTypeFromObject(proc, objectPtr, 0, out techType);
+        }
+
+        private bool TryResolveTechTypeFromObject(Process proc, IntPtr objectPtr, int depth, out int techType)
+        {
+            techType = -1;
+
+            if (objectPtr == IntPtr.Zero)
+                return false;
+
+            if (depth > 4)
+                return false;
+
+            if (TryReadTechTypeAtOffset(proc, objectPtr, _hasPickupableTechTypeOffset, _pickupableTechTypeOffset, out techType))
+                return true;
+
+            if (TryReadTechTypeAtOffset(proc, objectPtr, _hasInventoryItemTechTypeOffset, _inventoryItemTechTypeOffset, out techType))
+                return true;
+
+            if (_hasInventoryItemOffset &&
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(objectPtr, _inventoryItemOffset), out var nestedItem) &&
+                nestedItem != IntPtr.Zero &&
+                TryReadTechTypeAtOffset(proc, nestedItem, _hasPickupableTechTypeOffset, _pickupableTechTypeOffset, out techType))
+            {
+                return true;
+            }
+
+            if (!TryGetObjectClass(proc, objectPtr, out var klass) || klass == IntPtr.Zero)
+                return false;
+
+            if (TryGetOrCacheFieldOffset(proc, klass, _directTechTypeOffsetByClass,
+                new[] { "techType", "_techType", "m_techType" }, out int directOffset) &&
+                MemoryReader.ReadInt32(proc, IntPtr.Add(objectPtr, directOffset), out int directTechType) &&
+                IsPlausibleTechType(directTechType))
+            {
+                techType = directTechType;
+                return true;
+            }
+
+            if (TryGetOrCacheFieldOffset(proc, klass, _nestedObjectOffsetByClass,
+                new[] { "item", "_item", "m_item", "pickupable", "_pickupable", "m_pickupable" }, out int nestedOffset) &&
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(objectPtr, nestedOffset), out var nestedObject) &&
+                nestedObject != IntPtr.Zero &&
+                nestedObject != objectPtr)
+            {
+                return TryResolveTechTypeFromObject(proc, nestedObject, depth + 1, out techType);
+            }
+
+            return false;
+        }
+
+        private bool TryReadCountFromObject(Process proc, IntPtr objectPtr, out int amount)
+        {
+            amount = 0;
+
+            if (objectPtr == IntPtr.Zero)
+                return false;
+
+            if (!TryGetObjectClass(proc, objectPtr, out var klass) || klass == IntPtr.Zero)
+                return false;
+
+            if (!TryGetOrCacheFieldOffset(proc, klass, _countFieldOffsetByClass,
+                new[] { "count", "_count", "m_count", "amount", "_amount", "quantity", "_quantity" }, out int countOffset))
+            {
+                return false;
+            }
+
+            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(objectPtr, countOffset), out int value) ||
+                !IsPlausibleItemCount(value))
+            {
+                return false;
+            }
+
+            amount = value;
+            return true;
+        }
+
+        private bool TryReadTechTypeAtOffset(Process proc, IntPtr objectPtr, bool hasOffset, int offset, out int techType)
+        {
+            techType = -1;
+
+            if (!hasOffset)
+                return false;
+
+            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(objectPtr, offset), out int value) ||
+                !IsPlausibleTechType(value))
+            {
+                return false;
+            }
+
+            techType = value;
+            return true;
+        }
+
+        private bool TryGetOrCacheFieldOffset(
+            Process proc,
+            IntPtr klass,
+            Dictionary<long, int?> cache,
+            string[] names,
+            out int offset)
+        {
+            long key = klass.ToInt64();
+
+            if (cache.TryGetValue(key, out int? cached))
+            {
+                if (cached.HasValue)
+                {
+                    offset = cached.Value;
+                    return true;
+                }
+
+                offset = 0;
+                return false;
+            }
+
+            if (TryFindFieldOffsetAny(proc, klass, names, out offset))
+            {
+                cache[key] = offset;
+                return true;
+            }
+
+            cache[key] = null;
+            offset = 0;
+            return false;
+        }
+
+        private static void MergeCountsUsingMax(Dictionary<int, int> destination, IReadOnlyDictionary<int, int> source)
+        {
+            foreach (var kv in source)
+            {
+                if (kv.Value <= 0)
+                    continue;
+
+                if (!destination.TryGetValue(kv.Key, out int current) || kv.Value > current)
+                    destination[kv.Key] = kv.Value;
+            }
+        }
+
+        private static bool IsPlausibleTechType(int value)
+        {
+            return value > 0 && value <= MaxPlausibleTechType;
+        }
+
+        private static bool IsPlausibleItemCount(int value)
+        {
+            return value > 0 && value <= MaxPlausibleItemCount;
         }
 
         private bool TryReadCraftState(Process proc, out bool isCrafting, out int craftingTechType)
@@ -539,6 +1071,15 @@ namespace SubnauticaLauncher.Gameplay
 
             fieldOffset = 0;
             return false;
+        }
+
+        private void AddCollectionOffsetIfExists(Process proc, IntPtr klass, string fieldName, List<int> offsets)
+        {
+            if (!TryFindFieldOffset(proc, klass, fieldName, out int offset))
+                return;
+
+            if (!offsets.Contains(offset))
+                offsets.Add(offset);
         }
 
         private bool TryReadIntCollection(Process proc, IntPtr objectPtr, HashSet<int> values)
@@ -1182,7 +1723,7 @@ namespace SubnauticaLauncher.Gameplay
                     continue;
 
                 string currentFieldName = MemoryReader.ReadUtf8String(proc, fieldNamePtr, 128);
-                if (!currentFieldName.Equals(fieldName, StringComparison.Ordinal))
+                if (!FieldNameMatches(currentFieldName, fieldName))
                     continue;
 
                 if (!MemoryReader.ReadInt32(proc, IntPtr.Add(field, _layout.ClassFieldOffset), out fieldOffset))
@@ -1228,6 +1769,35 @@ namespace SubnauticaLauncher.Gameplay
 
             long staticAddressPtr = classVTable.ToInt64() + _layout.VTableVTable + (long)vtableSize * IntPtr.Size;
             return MemoryReader.ReadIntPtr(proc, new IntPtr(staticAddressPtr), out staticData);
+        }
+
+        private static bool FieldNameMatches(string actual, string expected)
+        {
+            if (actual.Equals(expected, StringComparison.Ordinal))
+                return true;
+
+            if (actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            string normalizedActual = NormalizeFieldName(actual);
+            string normalizedExpected = NormalizeFieldName(expected);
+
+            return normalizedActual.Equals(normalizedExpected, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string NormalizeFieldName(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            value = value.Trim();
+
+            if (value.StartsWith("m_", StringComparison.OrdinalIgnoreCase))
+                value = value.Substring(2);
+            else if (value.StartsWith("_", StringComparison.Ordinal))
+                value = value.Substring(1);
+
+            return value.Replace("_", string.Empty);
         }
 
         private static int FindPattern(byte[] haystack, byte[] pattern)

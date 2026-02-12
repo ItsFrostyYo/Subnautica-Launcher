@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,7 +17,11 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly object Sync = new();
         private static readonly Dictionary<string, DynamicMonoGameplayEventTracker> Trackers = new();
         private static readonly Dictionary<string, GameState> LastStates = new();
-        private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = false };
+        private static readonly JsonSerializerOptions JsonOptions = new()
+        {
+            WriteIndented = false,
+            Converters = { new JsonStringEnumConverter() }
+        };
 
         private static CancellationTokenSource? _cts;
         private static Task? _loopTask;
@@ -195,6 +200,10 @@ namespace SubnauticaLauncher.Gameplay
                 var display = DisplayInfo.GetPrimary();
                 var state = GameStateDetector.Detect(processName, profile, display, focusGame: false);
 
+                // Ignore Unknown noise so the event log stays useful.
+                if (state == GameState.Unknown)
+                    return;
+
                 bool hadPrevious;
                 GameState previous;
 
@@ -216,7 +225,6 @@ namespace SubnauticaLauncher.Gameplay
                         Delta = 0,
                         Source = "pixel-state"
                     });
-
                     return;
                 }
 
@@ -234,7 +242,7 @@ namespace SubnauticaLauncher.Gameplay
                     });
 
                     if (state == GameState.InGame &&
-                        (previous == GameState.MainMenu || previous == GameState.BlackScreen || previous == GameState.Unknown))
+                        (previous == GameState.MainMenu || previous == GameState.BlackScreen))
                     {
                         WriteEvent(new GameplayEvent
                         {
