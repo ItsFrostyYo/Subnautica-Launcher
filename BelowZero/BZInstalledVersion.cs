@@ -9,6 +9,8 @@ namespace SubnauticaLauncher.BelowZero;
 
 public class BZInstalledVersion
 {
+    private const int MaxDisplayNameLength = 25;
+
     public string DisplayName { get; set; } = "";
     public string FolderName { get; set; } = "";
     public string OriginalDownload { get; set; } = "";
@@ -20,11 +22,21 @@ public class BZInstalledVersion
 
     public string DisplayLabel => Status switch
     {
-        BZVersionStatus.Switching => "Switching → " + DisplayName,
-        BZVersionStatus.Launching => "Launching → " + DisplayName,
-        BZVersionStatus.Active => "Active → " + DisplayName,
-        _ => DisplayName
+        BZVersionStatus.Switching => "Switching → " + GetTrimmedDisplayName(DisplayName),
+        BZVersionStatus.Launching => "Launching → " + GetTrimmedDisplayName(DisplayName),
+        BZVersionStatus.Active => "Active → " + GetTrimmedDisplayName(DisplayName),
+        _ => GetTrimmedDisplayName(DisplayName)
     };
+
+    private static string GetTrimmedDisplayName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        return value.Length <= MaxDisplayNameLength
+            ? value
+            : value.Substring(0, MaxDisplayNameLength);
+    }
 
     public static BZInstalledVersion? FromInfo(string folderPath, string infoPath)
     {

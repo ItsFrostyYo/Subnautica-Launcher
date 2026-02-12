@@ -1,4 +1,4 @@
-﻿using SubnauticaLauncher;
+using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Versions;
 using System;
 using System.IO;
@@ -12,27 +12,45 @@ namespace SubnauticaLauncher.UI
 {
     public partial class EditVersionWindow : Window
     {
-        private readonly InstalledVersion _version;
-
+        private const int MaxDisplayNameLength = 25;
         private const string DefaultBg = "GrassyPlateau";
+
+        private readonly InstalledVersion? _snVersion;
+        private readonly BZInstalledVersion? _bzVersion;
+
+        private bool IsBelowZero => _bzVersion != null;
 
         public EditVersionWindow(InstalledVersion version)
         {
             InitializeComponent();
 
-            _version = version;
-
-            // ✅ SET CUSTOM TITLE BAR TEXT
-            TitleBarText.Text = $"Editing Version \"{version.DisplayLabel}\"";
-
-            // Populate fields (same behavior as RenameVersionWindow)
+            _snVersion = version;
+            TitleBarText.Text = $"Editing Subnautica Version \"{version.DisplayLabel}\"";
             DisplayNameBox.Text = version.DisplayName;
             FolderNameBox.Text = version.FolderName;
 
             Loaded += EditVersionWindow_Loaded;
         }
 
-        // ================= BACKGROUND =================
+        public EditVersionWindow(BZInstalledVersion version)
+        {
+            InitializeComponent();
+
+            _bzVersion = version;
+            TitleBarText.Text = $"Editing Below Zero Version \"{version.DisplayLabel}\"";
+            DisplayNameBox.Text = version.DisplayName;
+            FolderNameBox.Text = version.FolderName;
+
+            Loaded += EditVersionWindow_Loaded;
+        }
+
+        private string HomeFolder => IsBelowZero ? _bzVersion!.HomeFolder : _snVersion!.HomeFolder;
+
+        private bool IsVersionActive => IsBelowZero ? _bzVersion!.IsActive : _snVersion!.IsActive;
+
+        private string CurrentDisplayName => IsBelowZero ? _bzVersion!.DisplayName : _snVersion!.DisplayName;
+
+        private string CurrentFolderName => IsBelowZero ? _bzVersion!.FolderName : _snVersion!.FolderName;
 
         private void EditVersionWindow_Loaded(object sender, RoutedEventArgs e)
         {
@@ -64,8 +82,7 @@ namespace SubnauticaLauncher.UI
                 {
                     img.UriSource = new Uri(
                         $"pack://application:,,,/Assets/Backgrounds/{preset}.png",
-                        UriKind.Absolute
-                    );
+                        UriKind.Absolute);
                 }
 
                 img.CacheOption = BitmapCacheOption.OnLoad;
@@ -83,8 +100,6 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        // ================= TITLE BAR =================
-
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             DragMove();
@@ -95,11 +110,9 @@ namespace SubnauticaLauncher.UI
             Close();
         }
 
-        // ================= SAVE (RENAME LOGIC) =================
-
         private void SaveRename_Click(object sender, RoutedEventArgs e)
         {
-            if (_version.IsActive)
+            if (IsVersionActive)
             {
                 MessageBox.Show(
                     "Cannot edit the active version.",
@@ -112,20 +125,39 @@ namespace SubnauticaLauncher.UI
             string newDisplay = DisplayNameBox.Text.Trim();
             string newFolder = FolderNameBox.Text.Trim();
 
-            // 🔥 SAME HARD BLOCK AS RenameVersionWindow
-            if (string.Equals(newFolder, "Subnautica", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(newDisplay) || string.IsNullOrWhiteSpace(newFolder))
             {
                 MessageBox.Show(
-                    "The folder name cannot be 'Subnautica'.\n\n" +
-                    "This name is reserved for the active game folder.",
+                    "Display name and folder name are required.",
+                    "Invalid Input",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            if (newDisplay.Length > MaxDisplayNameLength)
+            {
+                MessageBox.Show(
+                    $"Display name must be {MaxDisplayNameLength} characters or fewer.",
+                    "Invalid Display Name",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            if (IsReservedActiveFolderName(newFolder))
+            {
+                MessageBox.Show(
+                    "Folder name cannot be 'Subnautica' or 'SubnauticaZero'.\n\n" +
+                    "Those names are reserved for active game folders.",
                     "Invalid Folder Name",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
             }
 
-            bool displayChanged = newDisplay != _version.DisplayName;
-            bool folderChanged = newFolder != _version.FolderName;
+            bool displayChanged = !string.Equals(newDisplay, CurrentDisplayName, StringComparison.Ordinal);
+            bool folderChanged = !string.Equals(newFolder, CurrentFolderName, StringComparison.Ordinal);
 
             if (!displayChanged && !folderChanged)
             {
@@ -134,13 +166,10 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            // ================= RENAME FOLDER =================
             if (folderChanged)
             {
-                string newPath = Path.Combine(
-                    AppPaths.SteamCommonPath,
-                    newFolder
-                );
+                string commonPath = AppPaths.GetSteamCommonPathFor(HomeFolder);
+                string newPath = Path.Combine(commonPath, newFolder);
 
                 if (Directory.Exists(newPath))
                 {
@@ -152,28 +181,46 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
 
-                Directory.Move(_version.HomeFolder, newPath);
-                _version.HomeFolder = newPath;
-                _version.FolderName = newFolder;
+                Directory.Move(HomeFolder, newPath);
+
+                if (IsBelowZero)
+                {
+                    _bzVersion!.HomeFolder = newPath;
+                    _bzVersion.FolderName = newFolder;
+                }
+                else
+                {
+                    _snVersion!.HomeFolder = newPath;
+                    _snVersion.FolderName = newFolder;
+                }
             }
 
-            // ================= DISPLAY NAME =================
             if (displayChanged)
             {
-                _version.DisplayName = newDisplay;
+                if (IsBelowZero)
+                    _bzVersion!.DisplayName = newDisplay;
+                else
+                    _snVersion!.DisplayName = newDisplay;
             }
 
-            VersionLoader.Save(_version);
+            if (IsBelowZero)
+                BZVersionLoader.Save(_bzVersion!);
+            else
+                VersionLoader.Save(_snVersion!);
 
             DialogResult = true;
             Close();
         }
 
-        // ================= DELETE =================
+        private static bool IsReservedActiveFolderName(string folderName)
+        {
+            return string.Equals(folderName, "Subnautica", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(folderName, "SubnauticaZero", StringComparison.OrdinalIgnoreCase);
+        }
 
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
-            if (_version.IsActive)
+            if (IsVersionActive)
             {
                 MessageBox.Show(
                     "You cannot delete the currently active version.",
@@ -183,29 +230,49 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            var dialog = new DeleteVersionDialog
-            {
-                Owner = this
-            };
-
-            dialog.ShowDialog();
-
             try
             {
-                switch (dialog.Choice)
+                if (IsBelowZero)
                 {
-                    case DeleteChoice.Cancel:
-                        return;
+                    var dialog = new BZDeleteVersionDialog { Owner = this };
+                    dialog.ShowDialog();
 
-                    case DeleteChoice.RemoveFromLauncher:
-                        string infoPath = Path.Combine(_version.HomeFolder, "Version.info");
-                        if (File.Exists(infoPath))
-                            File.Delete(infoPath);
-                        break;
+                    switch (dialog.Choice)
+                    {
+                        case BZDeleteChoice.Cancel:
+                            return;
 
-                    case DeleteChoice.DeleteGame:
-                        Directory.Delete(_version.HomeFolder, true);
-                        break;
+                        case BZDeleteChoice.RemoveFromLauncher:
+                            string bzInfoPath = Path.Combine(_bzVersion!.HomeFolder, "BZVersion.info");
+                            if (File.Exists(bzInfoPath))
+                                File.Delete(bzInfoPath);
+                            break;
+
+                        case BZDeleteChoice.DeleteGame:
+                            Directory.Delete(_bzVersion!.HomeFolder, true);
+                            break;
+                    }
+                }
+                else
+                {
+                    var dialog = new DeleteVersionDialog { Owner = this };
+                    dialog.ShowDialog();
+
+                    switch (dialog.Choice)
+                    {
+                        case DeleteChoice.Cancel:
+                            return;
+
+                        case DeleteChoice.RemoveFromLauncher:
+                            string infoPath = Path.Combine(_snVersion!.HomeFolder, "Version.info");
+                            if (File.Exists(infoPath))
+                                File.Delete(infoPath);
+                            break;
+
+                        case DeleteChoice.DeleteGame:
+                            Directory.Delete(_snVersion!.HomeFolder, true);
+                            break;
+                    }
                 }
 
                 DialogResult = true;
@@ -220,8 +287,6 @@ namespace SubnauticaLauncher.UI
                     MessageBoxImage.Error);
             }
         }
-
-        // ================= CANCEL =================
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {

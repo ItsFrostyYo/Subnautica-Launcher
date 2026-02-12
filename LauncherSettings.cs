@@ -32,6 +32,9 @@ namespace SubnauticaLauncher
         public bool ResetMacroEnabled { get; set; } = false;
         public Key ResetHotkey { get; set; } = Key.None;
         public GameMode ResetGameMode { get; set; } = GameMode.Survival;
+        public bool BZResetMacroEnabled { get; set; } = false;
+        public Key BZResetHotkey { get; set; } = Key.None;
+        public GameMode BZResetGameMode { get; set; } = GameMode.Survival;
         public bool RenameOnCloseEnabled { get; set; } = true;
 
         // Tools

@@ -224,14 +224,29 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Text="Add Existing Subnautica Version"
+                    <TextBlock x:Name="HeaderTextBlock"
+                               Text="Add Existing Subnautica Version"
                    FontWeight="UltraBold"
                    FontSize="20"
                    Margin="0,0,0,12"/>
 
                     <StackPanel Grid.Row="1">
 
-                        <TextBlock Text="Folder (Must Contain Subnautica.exe)"
+                        <TextBlock Text="Game"
+                                   FontWeight="Heavy"
+                                   FontSize="14"
+                                   Style="{StaticResource MutedText}"
+                                   Margin="0,0,0,4"/>
+
+                        <ComboBox x:Name="GameDropdown"
+                                  Margin="0,0,0,10"
+                                  SelectionChanged="GameDropdown_SelectionChanged">
+                            <ComboBoxItem Tag="Subnautica" Content="Subnautica"/>
+                            <ComboBoxItem Tag="BelowZero" Content="Below Zero"/>
+                        </ComboBox>
+
+                        <TextBlock x:Name="FolderRequirementTextBlock"
+                                   Text="Folder (Must Contain Subnautica.exe)"
                        FontWeight="Heavy"
                        FontSize="14"
                        Style="{StaticResource MutedText}"
@@ -262,6 +277,7 @@
                        Margin="0,0,0,4"/>
 
                         <TextBox x:Name="DisplayNameBox"
+                     MaxLength="25"
                      Margin="0,0,0,10"/>
 
                         <TextBlock Text="Folder Name"

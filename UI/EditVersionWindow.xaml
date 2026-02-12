@@ -118,6 +118,7 @@
                                FontWeight="SemiBold"/>
 
                     <TextBox x:Name="DisplayNameBox"
+                             MaxLength="25"
                              Margin="0,4,0,10"/>
 
                     <TextBlock Text="Folder Name"

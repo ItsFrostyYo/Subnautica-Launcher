@@ -8,6 +8,8 @@ namespace SubnauticaLauncher.Versions;
 
 public class InstalledVersion
 {
+    private const int MaxDisplayNameLength = 25;
+
     public string DisplayName { get; set; } = "";
     public string FolderName { get; set; } = "";
     public string OriginalDownload { get; set; } = "";
@@ -19,11 +21,21 @@ public class InstalledVersion
 
     public string DisplayLabel => Status switch
     {
-        VersionStatus.Switching => "Switching → " + DisplayName,
-        VersionStatus.Launching => "Launching → " + DisplayName,
-        VersionStatus.Active => "Active → " + DisplayName,
-        _ => DisplayName
+        VersionStatus.Switching => "Switching → " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Launching => "Launching → " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Active => "Active → " + GetTrimmedDisplayName(DisplayName),
+        _ => GetTrimmedDisplayName(DisplayName)
     };
+
+    private static string GetTrimmedDisplayName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        return value.Length <= MaxDisplayNameLength
+            ? value
+            : value.Substring(0, MaxDisplayNameLength);
+    }
 
     public static InstalledVersion? FromInfo(string folderPath, string infoPath)
     {

@@ -1,36 +1,45 @@
-﻿using SubnauticaLauncher;
+using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Installer;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Application = System.Windows.Application;
 using MessageBox = System.Windows.MessageBox;
 
 namespace SubnauticaLauncher.UI
 {
     public partial class AddVersionWindow : Window
-    {       
-        
-            private const string DefaultBg = "Lifepod";
+    {
+        private const string DefaultBg = "Lifepod";
 
-            public AddVersionWindow()
+        private sealed class InstallCandidate
+        {
+            public required LauncherGame Game { get; init; }
+            public required string Id { get; init; }
+            public required string DisplayName { get; init; }
+            public required long ManifestId { get; init; }
+        }
+
+        public AddVersionWindow()
         {
             InitializeComponent();
             Loaded += AddVersionWindow_Loaded;
-            AvailableVersionsList.ItemsSource = VersionRegistry.AllVersions;
-            AvailableVersionsList.DisplayMemberPath = "DisplayName"; // ✅ REQUIRED
+
+            GameDropdown.SelectedIndex = 0;
+            RefreshAvailableVersions();
         }
 
         private ImageBrush GetBackgroundBrush()
         {
             return (ImageBrush)Resources["BackgroundBrush"];
         }
+
         private void AddVersionWindow_Loaded(object sender, RoutedEventArgs e)
         {
             LauncherSettings.Load();
@@ -48,18 +57,15 @@ namespace SubnauticaLauncher.UI
                 BitmapImage img = new BitmapImage();
                 img.BeginInit();
 
-                // Custom image (absolute path)
                 if (File.Exists(preset))
                 {
                     img.UriSource = new Uri(preset, UriKind.Absolute);
                 }
                 else
                 {
-                    // Embedded asset
                     img.UriSource = new Uri(
                         $"pack://application:,,,/Assets/Backgrounds/{preset}.png",
-                        UriKind.Absolute
-                    );
+                        UriKind.Absolute);
                 }
 
                 img.CacheOption = BitmapCacheOption.OnLoad;
@@ -70,23 +76,68 @@ namespace SubnauticaLauncher.UI
             }
             catch
             {
-                // Safe fallback
                 GetBackgroundBrush().ImageSource = new BitmapImage(new Uri(
-    $"pack://application:,,,/Assets/Backgrounds/{DefaultBg}.png",
-    UriKind.Absolute));
+                    $"pack://application:,,,/Assets/Backgrounds/{DefaultBg}.png",
+                    UriKind.Absolute));
             }
         }
 
-        // ================= TITLE BAR =================
+        private static InstallCandidate CreateCandidate(LauncherGame game, string id, string displayName, long manifestId)
+        {
+            return new InstallCandidate
+            {
+                Game = game,
+                Id = id,
+                DisplayName = displayName,
+                ManifestId = manifestId
+            };
+        }
+
+        private void RefreshAvailableVersions()
+        {
+            LauncherGame game = GetSelectedGame();
+
+            IReadOnlyList<InstallCandidate> items = game == LauncherGame.Subnautica
+                ? VersionRegistry.AllVersions
+                    .Select(v => CreateCandidate(LauncherGame.Subnautica, v.Id, v.DisplayName, v.ManifestId))
+                    .ToList()
+                : BZVersionRegistry.AllVersions
+                    .Select(v => CreateCandidate(LauncherGame.BelowZero, v.Id, v.DisplayName, v.ManifestId))
+                    .ToList();
+
+            AvailableVersionsList.ItemsSource = items;
+            AvailableVersionsList.DisplayMemberPath = nameof(InstallCandidate.DisplayName);
+        }
+
+        private LauncherGame GetSelectedGame()
+        {
+            if (GameDropdown.SelectedItem is ComboBoxItem item &&
+                item.Tag is string tag &&
+                Enum.TryParse<LauncherGame>(tag, out var game))
+            {
+                return game;
+            }
+
+            return LauncherGame.Subnautica;
+        }
+
+        private void GameDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            RefreshAvailableVersions();
+        }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
+            {
                 WindowState = WindowState == WindowState.Maximized
                     ? WindowState.Normal
                     : WindowState.Maximized;
+            }
             else
+            {
                 DragMove();
+            }
         }
 
         private void Minimize_Click(object sender, RoutedEventArgs e)
@@ -106,15 +157,11 @@ namespace SubnauticaLauncher.UI
             Close();
         }
 
-
-
-        // ================= Rest =================
         private async void Install_Click(object sender, RoutedEventArgs e)
         {
-            if (AvailableVersionsList.SelectedItem is not VersionInstallDefinition version)
+            if (AvailableVersionsList.SelectedItem is not InstallCandidate candidate)
                 return;
 
-            // 🔐 Prompt login ONLY when installing
             var login = new DepotDownloaderLoginWindow { Owner = this };
             bool? result = login.ShowDialog();
 
@@ -130,22 +177,40 @@ namespace SubnauticaLauncher.UI
                     "Steam",
                     "steamapps",
                     "common",
-                    version.Id
-                );
+                    candidate.Id);
 
-                await BZDepotDownloaderService.InstallVersionAsync(
-                    version,
-                    login.Username,
-                    login.Password,
-                    installDir
-                );
+                if (candidate.Game == LauncherGame.Subnautica)
+                {
+                    var version = new VersionInstallDefinition(
+                        candidate.Id,
+                        candidate.DisplayName,
+                        candidate.ManifestId);
+
+                    await SubnauticaLauncher.Installer.BZDepotDownloaderService.InstallVersionAsync(
+                        version,
+                        login.Username,
+                        login.Password,
+                        installDir);
+                }
+                else
+                {
+                    var version = new BZVersionInstallDefinition(
+                        candidate.Id,
+                        candidate.DisplayName,
+                        candidate.ManifestId);
+
+                    await SubnauticaLauncher.BelowZero.BZDepotDownloaderService.BZInstallVersionAsync(
+                        version,
+                        login.Username,
+                        login.Password,
+                        installDir);
+                }
 
                 MessageBox.Show(
                     "Installation complete.",
                     "Success",
                     MessageBoxButton.OK,
-                    MessageBoxImage.Information
-                );
+                    MessageBoxImage.Information);
 
                 DialogResult = true;
                 Close();
@@ -156,8 +221,7 @@ namespace SubnauticaLauncher.UI
                     ex.Message,
                     "Install Failed",
                     MessageBoxButton.OK,
-                    MessageBoxImage.Error
-                );
+                    MessageBoxImage.Error);
             }
             finally
             {
@@ -167,14 +231,13 @@ namespace SubnauticaLauncher.UI
 
         private void AddUnmanaged_Click(object sender, RoutedEventArgs e)
         {
-            var win = new AddUnmanagedVersionWindow
+            var win = new AddUnmanagedVersionWindow(GetSelectedGame())
             {
                 Owner = this
             };
 
             if (win.ShowDialog() == true)
             {
-                // Close this window so MainWindow refreshes once
                 DialogResult = true;
                 Close();
             }
