@@ -42,12 +42,12 @@
         </Style>
 
         <!-- COMBOBOX -->
-        <Style TargetType="ComboBox">
+        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+            <Setter Property="Height" Value="35"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
@@ -56,11 +56,20 @@
                                 Background="Transparent"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"/>
+                                IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                Focusable="False">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
 
                             <ContentPresenter
                                 Content="{TemplateBinding SelectionBoxItem}"
-                                Margin="8,9,30,9"
+                                Margin="8,2,30,2"
                                 VerticalAlignment="Center"
                                 HorizontalAlignment="Left"
                                 TextElement.Foreground="White"/>
@@ -79,7 +88,7 @@
                             BorderBrush="White"
                             BorderThickness="2"
                             CornerRadius="5"
-                                        Margin="0,5,0,0">
+                                        Margin="0,4,0,0">
                                     <ScrollViewer>
                                         <ItemsPresenter/>
                                     </ScrollViewer>
@@ -239,6 +248,7 @@
                                    Margin="0,0,0,4"/>
 
                         <ComboBox x:Name="GameDropdown"
+                                  Style="{StaticResource DarkComboBox}"
                                   Margin="0,0,0,10"
                                   SelectionChanged="GameDropdown_SelectionChanged">
                             <ComboBoxItem Tag="Subnautica" Content="Subnautica"/>
@@ -295,10 +305,8 @@
                        Style="{StaticResource MutedText}"
                        Margin="0,0,0,4"/>
 
-                        <ComboBox x:Name="OriginalDownloadBox" 
-                            Background="Black"
-                            BorderBrush="White"
-                            BorderThickness="1"/>
+                        <ComboBox x:Name="OriginalDownloadBox"
+                                  Style="{StaticResource DarkComboBox}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2"

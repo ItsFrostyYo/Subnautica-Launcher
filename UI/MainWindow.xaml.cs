@@ -730,6 +730,16 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
+            var runningState = GetRunningGameState();
+            if (runningState == RunningGameState.Both)
+            {
+                Logger.Warn("Reset macro blocked: both Subnautica and Below Zero are running.");
+                return;
+            }
+
+            if (runningState != RunningGameState.SubnauticaOnly)
+                return;
+
             if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
                 return;
 
@@ -763,6 +773,16 @@ namespace SubnauticaLauncher.UI
             if (!_bzMacroEnabled)
                 return;
 
+            var runningState = GetRunningGameState();
+            if (runningState == RunningGameState.Both)
+            {
+                Logger.Warn("Reset macro blocked: both Subnautica and Below Zero are running.");
+                return;
+            }
+
+            if (runningState != RunningGameState.BelowZeroOnly)
+                return;
+
             if (BZResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
                 return;
 
@@ -776,6 +796,31 @@ namespace SubnauticaLauncher.UI
             {
                 Logger.Exception(ex, "BZ reset macro failed");
             }
+        }
+
+        private enum RunningGameState
+        {
+            None,
+            SubnauticaOnly,
+            BelowZeroOnly,
+            Both
+        }
+
+        private static RunningGameState GetRunningGameState()
+        {
+            bool snRunning = Process.GetProcessesByName("Subnautica").Length > 0;
+            bool bzRunning = Process.GetProcessesByName("SubnauticaZero").Length > 0;
+
+            if (snRunning && bzRunning)
+                return RunningGameState.Both;
+
+            if (snRunning)
+                return RunningGameState.SubnauticaOnly;
+
+            if (bzRunning)
+                return RunningGameState.BelowZeroOnly;
+
+            return RunningGameState.None;
         }
 
         private void ResetMacroToggleButton_Click(object sender, RoutedEventArgs e)

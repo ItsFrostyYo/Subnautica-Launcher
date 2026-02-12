@@ -80,7 +80,15 @@
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}"
                         IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
-                        Focusable="False"/>
+                        Focusable="False">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
 
                             <ContentPresenter
                         Content="{TemplateBinding SelectionBoxItem}"
@@ -173,7 +181,7 @@ UseAeroCaptionButtons="False" />
             </StackPanel>
 
             <!-- WINDOW BUTTONS -->
-            <StackPanel Grid.Column="2"
+            <StackPanel Grid.Column="3"
                 Orientation="Horizontal">
 
                 <Button Content="—"
@@ -695,8 +703,8 @@ Click="ExplosionTrackToggle_Click"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
-                                        <TextBlock Text="Below Zero Reset Macro"
-                                                   FontSize="20"
+                                        <TextBlock Text="BZ Reset Macro"
+                                                   FontSize="18"
                                                    FontWeight="Bold"
                                                    VerticalAlignment="Center"/>
 

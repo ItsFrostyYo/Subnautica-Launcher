@@ -32,6 +32,19 @@ public static class Updates
     {
          new UpdateEntry
     {
+        Version = "2.0.0",
+        Title = "Fully Combined Subnautica and Below Zero Launcher",
+        Date = "Feb 11, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Subnuatica and Below Zero Fully Supported and Combined into a single Launcher",
+            "All Original Managing, Launching, Downloading of Version Stays the Same",
+            "All Tools Stay the Same and have the Improvements of Past Updates"        
+        }
+    },
+         
+         new UpdateEntry
+    {
         Version = "1.7.0",
         Title = "Explosion Reset Macro Full Implementations",
         Date = "Feb 11, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",

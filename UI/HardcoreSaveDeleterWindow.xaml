@@ -72,7 +72,15 @@
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}"
                         IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
-                        Focusable="False"/>
+                        Focusable="False">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
 
                             <ContentPresenter
                         Content="{TemplateBinding SelectionBoxItem}"
