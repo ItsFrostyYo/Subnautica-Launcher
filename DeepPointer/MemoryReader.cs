@@ -31,6 +31,18 @@ namespace SubnauticaLauncher.Memory
             return true;
         }
 
+        public static bool ReadByte(Process process, IntPtr address, out byte value)
+        {
+            value = 0;
+            byte[] buffer = new byte[1];
+
+            if (!ReadProcessMemory(process.Handle, address, buffer, 1, out _))
+                return false;
+
+            value = buffer[0];
+            return true;
+        }
+
         public static bool ReadUInt16(Process process, IntPtr address, out ushort value)
         {
             value = 0;

@@ -1,0 +1,1366 @@
+using SubnauticaLauncher.Memory;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace SubnauticaLauncher.Gameplay
+{
+    public sealed class DynamicMonoGameplayEventTracker
+    {
+        private const ushort FieldAttributeStatic = 0x10;
+        private const int InitRetryMs = 3000;
+        private const uint DONT_RESOLVE_DLL_REFERENCES = 0x00000001;
+        private const int MaxCollectionItems = 4096;
+
+        private static readonly MonoLayout LayoutV1 = new(
+            assemblyImage: 0x58,
+            imageAssemblyName: 0x28,
+            imageClassCache: 0x3D0,
+            hashSize: 0x18,
+            hashTable: 0x20,
+            className: 0x48,
+            classFields: 0xA8,
+            classFieldCount: 0x94,
+            classParent: 0x30,
+            classRuntimeInfo: 0xF8,
+            classVTableSize: 0x5C,
+            classNextClassCache: 0x100,
+            classDefFieldCount: 0x94,
+            classDefNextClassCache: 0x100,
+            classFieldName: 0x8,
+            classFieldParent: 0x10,
+            classFieldOffset: 0x18,
+            classFieldType: 0x0,
+            monoTypeAttrs: 0x8,
+            runtimeInfoDomainVTables: 0x8,
+            vtableData: 0x18,
+            vtableVtable: -1);
+
+        private static readonly MonoLayout LayoutV2 = new(
+            assemblyImage: 0x60,
+            imageAssemblyName: 0x28,
+            imageClassCache: 0x4C0,
+            hashSize: 0x18,
+            hashTable: 0x20,
+            className: 0x48,
+            classFields: 0x98,
+            classFieldCount: -1,
+            classParent: 0x30,
+            classRuntimeInfo: 0xD0,
+            classVTableSize: 0x5C,
+            classNextClassCache: -1,
+            classDefFieldCount: 0x100,
+            classDefNextClassCache: 0x108,
+            classFieldName: 0x8,
+            classFieldParent: 0x10,
+            classFieldOffset: 0x18,
+            classFieldType: 0x0,
+            monoTypeAttrs: 0x8,
+            runtimeInfoDomainVTables: 0x8,
+            vtableData: -1,
+            vtableVtable: 0x40);
+
+        private readonly object _sync = new();
+        private readonly string _gameName;
+
+        private bool _ready;
+        private bool _loggedInitFailure;
+        private int _pid = -1;
+        private DateTime _nextInitAttemptUtc = DateTime.MinValue;
+
+        private MonoFlavor _flavor;
+        private MonoLayout _layout = LayoutV1;
+        private int _classFieldSize;
+
+        private StaticFieldRef _knownTechField;
+        private StaticFieldRef _scannerCompleteField;
+        private StaticFieldRef _databankField;
+        private StaticFieldRef _inventoryMainField;
+        private StaticFieldRef _crafterMainField;
+
+        private bool _hasInventoryContainerOffset;
+        private int _inventoryContainerOffset;
+        private bool _hasItemsListOffset;
+        private int _itemsListOffset;
+        private bool _hasInventoryItemOffset;
+        private int _inventoryItemOffset;
+        private bool _hasPickupableTechTypeOffset;
+        private int _pickupableTechTypeOffset;
+
+        private bool _hasCrafterIsCraftingOffset;
+        private int _crafterIsCraftingOffset;
+        private bool _hasCrafterTechTypeOffset;
+        private int _crafterTechTypeOffset;
+
+        private bool _hasBaseline;
+        private HashSet<int> _previousBlueprints = new();
+        private HashSet<string> _previousDatabankEntries = new(StringComparer.Ordinal);
+        private Dictionary<int, int> _previousInventoryCounts = new();
+
+        private bool _previousCrafting;
+        private int _previousCraftTechType = -1;
+        private DateTime _recentCraftEndedUtc = DateTime.MinValue;
+        private int _recentCraftTechType = -1;
+
+        public DynamicMonoGameplayEventTracker(string gameName)
+        {
+            _gameName = gameName;
+            _classFieldSize = Align(IntPtr.Size * 3 + 4, IntPtr.Size);
+        }
+
+        public bool TryPoll(Process proc, out IReadOnlyList<GameplayEvent> events)
+        {
+            events = Array.Empty<GameplayEvent>();
+
+            EnsureInitialized(proc);
+            if (!_ready)
+                return false;
+
+            bool hasBlueprints = TryReadBlueprints(proc, out var currentBlueprints);
+            bool hasDatabank = TryReadDatabankEntries(proc, out var currentDatabankEntries);
+            bool hasInventory = TryReadInventoryCounts(proc, out var currentInventoryCounts);
+            bool hasCraftState = TryReadCraftState(proc, out bool isCrafting, out int craftingTechType);
+
+            if (!hasBlueprints && !hasDatabank && !hasInventory)
+                return false;
+
+            var now = DateTime.UtcNow;
+
+            if (_previousCrafting && !isCrafting)
+            {
+                _recentCraftEndedUtc = now;
+                _recentCraftTechType = _previousCraftTechType;
+            }
+
+            _previousCrafting = isCrafting;
+            _previousCraftTechType = craftingTechType;
+
+            if (!_hasBaseline)
+            {
+                _hasBaseline = true;
+                _previousBlueprints = currentBlueprints;
+                _previousDatabankEntries = currentDatabankEntries;
+                _previousInventoryCounts = currentInventoryCounts;
+                return true;
+            }
+
+            var detectedEvents = new List<GameplayEvent>();
+
+            if (hasBlueprints)
+            {
+                foreach (int techType in currentBlueprints)
+                {
+                    if (_previousBlueprints.Contains(techType))
+                        continue;
+
+                    detectedEvents.Add(CreateEvent(GameplayEventType.BlueprintUnlocked, techType.ToString(), 1, now));
+                }
+
+                _previousBlueprints = currentBlueprints;
+            }
+
+            if (hasDatabank)
+            {
+                foreach (string key in currentDatabankEntries)
+                {
+                    if (_previousDatabankEntries.Contains(key))
+                        continue;
+
+                    detectedEvents.Add(CreateEvent(GameplayEventType.DatabankEntryUnlocked, key, 1, now));
+                }
+
+                _previousDatabankEntries = currentDatabankEntries;
+            }
+
+            if (hasInventory)
+            {
+                foreach (int techType in currentInventoryCounts.Keys.Union(_previousInventoryCounts.Keys))
+                {
+                    int oldCount = _previousInventoryCounts.TryGetValue(techType, out int before) ? before : 0;
+                    int newCount = currentInventoryCounts.TryGetValue(techType, out int after) ? after : 0;
+
+                    int delta = newCount - oldCount;
+                    if (delta == 0)
+                        continue;
+
+                    if (delta > 0)
+                    {
+                        GameplayEventType type = IsLikelyCraftedItem(techType, now, hasCraftState)
+                            ? GameplayEventType.ItemCrafted
+                            : GameplayEventType.ItemPickedUp;
+
+                        detectedEvents.Add(CreateEvent(type, techType.ToString(), delta, now));
+                    }
+                    else
+                    {
+                        detectedEvents.Add(CreateEvent(GameplayEventType.ItemDropped, techType.ToString(), -delta, now));
+                    }
+                }
+
+                _previousInventoryCounts = currentInventoryCounts;
+            }
+
+            events = detectedEvents;
+            return true;
+        }
+
+        private GameplayEvent CreateEvent(GameplayEventType type, string key, int delta, DateTime now)
+        {
+            return new GameplayEvent
+            {
+                TimestampUtc = now,
+                Game = _gameName,
+                ProcessId = _pid,
+                Type = type,
+                Key = key,
+                Delta = delta
+            };
+        }
+
+        private bool IsLikelyCraftedItem(int techType, DateTime now, bool hasCraftState)
+        {
+            if (!hasCraftState)
+                return false;
+
+            if ((now - _recentCraftEndedUtc).TotalMilliseconds > 1800)
+                return false;
+
+            if (_recentCraftTechType < 0)
+                return true;
+
+            return _recentCraftTechType == techType;
+        }
+
+        private void EnsureInitialized(Process proc)
+        {
+            lock (_sync)
+            {
+                if (_pid != proc.Id)
+                {
+                    ResetState(proc.Id);
+                }
+
+                if (_ready || DateTime.UtcNow < _nextInitAttemptUtc)
+                    return;
+
+                if (TryInitialize(proc))
+                {
+                    _ready = true;
+                    _loggedInitFailure = false;
+                    Logger.Log($"Dynamic mono gameplay tracker initialized ({_gameName}, {_flavor}).");
+                    return;
+                }
+
+                _nextInitAttemptUtc = DateTime.UtcNow.AddMilliseconds(InitRetryMs);
+                if (!_loggedInitFailure)
+                {
+                    Logger.Warn($"Dynamic mono gameplay tracker init failed ({_gameName}).");
+                    _loggedInitFailure = true;
+                }
+            }
+        }
+
+        private void ResetState(int pid)
+        {
+            _pid = pid;
+            _ready = false;
+            _loggedInitFailure = false;
+            _nextInitAttemptUtc = DateTime.MinValue;
+            _flavor = MonoFlavor.Unknown;
+            _layout = LayoutV1;
+
+            _knownTechField = default;
+            _scannerCompleteField = default;
+            _databankField = default;
+            _inventoryMainField = default;
+            _crafterMainField = default;
+
+            _hasInventoryContainerOffset = false;
+            _inventoryContainerOffset = 0;
+            _hasItemsListOffset = false;
+            _itemsListOffset = 0;
+            _hasInventoryItemOffset = false;
+            _inventoryItemOffset = 0;
+            _hasPickupableTechTypeOffset = false;
+            _pickupableTechTypeOffset = 0;
+
+            _hasCrafterIsCraftingOffset = false;
+            _crafterIsCraftingOffset = 0;
+            _hasCrafterTechTypeOffset = false;
+            _crafterTechTypeOffset = 0;
+
+            _hasBaseline = false;
+            _previousBlueprints = new HashSet<int>();
+            _previousDatabankEntries = new HashSet<string>(StringComparer.Ordinal);
+            _previousInventoryCounts = new Dictionary<int, int>();
+            _previousCrafting = false;
+            _previousCraftTechType = -1;
+            _recentCraftEndedUtc = DateTime.MinValue;
+            _recentCraftTechType = -1;
+        }
+
+        private bool TryInitialize(Process proc)
+        {
+            if (!TryGetMonoModule(proc, out var monoModule, out var flavor) || monoModule == null)
+                return false;
+
+            _flavor = flavor;
+            _layout = flavor == MonoFlavor.MonoV2 ? LayoutV2 : LayoutV1;
+
+            IntPtr assemblyForeach = GetRemoteExportAddress(monoModule, "mono_assembly_foreach");
+            if (assemblyForeach == IntPtr.Zero)
+                return false;
+
+            if (!TryFindAssembliesListPointer(proc, assemblyForeach, out IntPtr assembliesList))
+                return false;
+
+            IntPtr mainImage = FindAssemblyImage(proc, assembliesList, "Assembly-CSharp");
+            if (mainImage == IntPtr.Zero)
+                return false;
+
+            IntPtr knownTechClass = FindClass(proc, mainImage, "KnownTech");
+            IntPtr scannerClass = FindClass(proc, mainImage, "PDAScanner");
+            IntPtr databankClass = FindClass(proc, mainImage, "PDAEncyclopedia");
+            IntPtr inventoryClass = FindClass(proc, mainImage, "Inventory");
+            IntPtr itemsContainerClass = FindClass(proc, mainImage, "ItemsContainer");
+            IntPtr inventoryItemClass = FindClass(proc, mainImage, "InventoryItem");
+            IntPtr pickupableClass = FindClass(proc, mainImage, "Pickupable");
+            IntPtr crafterClass = FindClass(proc, mainImage, "CrafterLogic");
+            IntPtr craftingMenuClass = FindClass(proc, mainImage, "uGUI_CraftingMenu");
+
+            bool anyReadableSource = false;
+
+            if (knownTechClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, knownTechClass,
+                new[] { "knownTech", "knownTechTypes", "known", "knownTechnology" }, out _knownTechField))
+            {
+                anyReadableSource = true;
+            }
+
+            if (scannerClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, scannerClass,
+                new[] { "complete", "completed", "scans" }, out _scannerCompleteField))
+            {
+                anyReadableSource = true;
+            }
+
+            if (databankClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, databankClass,
+                new[] { "knownEntries", "entries", "encyclopediaEntries", "unlockedEntries" }, out _databankField))
+            {
+                anyReadableSource = true;
+            }
+
+            if (inventoryClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, inventoryClass,
+                new[] { "main" }, out _inventoryMainField))
+            {
+                _hasInventoryContainerOffset = TryFindFieldOffsetAny(proc, inventoryClass,
+                    new[] { "container", "_container" }, out _inventoryContainerOffset);
+                anyReadableSource = true;
+            }
+
+            if (itemsContainerClass != IntPtr.Zero)
+            {
+                _hasItemsListOffset = TryFindFieldOffsetAny(proc, itemsContainerClass,
+                    new[] { "items", "_items" }, out _itemsListOffset);
+            }
+
+            if (inventoryItemClass != IntPtr.Zero)
+            {
+                _hasInventoryItemOffset = TryFindFieldOffsetAny(proc, inventoryItemClass,
+                    new[] { "item", "pickupable" }, out _inventoryItemOffset);
+            }
+
+            if (pickupableClass != IntPtr.Zero)
+            {
+                _hasPickupableTechTypeOffset = TryFindFieldOffsetAny(proc, pickupableClass,
+                    new[] { "techType" }, out _pickupableTechTypeOffset);
+            }
+
+            if (crafterClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, crafterClass,
+                new[] { "main" }, out _crafterMainField))
+            {
+                _hasCrafterIsCraftingOffset = TryFindFieldOffsetAny(proc, crafterClass,
+                    new[] { "isCrafting", "crafting", "craftInProgress" }, out _crafterIsCraftingOffset);
+                _hasCrafterTechTypeOffset = TryFindFieldOffsetAny(proc, crafterClass,
+                    new[] { "craftingTechType", "techType", "currentTechType" }, out _crafterTechTypeOffset);
+                anyReadableSource = true;
+            }
+            else if (craftingMenuClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, craftingMenuClass,
+                new[] { "main" }, out _crafterMainField))
+            {
+                _hasCrafterIsCraftingOffset = TryFindFieldOffsetAny(proc, craftingMenuClass,
+                    new[] { "isCrafting", "crafting" }, out _crafterIsCraftingOffset);
+                _hasCrafterTechTypeOffset = TryFindFieldOffsetAny(proc, craftingMenuClass,
+                    new[] { "craftingTechType", "techType", "currentTechType" }, out _crafterTechTypeOffset);
+                anyReadableSource = true;
+            }
+
+            return anyReadableSource;
+        }
+
+        private bool TryReadBlueprints(Process proc, out HashSet<int> values)
+        {
+            values = new HashSet<int>();
+            bool found = false;
+
+            if (TryReadStaticObject(proc, _knownTechField, out var knownTechObj) &&
+                TryReadIntCollection(proc, knownTechObj, values))
+            {
+                found = true;
+            }
+
+            if (TryReadStaticObject(proc, _scannerCompleteField, out var scannerObj) &&
+                TryReadIntCollection(proc, scannerObj, values))
+            {
+                found = true;
+            }
+
+            return found;
+        }
+
+        private bool TryReadDatabankEntries(Process proc, out HashSet<string> values)
+        {
+            values = new HashSet<string>(StringComparer.Ordinal);
+
+            if (!TryReadStaticObject(proc, _databankField, out var databankObj))
+                return false;
+
+            return TryReadStringCollection(proc, databankObj, values);
+        }
+
+        private bool TryReadInventoryCounts(Process proc, out Dictionary<int, int> counts)
+        {
+            counts = new Dictionary<int, int>();
+
+            if (!_hasInventoryContainerOffset || !_hasItemsListOffset || !_hasInventoryItemOffset || !_hasPickupableTechTypeOffset)
+                return false;
+
+            if (!TryReadStaticObject(proc, _inventoryMainField, out var inventoryMain) || inventoryMain == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(inventoryMain, _inventoryContainerOffset), out var container) || container == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(container, _itemsListOffset), out var itemsList) || itemsList == IntPtr.Zero)
+                return false;
+
+            if (!TryReadListObjectPointers(proc, itemsList, out var inventoryItems))
+                return false;
+
+            foreach (IntPtr inventoryItem in inventoryItems)
+            {
+                if (inventoryItem == IntPtr.Zero)
+                    continue;
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(inventoryItem, _inventoryItemOffset), out var pickupable) || pickupable == IntPtr.Zero)
+                    continue;
+
+                if (!MemoryReader.ReadInt32(proc, IntPtr.Add(pickupable, _pickupableTechTypeOffset), out int techType))
+                    continue;
+
+                counts[techType] = counts.TryGetValue(techType, out int current)
+                    ? current + 1
+                    : 1;
+            }
+
+            return true;
+        }
+
+        private bool TryReadCraftState(Process proc, out bool isCrafting, out int craftingTechType)
+        {
+            isCrafting = false;
+            craftingTechType = -1;
+
+            if (!TryReadStaticObject(proc, _crafterMainField, out var crafterMain) || crafterMain == IntPtr.Zero)
+                return false;
+
+            bool found = false;
+
+            if (_hasCrafterIsCraftingOffset)
+            {
+                if (MemoryReader.ReadByte(proc, IntPtr.Add(crafterMain, _crafterIsCraftingOffset), out byte b))
+                {
+                    isCrafting = b != 0;
+                    found = true;
+                }
+                else if (MemoryReader.ReadInt32(proc, IntPtr.Add(crafterMain, _crafterIsCraftingOffset), out int iv))
+                {
+                    isCrafting = iv != 0;
+                    found = true;
+                }
+            }
+
+            if (_hasCrafterTechTypeOffset &&
+                MemoryReader.ReadInt32(proc, IntPtr.Add(crafterMain, _crafterTechTypeOffset), out int techType))
+            {
+                craftingTechType = techType;
+                found = true;
+            }
+
+            return found;
+        }
+
+        private bool TryReadStaticObject(Process proc, StaticFieldRef fieldRef, out IntPtr value)
+        {
+            value = IntPtr.Zero;
+            if (!fieldRef.IsValid)
+                return false;
+
+            return MemoryReader.ReadIntPtr(proc, IntPtr.Add(fieldRef.StaticBase, fieldRef.FieldOffset), out value);
+        }
+
+        private bool TryResolveStaticFieldRef(Process proc, IntPtr klass, string[] fieldNames, out StaticFieldRef fieldRef)
+        {
+            fieldRef = default;
+
+            foreach (string fieldName in fieldNames)
+            {
+                if (!TryFindStaticField(proc, klass, fieldName, out int staticOffset, out IntPtr parentClass))
+                    continue;
+
+                if (!TryGetStaticDataAddress(proc, parentClass, out IntPtr staticDataBase))
+                    continue;
+
+                fieldRef = new StaticFieldRef(staticDataBase, staticOffset);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryFindFieldOffsetAny(Process proc, IntPtr klass, string[] fieldNames, out int fieldOffset)
+        {
+            foreach (string fieldName in fieldNames)
+            {
+                if (TryFindFieldOffset(proc, klass, fieldName, out fieldOffset))
+                    return true;
+            }
+
+            fieldOffset = 0;
+            return false;
+        }
+
+        private bool TryReadIntCollection(Process proc, IntPtr objectPtr, HashSet<int> values)
+        {
+            if (objectPtr == IntPtr.Zero)
+                return false;
+
+            bool parsed = false;
+
+            parsed |= TryReadListInts(proc, objectPtr, values);
+            parsed |= TryReadHashSetInts(proc, objectPtr, values);
+            parsed |= TryReadDictionaryIntKeys(proc, objectPtr, values);
+
+            return parsed;
+        }
+
+        private bool TryReadStringCollection(Process proc, IntPtr objectPtr, HashSet<string> values)
+        {
+            if (objectPtr == IntPtr.Zero)
+                return false;
+
+            bool parsed = false;
+
+            parsed |= TryReadListStrings(proc, objectPtr, values);
+            parsed |= TryReadHashSetStrings(proc, objectPtr, values);
+            parsed |= TryReadDictionaryStringKeys(proc, objectPtr, values);
+
+            return parsed;
+        }
+
+        private bool TryReadListInts(Process proc, IntPtr listObj, HashSet<int> values)
+        {
+            if (!TryReadListHeader(proc, listObj, out IntPtr itemsArray, out int size))
+                return false;
+
+            if (size <= 0)
+                return true;
+
+            int arrayData = GetMonoArrayDataOffset();
+            int count = Math.Min(size, MaxCollectionItems);
+            int plausible = 0;
+            var temp = new List<int>(count);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (!MemoryReader.ReadInt32(proc, IntPtr.Add(itemsArray, arrayData + i * 4), out int value))
+                    break;
+
+                temp.Add(value);
+                if (value >= 0 && value <= 100000)
+                    plausible++;
+            }
+
+            if (temp.Count == 0 || plausible < temp.Count / 2)
+                return false;
+
+            foreach (int value in temp)
+                values.Add(value);
+
+            return true;
+        }
+
+        private bool TryReadListStrings(Process proc, IntPtr listObj, HashSet<string> values)
+        {
+            if (!TryReadListHeader(proc, listObj, out IntPtr itemsArray, out int size))
+                return false;
+
+            if (size <= 0)
+                return true;
+
+            int arrayData = GetMonoArrayDataOffset();
+            int count = Math.Min(size, MaxCollectionItems);
+            int valid = 0;
+
+            for (int i = 0; i < count; i++)
+            {
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(itemsArray, arrayData + i * IntPtr.Size), out var stringObj) ||
+                    stringObj == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                string text = ReadMonoString(proc, stringObj, 256);
+                if (string.IsNullOrWhiteSpace(text))
+                    continue;
+
+                values.Add(text);
+                valid++;
+            }
+
+            return valid > 0;
+        }
+
+        private bool TryReadListObjectPointers(Process proc, IntPtr listObj, out List<IntPtr> pointers)
+        {
+            pointers = new List<IntPtr>();
+
+            if (!TryReadListHeader(proc, listObj, out IntPtr itemsArray, out int size))
+                return false;
+
+            if (size <= 0)
+                return true;
+
+            int arrayData = GetMonoArrayDataOffset();
+            int count = Math.Min(size, MaxCollectionItems);
+
+            for (int i = 0; i < count; i++)
+            {
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(itemsArray, arrayData + i * IntPtr.Size), out var value))
+                    break;
+
+                pointers.Add(value);
+            }
+
+            return true;
+        }
+
+        private bool TryReadListHeader(Process proc, IntPtr listObj, out IntPtr itemsArray, out int size)
+        {
+            itemsArray = IntPtr.Zero;
+            size = 0;
+
+            if (!TryGetObjectClass(proc, listObj, out var listClass) || listClass == IntPtr.Zero)
+                return false;
+
+            if (!TryFindFieldOffsetAny(proc, listClass, new[] { "_items", "items" }, out int itemsOffset))
+                return false;
+
+            if (!TryFindFieldOffsetAny(proc, listClass, new[] { "_size", "size", "_count", "count" }, out int sizeOffset))
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(listObj, itemsOffset), out itemsArray) || itemsArray == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(listObj, sizeOffset), out size))
+                return false;
+
+            if (size < 0 || size > MaxCollectionItems)
+                return false;
+
+            return true;
+        }
+
+        private bool TryReadHashSetInts(Process proc, IntPtr setObj, HashSet<int> values)
+        {
+            if (!TryReadHashSetSlotArray(proc, setObj, out IntPtr slotsArray, out int count))
+                return false;
+
+            return TryReadIntFromStructArray(proc, slotsArray, count, values);
+        }
+
+        private bool TryReadHashSetStrings(Process proc, IntPtr setObj, HashSet<string> values)
+        {
+            if (!TryReadHashSetSlotArray(proc, setObj, out IntPtr slotsArray, out int count))
+                return false;
+
+            return TryReadStringFromStructArray(proc, slotsArray, count, values);
+        }
+
+        private bool TryReadHashSetSlotArray(Process proc, IntPtr setObj, out IntPtr slotsArray, out int count)
+        {
+            slotsArray = IntPtr.Zero;
+            count = 0;
+
+            if (!TryGetObjectClass(proc, setObj, out var setClass) || setClass == IntPtr.Zero)
+                return false;
+
+            if (!TryFindFieldOffsetAny(proc, setClass, new[] { "_slots", "slots" }, out int slotsOffset))
+                return false;
+
+            if (!TryFindFieldOffsetAny(proc, setClass, new[] { "_count", "count" }, out int countOffset))
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(setObj, slotsOffset), out slotsArray) || slotsArray == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(setObj, countOffset), out count))
+                return false;
+
+            if (count < 0 || count > MaxCollectionItems)
+                return false;
+
+            return true;
+        }
+
+        private bool TryReadDictionaryIntKeys(Process proc, IntPtr dictObj, HashSet<int> values)
+        {
+            if (!TryReadDictionaryEntriesArray(proc, dictObj, out IntPtr entriesArray, out int count))
+                return false;
+
+            return TryReadIntFromStructArray(proc, entriesArray, count, values);
+        }
+
+        private bool TryReadDictionaryStringKeys(Process proc, IntPtr dictObj, HashSet<string> values)
+        {
+            if (!TryReadDictionaryEntriesArray(proc, dictObj, out IntPtr entriesArray, out int count))
+                return false;
+
+            return TryReadStringFromStructArray(proc, entriesArray, count, values);
+        }
+
+        private bool TryReadDictionaryEntriesArray(Process proc, IntPtr dictObj, out IntPtr entriesArray, out int count)
+        {
+            entriesArray = IntPtr.Zero;
+            count = 0;
+
+            if (!TryGetObjectClass(proc, dictObj, out var dictClass) || dictClass == IntPtr.Zero)
+                return false;
+
+            if (!TryFindFieldOffsetAny(proc, dictClass, new[] { "_entries", "entries" }, out int entriesOffset))
+                return false;
+
+            if (!TryFindFieldOffsetAny(proc, dictClass, new[] { "_count", "count" }, out int countOffset))
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(dictObj, entriesOffset), out entriesArray) || entriesArray == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(dictObj, countOffset), out count))
+                return false;
+
+            if (count < 0 || count > MaxCollectionItems)
+                return false;
+
+            return true;
+        }
+
+        private bool TryReadIntFromStructArray(Process proc, IntPtr arrayObj, int count, HashSet<int> values)
+        {
+            if (!TryGetArrayLength(proc, arrayObj, out int length))
+                return false;
+
+            int entries = Math.Min(Math.Min(length, count <= 0 ? length : count + 32), MaxCollectionItems);
+            if (entries <= 0)
+                return true;
+
+            int bestScore = 0;
+            HashSet<int>? best = null;
+
+            int[] strideCandidates = { 12, 16, 20, 24, 28, 32, 40 };
+            int[] valueOffsetCandidates = { 8, 12, 16, 20 };
+
+            foreach (int stride in strideCandidates)
+            {
+                foreach (int valueOffset in valueOffsetCandidates)
+                {
+                    var temp = new HashSet<int>();
+                    int score = 0;
+
+                    for (int i = 0; i < entries; i++)
+                    {
+                        IntPtr entry = IntPtr.Add(arrayObj, GetMonoArrayDataOffset() + i * stride);
+
+                        if (!MemoryReader.ReadInt32(proc, entry, out int hashCode))
+                            break;
+
+                        if (hashCode < 0)
+                            continue;
+
+                        if (!MemoryReader.ReadInt32(proc, IntPtr.Add(entry, valueOffset), out int value))
+                            continue;
+
+                        temp.Add(value);
+                        score++;
+                    }
+
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        best = temp;
+                    }
+                }
+            }
+
+            if (best == null || bestScore == 0)
+                return false;
+
+            foreach (int value in best)
+                values.Add(value);
+
+            return true;
+        }
+
+        private bool TryReadStringFromStructArray(Process proc, IntPtr arrayObj, int count, HashSet<string> values)
+        {
+            if (!TryGetArrayLength(proc, arrayObj, out int length))
+                return false;
+
+            int entries = Math.Min(Math.Min(length, count <= 0 ? length : count + 32), MaxCollectionItems);
+            if (entries <= 0)
+                return true;
+
+            int bestScore = 0;
+            HashSet<string>? best = null;
+
+            int[] strideCandidates = { 16, 20, 24, 28, 32, 40, 48 };
+            int[] pointerOffsetCandidates = { 8, 12, 16, 20, 24 };
+
+            foreach (int stride in strideCandidates)
+            {
+                foreach (int pointerOffset in pointerOffsetCandidates)
+                {
+                    var temp = new HashSet<string>(StringComparer.Ordinal);
+                    int score = 0;
+
+                    for (int i = 0; i < entries; i++)
+                    {
+                        IntPtr entry = IntPtr.Add(arrayObj, GetMonoArrayDataOffset() + i * stride);
+
+                        if (!MemoryReader.ReadInt32(proc, entry, out int hashCode))
+                            break;
+
+                        if (hashCode < 0)
+                            continue;
+
+                        if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(entry, pointerOffset), out var stringObj) ||
+                            stringObj == IntPtr.Zero)
+                        {
+                            continue;
+                        }
+
+                        string value = ReadMonoString(proc, stringObj, 256);
+                        if (string.IsNullOrWhiteSpace(value))
+                            continue;
+
+                        temp.Add(value);
+                        score++;
+                    }
+
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        best = temp;
+                    }
+                }
+            }
+
+            if (best == null || bestScore == 0)
+                return false;
+
+            foreach (string value in best)
+                values.Add(value);
+
+            return true;
+        }
+
+        private static int GetMonoArrayLengthOffset()
+        {
+            return IntPtr.Size == 8 ? 0x18 : 0x0C;
+        }
+
+        private static int GetMonoArrayDataOffset()
+        {
+            return IntPtr.Size == 8 ? 0x20 : 0x10;
+        }
+
+        private static string ReadMonoString(Process proc, IntPtr stringObj, int maxChars)
+        {
+            if (stringObj == IntPtr.Zero)
+                return string.Empty;
+
+            int lengthOffset = IntPtr.Size == 8 ? 0x10 : 0x08;
+            int charsOffset = IntPtr.Size == 8 ? 0x14 : 0x0C;
+
+            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(stringObj, lengthOffset), out int charCount))
+                return string.Empty;
+
+            if (charCount <= 0)
+                return string.Empty;
+
+            if (charCount > maxChars)
+                charCount = maxChars;
+
+            if (!MemoryReader.ReadBytes(proc, IntPtr.Add(stringObj, charsOffset), charCount * 2, out var bytes))
+                return string.Empty;
+
+            string value;
+            try
+            {
+                value = Encoding.Unicode.GetString(bytes);
+            }
+            catch
+            {
+                return string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            foreach (char c in value)
+            {
+                if (char.IsControl(c) && c != '\t')
+                    return string.Empty;
+            }
+
+            return value.Trim();
+        }
+
+        private bool TryGetArrayLength(Process proc, IntPtr arrayObj, out int length)
+        {
+            return MemoryReader.ReadInt32(proc, IntPtr.Add(arrayObj, GetMonoArrayLengthOffset()), out length)
+                && length >= 0
+                && length <= MaxCollectionItems;
+        }
+
+        private bool TryGetObjectClass(Process proc, IntPtr objectPtr, out IntPtr klass)
+        {
+            klass = IntPtr.Zero;
+
+            if (!MemoryReader.ReadIntPtr(proc, objectPtr, out var vtable) || vtable == IntPtr.Zero)
+                return false;
+
+            return MemoryReader.ReadIntPtr(proc, vtable, out klass) && klass != IntPtr.Zero;
+        }
+
+        private bool TryGetMonoModule(Process proc, out ProcessModule? module, out MonoFlavor flavor)
+        {
+            module = proc.Modules
+                .Cast<ProcessModule>()
+                .FirstOrDefault(m => m.ModuleName.Equals("mono-2.0-bdwgc.dll", StringComparison.OrdinalIgnoreCase));
+
+            if (module != null)
+            {
+                flavor = MonoFlavor.MonoV2;
+                return true;
+            }
+
+            module = proc.Modules
+                .Cast<ProcessModule>()
+                .FirstOrDefault(m => m.ModuleName.Equals("mono.dll", StringComparison.OrdinalIgnoreCase));
+
+            if (module != null)
+            {
+                flavor = MonoFlavor.MonoV1;
+                return true;
+            }
+
+            flavor = MonoFlavor.Unknown;
+            return false;
+        }
+
+        private static IntPtr GetRemoteExportAddress(ProcessModule module, string exportName)
+        {
+            IntPtr localModule = LoadLibraryEx(module.FileName, IntPtr.Zero, DONT_RESOLVE_DLL_REFERENCES);
+            if (localModule == IntPtr.Zero)
+                return IntPtr.Zero;
+
+            try
+            {
+                IntPtr localExport = GetProcAddress(localModule, exportName);
+                if (localExport == IntPtr.Zero)
+                    return IntPtr.Zero;
+
+                long rva = localExport.ToInt64() - localModule.ToInt64();
+                return new IntPtr(module.BaseAddress.ToInt64() + rva);
+            }
+            finally
+            {
+                FreeLibrary(localModule);
+            }
+        }
+
+        private bool TryFindAssembliesListPointer(Process proc, IntPtr monoAssemblyForeach, out IntPtr assembliesList)
+        {
+            assembliesList = IntPtr.Zero;
+
+            if (!MemoryReader.ReadBytes(proc, monoAssemblyForeach, 0x100, out var bytes))
+                return false;
+
+            int operandOffset = IntPtr.Size == 8
+                ? FindPattern(bytes, new byte[] { 0x48, 0x8B, 0x0D })
+                : FindPattern(bytes, new byte[] { 0xFF, 0x35 });
+
+            if (operandOffset < 0)
+                return false;
+
+            IntPtr operandAddress = new(
+                monoAssemblyForeach.ToInt64() + operandOffset + (IntPtr.Size == 8 ? 3 : 2));
+
+            IntPtr globalAssembliesAddress;
+            if (IntPtr.Size == 8)
+            {
+                if (!MemoryReader.ReadInt32(proc, operandAddress, out int rel))
+                    return false;
+
+                globalAssembliesAddress = new IntPtr(operandAddress.ToInt64() + 4 + rel);
+            }
+            else
+            {
+                if (!MemoryReader.ReadInt32(proc, operandAddress, out int abs))
+                    return false;
+
+                globalAssembliesAddress = new IntPtr(abs);
+            }
+
+            return MemoryReader.ReadIntPtr(proc, globalAssembliesAddress, out assembliesList);
+        }
+
+        private IntPtr FindAssemblyImage(Process proc, IntPtr assembliesList, string imageName)
+        {
+            IntPtr node = assembliesList;
+            int guard = 0;
+
+            while (node != IntPtr.Zero && guard++ < 4096)
+            {
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(node, MonoLayout.GListData), out var assembly) || assembly == IntPtr.Zero)
+                    break;
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(assembly, _layout.AssemblyImage), out var image) || image == IntPtr.Zero)
+                    break;
+
+                if (MemoryReader.ReadIntPtr(proc, IntPtr.Add(image, _layout.ImageAssemblyName), out var imageNamePtr))
+                {
+                    string current = MemoryReader.ReadUtf8String(proc, imageNamePtr, 128);
+                    if (current.Equals(imageName, StringComparison.OrdinalIgnoreCase))
+                        return image;
+                }
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(node, MonoLayout.GListNext), out node))
+                    break;
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private IntPtr FindClass(Process proc, IntPtr image, string className)
+        {
+            IntPtr classCache = IntPtr.Add(image, _layout.ImageClassCache);
+
+            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(classCache, _layout.HashSize), out int size))
+                return IntPtr.Zero;
+
+            if (size <= 0 || size > 200000)
+                return IntPtr.Zero;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(classCache, _layout.HashTable), out var table) || table == IntPtr.Zero)
+                return IntPtr.Zero;
+
+            int pointerSize = IntPtr.Size;
+
+            for (int i = 0; i < size; i++)
+            {
+                IntPtr bucketEntryAddress = new IntPtr(table.ToInt64() + (long)i * pointerSize);
+                if (!MemoryReader.ReadIntPtr(proc, bucketEntryAddress, out var klass))
+                    continue;
+
+                int chainGuard = 0;
+                while (klass != IntPtr.Zero && chainGuard++ < 10000)
+                {
+                    if (MemoryReader.ReadIntPtr(proc, IntPtr.Add(klass, _layout.ClassName), out var classNamePtr))
+                    {
+                        string currentName = MemoryReader.ReadUtf8String(proc, classNamePtr, 128);
+                        if (currentName.Equals(className, StringComparison.Ordinal))
+                            return klass;
+                    }
+
+                    int nextOffset = _flavor == MonoFlavor.MonoV2
+                        ? _layout.ClassDefNextClassCache
+                        : _layout.ClassNextClassCache;
+
+                    if (nextOffset < 0 || !MemoryReader.ReadIntPtr(proc, IntPtr.Add(klass, nextOffset), out klass))
+                        break;
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private bool TryFindFieldOffset(Process proc, IntPtr klass, string fieldName, out int fieldOffset)
+        {
+            fieldOffset = 0;
+
+            IntPtr current = klass;
+            int parentGuard = 0;
+            while (current != IntPtr.Zero && parentGuard++ < 32)
+            {
+                if (TryFindField(proc, current, fieldName, out fieldOffset, out _, out _))
+                    return true;
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(current, _layout.ClassParent), out current))
+                    break;
+            }
+
+            return false;
+        }
+
+        private bool TryFindStaticField(
+            Process proc,
+            IntPtr klass,
+            string fieldName,
+            out int staticFieldOffset,
+            out IntPtr staticFieldParentClass)
+        {
+            staticFieldOffset = 0;
+            staticFieldParentClass = IntPtr.Zero;
+
+            if (!TryFindField(proc, klass, fieldName, out int off, out IntPtr parentClass, out IntPtr typePtr))
+                return false;
+
+            if (!MemoryReader.ReadUInt16(proc, IntPtr.Add(typePtr, _layout.MonoTypeAttrs), out ushort attrs))
+                return false;
+
+            if ((attrs & FieldAttributeStatic) == 0)
+                return false;
+
+            staticFieldOffset = off;
+            staticFieldParentClass = parentClass;
+            return true;
+        }
+
+        private bool TryFindField(
+            Process proc,
+            IntPtr klass,
+            string fieldName,
+            out int fieldOffset,
+            out IntPtr fieldParentClass,
+            out IntPtr fieldType)
+        {
+            fieldOffset = 0;
+            fieldParentClass = IntPtr.Zero;
+            fieldType = IntPtr.Zero;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(klass, _layout.ClassFields), out var fields) || fields == IntPtr.Zero)
+                return false;
+
+            int countOffset = _flavor == MonoFlavor.MonoV2
+                ? _layout.ClassDefFieldCount
+                : _layout.ClassFieldCount;
+
+            if (countOffset < 0 || !MemoryReader.ReadInt32(proc, IntPtr.Add(klass, countOffset), out int fieldCount))
+                return false;
+
+            if (fieldCount <= 0 || fieldCount > 4000)
+                return false;
+
+            for (int i = 0; i < fieldCount; i++)
+            {
+                IntPtr field = new(fields.ToInt64() + (long)i * _classFieldSize);
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(field, _layout.ClassFieldName), out var fieldNamePtr))
+                    continue;
+
+                string currentFieldName = MemoryReader.ReadUtf8String(proc, fieldNamePtr, 128);
+                if (!currentFieldName.Equals(fieldName, StringComparison.Ordinal))
+                    continue;
+
+                if (!MemoryReader.ReadInt32(proc, IntPtr.Add(field, _layout.ClassFieldOffset), out fieldOffset))
+                    return false;
+
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(field, _layout.ClassFieldParent), out fieldParentClass);
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(field, _layout.ClassFieldType), out fieldType);
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryGetStaticDataAddress(Process proc, IntPtr klass, out IntPtr staticData)
+        {
+            staticData = IntPtr.Zero;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(klass, _layout.ClassRuntimeInfo), out var runtimeInfo) ||
+                runtimeInfo == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(runtimeInfo, _layout.RuntimeInfoDomainVTables), out var classVTable) ||
+                classVTable == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            if (_flavor == MonoFlavor.MonoV1)
+            {
+                if (_layout.VTableData < 0)
+                    return false;
+
+                return MemoryReader.ReadIntPtr(proc, IntPtr.Add(classVTable, _layout.VTableData), out staticData);
+            }
+
+            if (_layout.VTableVTable < 0 ||
+                !MemoryReader.ReadInt32(proc, IntPtr.Add(klass, _layout.ClassVTableSize), out int vtableSize))
+            {
+                return false;
+            }
+
+            long staticAddressPtr = classVTable.ToInt64() + _layout.VTableVTable + (long)vtableSize * IntPtr.Size;
+            return MemoryReader.ReadIntPtr(proc, new IntPtr(staticAddressPtr), out staticData);
+        }
+
+        private static int FindPattern(byte[] haystack, byte[] pattern)
+        {
+            for (int i = 0; i <= haystack.Length - pattern.Length; i++)
+            {
+                bool match = true;
+                for (int j = 0; j < pattern.Length; j++)
+                {
+                    if (haystack[i + j] != pattern[j])
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+
+                if (match)
+                    return i;
+            }
+
+            return -1;
+        }
+
+        private static int Align(int value, int align)
+        {
+            int mod = value % align;
+            return mod == 0 ? value : value + align - mod;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, uint dwFlags);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, SetLastError = true)]
+        private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool FreeLibrary(IntPtr hModule);
+
+        private enum MonoFlavor
+        {
+            Unknown,
+            MonoV1,
+            MonoV2
+        }
+
+        private readonly struct StaticFieldRef
+        {
+            public StaticFieldRef(IntPtr staticBase, int fieldOffset)
+            {
+                StaticBase = staticBase;
+                FieldOffset = fieldOffset;
+            }
+
+            public IntPtr StaticBase { get; }
+            public int FieldOffset { get; }
+            public bool IsValid => StaticBase != IntPtr.Zero;
+        }
+
+        private readonly struct MonoLayout
+        {
+            public MonoLayout(
+                int assemblyImage,
+                int imageAssemblyName,
+                int imageClassCache,
+                int hashSize,
+                int hashTable,
+                int className,
+                int classFields,
+                int classFieldCount,
+                int classParent,
+                int classRuntimeInfo,
+                int classVTableSize,
+                int classNextClassCache,
+                int classDefFieldCount,
+                int classDefNextClassCache,
+                int classFieldName,
+                int classFieldParent,
+                int classFieldOffset,
+                int classFieldType,
+                int monoTypeAttrs,
+                int runtimeInfoDomainVTables,
+                int vtableData,
+                int vtableVtable)
+            {
+                AssemblyImage = assemblyImage;
+                ImageAssemblyName = imageAssemblyName;
+                ImageClassCache = imageClassCache;
+                HashSize = hashSize;
+                HashTable = hashTable;
+                ClassName = className;
+                ClassFields = classFields;
+                ClassFieldCount = classFieldCount;
+                ClassParent = classParent;
+                ClassRuntimeInfo = classRuntimeInfo;
+                ClassVTableSize = classVTableSize;
+                ClassNextClassCache = classNextClassCache;
+                ClassDefFieldCount = classDefFieldCount;
+                ClassDefNextClassCache = classDefNextClassCache;
+                ClassFieldName = classFieldName;
+                ClassFieldParent = classFieldParent;
+                ClassFieldOffset = classFieldOffset;
+                ClassFieldType = classFieldType;
+                MonoTypeAttrs = monoTypeAttrs;
+                RuntimeInfoDomainVTables = runtimeInfoDomainVTables;
+                VTableData = vtableData;
+                VTableVTable = vtableVtable;
+            }
+
+            public int AssemblyImage { get; }
+            public int ImageAssemblyName { get; }
+            public int ImageClassCache { get; }
+            public int HashSize { get; }
+            public int HashTable { get; }
+            public int ClassName { get; }
+            public int ClassFields { get; }
+            public int ClassFieldCount { get; }
+            public int ClassParent { get; }
+            public int ClassRuntimeInfo { get; }
+            public int ClassVTableSize { get; }
+            public int ClassNextClassCache { get; }
+            public int ClassDefFieldCount { get; }
+            public int ClassDefNextClassCache { get; }
+            public int ClassFieldName { get; }
+            public int ClassFieldParent { get; }
+            public int ClassFieldOffset { get; }
+            public int ClassFieldType { get; }
+            public int MonoTypeAttrs { get; }
+            public int RuntimeInfoDomainVTables { get; }
+            public int VTableData { get; }
+            public int VTableVTable { get; }
+
+            public const int GListData = 0x0;
+            public const int GListNext = 0x8;
+        }
+    }
+}

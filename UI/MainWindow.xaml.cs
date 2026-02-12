@@ -1,5 +1,6 @@
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Explosion;
+using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.Updates;
@@ -179,6 +180,8 @@ namespace SubnauticaLauncher.UI
             RenameOnCloseButton.Background = _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
 
             UpdateHardcoreSaveDeleterVisualState();
+
+            GameEventDocumenter.Start();
 
             Logger.Log("Startup complete");
             ShowView(InstallsView);
@@ -1067,6 +1070,7 @@ namespace SubnauticaLauncher.UI
             Logger.Log("Launcher is now closing");
 
             ExplosionResetDisplayController.ForceClose();
+            GameEventDocumenter.Stop();
 
             var handle = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(handle, HotkeyIdReset);
