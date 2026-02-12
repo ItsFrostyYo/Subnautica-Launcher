@@ -670,6 +670,16 @@ namespace SubnauticaLauncher.UI
         {
             if (InstalledVersionsList.SelectedItem is InstalledVersion snVersion)
             {
+                if (Process.GetProcessesByName("Subnautica").Length > 0)
+                {
+                    MessageBox.Show(
+                        "Subnautica is currently running.\n\nClose the game before editing versions.",
+                        "Edit Blocked",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
                 var win = new EditVersionWindow(snVersion) { Owner = this };
                 if (win.ShowDialog() == true)
                     LoadInstalledVersions();
@@ -679,6 +689,16 @@ namespace SubnauticaLauncher.UI
 
             if (BZInstalledVersionsList.SelectedItem is BZInstalledVersion bzVersion)
             {
+                if (Process.GetProcessesByName("SubnauticaZero").Length > 0)
+                {
+                    MessageBox.Show(
+                        "Below Zero is currently running.\n\nClose the game before editing versions.",
+                        "Edit Blocked",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+
                 var win = new EditVersionWindow(bzVersion) { Owner = this };
                 if (win.ShowDialog() == true)
                     LoadInstalledVersions();

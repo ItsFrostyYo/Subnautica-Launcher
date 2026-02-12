@@ -1,6 +1,7 @@
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Versions;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -45,8 +46,6 @@ namespace SubnauticaLauncher.UI
         }
 
         private string HomeFolder => IsBelowZero ? _bzVersion!.HomeFolder : _snVersion!.HomeFolder;
-
-        private bool IsVersionActive => IsBelowZero ? _bzVersion!.IsActive : _snVersion!.IsActive;
 
         private string CurrentDisplayName => IsBelowZero ? _bzVersion!.DisplayName : _snVersion!.DisplayName;
 
@@ -112,10 +111,10 @@ namespace SubnauticaLauncher.UI
 
         private void SaveRename_Click(object sender, RoutedEventArgs e)
         {
-            if (IsVersionActive)
+            if (IsGameCurrentlyRunning())
             {
                 MessageBox.Show(
-                    "Cannot edit the active version.",
+                    "Cannot edit while this game is running.\n\nClose the game and try again.",
                     "Edit Blocked",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -220,10 +219,10 @@ namespace SubnauticaLauncher.UI
 
         private void Delete_Click(object sender, RoutedEventArgs e)
         {
-            if (IsVersionActive)
+            if (IsGameCurrentlyRunning())
             {
                 MessageBox.Show(
-                    "You cannot delete the currently active version.",
+                    "Cannot delete while this game is running.\n\nClose the game and try again.",
                     "Delete Blocked",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -292,6 +291,12 @@ namespace SubnauticaLauncher.UI
         {
             DialogResult = false;
             Close();
+        }
+
+        private bool IsGameCurrentlyRunning()
+        {
+            string processName = IsBelowZero ? "SubnauticaZero" : "Subnautica";
+            return Process.GetProcessesByName(processName).Length > 0;
         }
     }
 }
