@@ -1,5 +1,4 @@
 using SubnauticaLauncher.BelowZero;
-using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Versions;
 using System;
 using System.Collections.Generic;
@@ -30,9 +29,7 @@ namespace SubnauticaLauncher.UI
         {
             InitializeComponent();
             Loaded += AddVersionWindow_Loaded;
-
-            GameDropdown.SelectedIndex = 0;
-            RefreshAvailableVersions();
+            LoadVersionLists();
         }
 
         private ImageBrush GetBackgroundBrush()
@@ -93,37 +90,41 @@ namespace SubnauticaLauncher.UI
             };
         }
 
-        private void RefreshAvailableVersions()
+        private void LoadVersionLists()
         {
-            LauncherGame game = GetSelectedGame();
+            IReadOnlyList<InstallCandidate> snItems = VersionRegistry.AllVersions
+                .Select(v => CreateCandidate(LauncherGame.Subnautica, v.Id, v.DisplayName, v.ManifestId))
+                .ToList();
 
-            IReadOnlyList<InstallCandidate> items = game == LauncherGame.Subnautica
-                ? VersionRegistry.AllVersions
-                    .Select(v => CreateCandidate(LauncherGame.Subnautica, v.Id, v.DisplayName, v.ManifestId))
-                    .ToList()
-                : BZVersionRegistry.AllVersions
-                    .Select(v => CreateCandidate(LauncherGame.BelowZero, v.Id, v.DisplayName, v.ManifestId))
-                    .ToList();
+            IReadOnlyList<InstallCandidate> bzItems = BZVersionRegistry.AllVersions
+                .Select(v => CreateCandidate(LauncherGame.BelowZero, v.Id, v.DisplayName, v.ManifestId))
+                .ToList();
 
-            AvailableVersionsList.ItemsSource = items;
-            AvailableVersionsList.DisplayMemberPath = nameof(InstallCandidate.DisplayName);
+            SnAvailableVersionsList.ItemsSource = snItems;
+            BzAvailableVersionsList.ItemsSource = bzItems;
         }
 
-        private LauncherGame GetSelectedGame()
+        private void SnAvailableVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (GameDropdown.SelectedItem is ComboBoxItem item &&
-                item.Tag is string tag &&
-                Enum.TryParse<LauncherGame>(tag, out var game))
-            {
-                return game;
-            }
-
-            return LauncherGame.Subnautica;
+            if (SnAvailableVersionsList.SelectedItem != null && BzAvailableVersionsList.SelectedItem != null)
+                BzAvailableVersionsList.SelectedItem = null;
         }
 
-        private void GameDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void BzAvailableVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            RefreshAvailableVersions();
+            if (BzAvailableVersionsList.SelectedItem != null && SnAvailableVersionsList.SelectedItem != null)
+                SnAvailableVersionsList.SelectedItem = null;
+        }
+
+        private InstallCandidate? GetSelectedCandidate()
+        {
+            if (SnAvailableVersionsList.SelectedItem is InstallCandidate sn)
+                return sn;
+
+            if (BzAvailableVersionsList.SelectedItem is InstallCandidate bz)
+                return bz;
+
+            return null;
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -159,7 +160,8 @@ namespace SubnauticaLauncher.UI
 
         private async void Install_Click(object sender, RoutedEventArgs e)
         {
-            if (AvailableVersionsList.SelectedItem is not InstallCandidate candidate)
+            var candidate = GetSelectedCandidate();
+            if (candidate == null)
                 return;
 
             var login = new DepotDownloaderLoginWindow { Owner = this };
@@ -231,7 +233,7 @@ namespace SubnauticaLauncher.UI
 
         private void AddUnmanaged_Click(object sender, RoutedEventArgs e)
         {
-            var win = new AddUnmanagedVersionWindow(GetSelectedGame())
+            var win = new AddUnmanagedVersionWindow
             {
                 Owner = this
             };

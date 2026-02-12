@@ -1,11 +1,9 @@
-using Microsoft.Win32;
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Versions;
 using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -18,18 +16,12 @@ namespace SubnauticaLauncher.UI
         private const int MaxDisplayNameLength = 25;
         private const string DefaultBg = "Lifepod";
 
-        private LauncherGame _selectedGame;
+        private LauncherGame? _detectedGame;
 
-        public AddUnmanagedVersionWindow(LauncherGame initialGame = LauncherGame.Subnautica)
+        public AddUnmanagedVersionWindow()
         {
             InitializeComponent();
-
-            _selectedGame = initialGame;
-
             Loaded += AddUnmanagedVersionWindow_Loaded;
-            GameDropdown.SelectedIndex = initialGame == LauncherGame.Subnautica ? 0 : 1;
-
-            UpdateGameUi();
             LoadOriginalDownloads();
         }
 
@@ -111,62 +103,33 @@ namespace SubnauticaLauncher.UI
             Close();
         }
 
-        private void GameDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            _selectedGame = GetSelectedGameFromDropdown();
-            UpdateGameUi();
-            LoadOriginalDownloads();
-            ClearForm();
-        }
-
-        private LauncherGame GetSelectedGameFromDropdown()
-        {
-            if (GameDropdown.SelectedItem is ComboBoxItem item &&
-                item.Tag is string tag &&
-                Enum.TryParse<LauncherGame>(tag, out var game))
-            {
-                return game;
-            }
-
-            return LauncherGame.Subnautica;
-        }
-
-        private void UpdateGameUi()
-        {
-            bool isSubnautica = _selectedGame == LauncherGame.Subnautica;
-
-            HeaderTextBlock.Text = isSubnautica
-                ? "Add Existing Subnautica Version"
-                : "Add Existing Below Zero Version";
-
-            FolderRequirementTextBlock.Text = isSubnautica
-                ? "Folder (Must Contain Subnautica.exe)"
-                : "Folder (Must Contain SubnauticaZero.exe)";
-        }
-
         private void LoadOriginalDownloads()
         {
-            OriginalDownloadBox.ItemsSource = _selectedGame == LauncherGame.Subnautica
-                ? VersionRegistry.AllVersions.Select(v => v.Id).ToList()
-                : BZVersionRegistry.AllVersions.Select(v => v.Id).ToList();
+            if (_detectedGame == LauncherGame.Subnautica)
+            {
+                OriginalDownloadBox.ItemsSource = VersionRegistry.AllVersions
+                    .Select(v => v.Id)
+                    .ToList();
+            }
+            else if (_detectedGame == LauncherGame.BelowZero)
+            {
+                OriginalDownloadBox.ItemsSource = BZVersionRegistry.AllVersions
+                    .Select(v => v.Id)
+                    .ToList();
+            }
+            else
+            {
+                OriginalDownloadBox.ItemsSource = Array.Empty<string>();
+            }
 
-            OriginalDownloadBox.SelectedIndex = 0;
-        }
-
-        private void ClearForm()
-        {
-            FolderPathBox.Text = string.Empty;
-            FolderNameBox.Text = string.Empty;
-            DisplayNameBox.Text = string.Empty;
+            OriginalDownloadBox.SelectedIndex = OriginalDownloadBox.Items.Count > 0 ? 0 : -1;
         }
 
         private void Browse_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                Title = _selectedGame == LauncherGame.Subnautica
-                    ? "Select Subnautica folder"
-                    : "Select Below Zero folder",
+                Title = "Select game folder",
                 InitialDirectory = AppPaths.SteamCommonPath,
                 CheckFileExists = false,
                 CheckPathExists = true,
@@ -195,25 +158,34 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            string requiredExe = _selectedGame == LauncherGame.Subnautica
-                ? "Subnautica.exe"
-                : "SubnauticaZero.exe";
+            bool hasSubnauticaExe = File.Exists(Path.Combine(folder, "Subnautica.exe"));
+            bool hasBelowZeroExe = File.Exists(Path.Combine(folder, "SubnauticaZero.exe"));
 
-            if (!File.Exists(Path.Combine(folder, requiredExe)))
+            if (!hasSubnauticaExe && !hasBelowZeroExe)
             {
                 MessageBox.Show(
-                    $"Selected folder does not contain {requiredExe}",
+                    "Selected folder does not contain a supported game executable.",
                     "Invalid Folder",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 return;
             }
 
-            string infoFileName = _selectedGame == LauncherGame.Subnautica
-                ? "Version.info"
-                : "BZVersion.info";
+            if (hasSubnauticaExe && hasBelowZeroExe)
+            {
+                MessageBox.Show(
+                    "Selected folder contains both Subnautica.exe and SubnauticaZero.exe.\n\n" +
+                    "Please choose a folder for one game only.",
+                    "Invalid Folder",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
 
-            if (File.Exists(Path.Combine(folder, infoFileName)))
+            _detectedGame = hasSubnauticaExe ? LauncherGame.Subnautica : LauncherGame.BelowZero;
+
+            if (File.Exists(Path.Combine(folder, "Version.info")) ||
+                File.Exists(Path.Combine(folder, "BZVersion.info")))
             {
                 MessageBox.Show(
                     "This version is already managed by the launcher.",
@@ -228,6 +200,8 @@ namespace SubnauticaLauncher.UI
             DisplayNameBox.Text = folderName.Length <= MaxDisplayNameLength
                 ? folderName
                 : folderName.Substring(0, MaxDisplayNameLength);
+
+            LoadOriginalDownloads();
         }
 
         private static bool IsReservedActiveFolderName(string folderName)
@@ -238,9 +212,9 @@ namespace SubnauticaLauncher.UI
 
         private void Add_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(FolderPathBox.Text))
+            if (string.IsNullOrWhiteSpace(FolderPathBox.Text) || _detectedGame == null)
             {
-                MessageBox.Show("Please select a folder.");
+                MessageBox.Show("Please select a valid game folder first.");
                 return;
             }
 
@@ -273,7 +247,13 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            string infoFileName = _selectedGame == LauncherGame.Subnautica
+            if (OriginalDownloadBox.SelectedItem == null)
+            {
+                MessageBox.Show("Please select an original version.");
+                return;
+            }
+
+            string infoFileName = _detectedGame == LauncherGame.Subnautica
                 ? "Version.info"
                 : "BZVersion.info";
 
