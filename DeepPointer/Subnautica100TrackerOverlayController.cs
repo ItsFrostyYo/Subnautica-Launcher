@@ -21,6 +21,7 @@ namespace SubnauticaLauncher.Gameplay
         private const int RequiredBlueprintTotal = 157;
         private const int RequiredDatabankTotal = 277;
         private const int RequiredCombinedTotal = RequiredBlueprintTotal + RequiredDatabankTotal;
+        private const int MaxAliasLength = 96;
 
         private static readonly object Sync = new();
         private static readonly Regex ChecklistLineRegex = new(@"^(TRUE|FALSE)\s+(.+?)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -524,6 +525,9 @@ namespace SubnauticaLauncher.Gameplay
                 string current = queue.Dequeue();
                 foreach (string expanded in expander(current))
                 {
+                    if (string.IsNullOrWhiteSpace(expanded) || expanded.Length > MaxAliasLength)
+                        continue;
+
                     if (aliases.Add(expanded))
                         queue.Enqueue(expanded);
                 }
@@ -539,18 +543,25 @@ namespace SubnauticaLauncher.Gameplay
             if (!string.Equals(alias, stripped, StringComparison.Ordinal))
                 yield return stripped;
 
-            if (alias.StartsWith("cooked", StringComparison.Ordinal) && alias.Length > "cooked".Length)
+            if (alias.StartsWith("cookedcured", StringComparison.Ordinal) &&
+                alias.Length > "cookedcured".Length)
+            {
+                string fish = alias.Substring("cookedcured".Length);
+                yield return fish;
+            }
+            else if (alias.StartsWith("cooked", StringComparison.Ordinal) && alias.Length > "cooked".Length)
             {
                 string fish = alias.Substring("cooked".Length);
                 yield return fish;
-                yield return "cookedcured" + fish;
+                if (!fish.StartsWith("cured", StringComparison.Ordinal))
+                    yield return "cookedcured" + fish;
             }
-
-            if (alias.StartsWith("cured", StringComparison.Ordinal) && alias.Length > "cured".Length)
+            else if (alias.StartsWith("cured", StringComparison.Ordinal) && alias.Length > "cured".Length)
             {
                 string fish = alias.Substring("cured".Length);
                 yield return fish;
-                yield return "cookedcured" + fish;
+                if (!fish.StartsWith("cured", StringComparison.Ordinal))
+                    yield return "cookedcured" + fish;
             }
 
             if (SpecialBlueprintAliasMap.TryGetValue(alias, out string[]? mapped))
