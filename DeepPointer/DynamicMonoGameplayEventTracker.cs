@@ -98,6 +98,7 @@ namespace SubnauticaLauncher.Gameplay
         private readonly Dictionary<long, int?> _directTechTypeOffsetByClass = new();
         private readonly Dictionary<long, int?> _nestedObjectOffsetByClass = new();
         private readonly Dictionary<long, int?> _countFieldOffsetByClass = new();
+        private readonly Dictionary<long, int?> _nestedListOffsetByClass = new();
 
         private bool _hasCrafterIsCraftingOffset;
         private int _crafterIsCraftingOffset;
@@ -108,6 +109,7 @@ namespace SubnauticaLauncher.Gameplay
         private HashSet<int> _previousBlueprints = new();
         private HashSet<string> _previousDatabankEntries = new(StringComparer.Ordinal);
         private Dictionary<int, int> _previousInventoryCounts = new();
+        private DateTime _lastInventoryParseWarnUtc = DateTime.MinValue;
 
         private bool _previousCrafting;
         private int _previousCraftTechType = -1;
@@ -307,6 +309,7 @@ namespace SubnauticaLauncher.Gameplay
             _directTechTypeOffsetByClass.Clear();
             _nestedObjectOffsetByClass.Clear();
             _countFieldOffsetByClass.Clear();
+            _nestedListOffsetByClass.Clear();
 
             _hasCrafterIsCraftingOffset = false;
             _crafterIsCraftingOffset = 0;
@@ -317,6 +320,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousBlueprints = new HashSet<int>();
             _previousDatabankEntries = new HashSet<string>(StringComparer.Ordinal);
             _previousInventoryCounts = new Dictionary<int, int>();
+            _lastInventoryParseWarnUtc = DateTime.MinValue;
             _previousCrafting = false;
             _previousCraftTechType = -1;
             _recentCraftEndedUtc = DateTime.MinValue;
@@ -510,7 +514,10 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             if (!parsed || counts.Count == 0)
+            {
+                MaybeLogInventoryParseWarning(parsed, counts.Count);
                 return false;
+            }
 
             foreach (int techType in counts.Keys.ToList())
             {
@@ -519,6 +526,23 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return counts.Count > 0;
+        }
+
+        private void MaybeLogInventoryParseWarning(bool parsedAnyCollection, int countEntries)
+        {
+            DateTime now = DateTime.UtcNow;
+            if ((now - _lastInventoryParseWarnUtc).TotalSeconds < 8)
+                return;
+
+            _lastInventoryParseWarnUtc = now;
+
+            Logger.Warn(
+                $"[GameEvent] Inventory parse empty ({_gameName}). " +
+                $"parsed={parsedAnyCollection}, entries={countEntries}, " +
+                $"hasContainerOffset={_hasInventoryContainerOffset}, " +
+                $"collectionOffsets={_itemsContainerCollectionOffsets.Count}, " +
+                $"hasInventoryItemOffset={_hasInventoryItemOffset}, " +
+                $"hasPickupableTechTypeOffset={_hasPickupableTechTypeOffset}");
         }
 
         private bool TryReadInventoryFromCollection(
@@ -533,45 +557,65 @@ namespace SubnauticaLauncher.Gameplay
             if (!seenCollections.Add(collectionObj.ToInt64()))
                 return false;
 
-            var best = new Dictionary<int, int>();
+            Dictionary<int, int>? best = null;
+            int bestScore = int.MinValue;
             bool parsed = false;
 
             if (TryReadListObjectPointers(proc, collectionObj, out var pointers) &&
                 TryBuildCountsFromPointers(proc, pointers, out var pointerCounts))
             {
-                MergeCountsUsingMax(best, pointerCounts);
+                ConsiderInventoryCandidate(pointerCounts, ref best, ref bestScore);
                 parsed = true;
-                MergeCountsUsingMax(destination, best);
-                return true;
             }
 
             if (TryReadDictionaryIntValueCounts(proc, collectionObj, out var intValueCounts))
             {
-                MergeCountsUsingMax(best, intValueCounts);
+                ConsiderInventoryCandidate(intValueCounts, ref best, ref bestScore);
                 parsed = true;
-                MergeCountsUsingMax(destination, best);
-                return true;
             }
 
             if (TryReadDictionaryIntKeyObjectCounts(proc, collectionObj, out var intKeyObjectCounts))
             {
-                MergeCountsUsingMax(best, intKeyObjectCounts);
+                ConsiderInventoryCandidate(intKeyObjectCounts, ref best, ref bestScore);
                 parsed = true;
-                MergeCountsUsingMax(destination, best);
-                return true;
             }
 
             if (TryReadDictionaryObjectKeyCounts(proc, collectionObj, out var objectKeyCounts))
             {
-                MergeCountsUsingMax(best, objectKeyCounts);
+                ConsiderInventoryCandidate(objectKeyCounts, ref best, ref bestScore);
                 parsed = true;
             }
 
-            if (!parsed || best.Count == 0)
+            if (!parsed || best == null || best.Count == 0)
                 return false;
 
             MergeCountsUsingMax(destination, best);
             return true;
+        }
+
+        private static void ConsiderInventoryCandidate(
+            IReadOnlyDictionary<int, int> candidate,
+            ref Dictionary<int, int>? best,
+            ref int bestScore)
+        {
+            if (candidate.Count == 0)
+                return;
+
+            int unique = candidate.Count;
+            int total = 0;
+            foreach (int value in candidate.Values)
+            {
+                if (value > 0)
+                    total += value;
+            }
+
+            // Prefer candidates with real stack counts, then with more unique tech types.
+            int score = total * 8 + unique;
+            if (score <= bestScore)
+                return;
+
+            best = new Dictionary<int, int>(candidate);
+            bestScore = score;
         }
 
         private bool TryBuildCountsFromPointers(Process proc, IReadOnlyList<IntPtr> pointers, out Dictionary<int, int> counts)
@@ -912,20 +956,57 @@ namespace SubnauticaLauncher.Gameplay
             if (!TryGetObjectClass(proc, objectPtr, out var klass) || klass == IntPtr.Zero)
                 return false;
 
-            if (!TryGetOrCacheFieldOffset(proc, klass, _countFieldOffsetByClass,
-                new[] { "count", "_count", "m_count", "amount", "_amount", "quantity", "_quantity" }, out int countOffset))
+            if (TryGetOrCacheFieldOffset(proc, klass, _countFieldOffsetByClass,
+                new[]
+                {
+                    "count", "_count", "m_count",
+                    "amount", "_amount", "m_amount",
+                    "quantity", "_quantity", "m_quantity",
+                    "size", "_size", "m_size",
+                    "itemCount", "_itemCount", "m_itemCount"
+                }, out int countOffset) &&
+                MemoryReader.ReadInt32(proc, IntPtr.Add(objectPtr, countOffset), out int countValue) &&
+                IsPlausibleItemCount(countValue))
             {
-                return false;
+                amount = countValue;
+                return true;
             }
 
-            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(objectPtr, countOffset), out int value) ||
-                !IsPlausibleItemCount(value))
+            // Sometimes the object itself is List<T>/HashSet<T> wrapper.
+            if (TryReadListHeader(proc, objectPtr, out _, out int listSize) &&
+                IsPlausibleItemCount(listSize))
             {
-                return false;
+                amount = listSize;
+                return true;
             }
 
-            amount = value;
-            return true;
+            // Some wrappers expose the real collection through an items/list field.
+            if (TryGetOrCacheFieldOffset(proc, klass, _nestedListOffsetByClass,
+                new[]
+                {
+                    "items", "_items", "m_items",
+                    "list", "_list", "m_list",
+                    "entries", "_entries", "m_entries"
+                }, out int listOffset) &&
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(objectPtr, listOffset), out var listObj) &&
+                listObj != IntPtr.Zero)
+            {
+                if (TryReadListHeader(proc, listObj, out _, out int nestedListSize) &&
+                    IsPlausibleItemCount(nestedListSize))
+                {
+                    amount = nestedListSize;
+                    return true;
+                }
+
+                if (TryReadDictionaryEntriesArray(proc, listObj, out _, out int dictCount) &&
+                    IsPlausibleItemCount(dictCount))
+                {
+                    amount = dictCount;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool TryReadTechTypeAtOffset(Process proc, IntPtr objectPtr, bool hasOffset, int offset, out int techType)
