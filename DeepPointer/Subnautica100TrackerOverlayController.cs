@@ -845,16 +845,38 @@ namespace SubnauticaLauncher.Gameplay
                 if (token.IsCancellationRequested || !_runActive)
                     return;
 
-                if (!TryGetFocusedSubnauticaWindowRect(out var rect) || ExplosionResetDisplayController.IsActive)
+                if (ExplosionResetDisplayController.IsActive)
                     return;
 
-                _overlayLeft = rect.Left + OverlayPadding;
-                _overlayTop = rect.Top + OverlayPadding;
+                double targetLeft = 0;
+                double targetTop = 0;
+                bool hasAnchor = false;
 
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     _toastWindow ??= new Subnautica100UnlockToastOverlay();
+
+                    if (_window != null && _window.IsVisible)
+                    {
+                        _overlayLeft = _window.Left;
+                        _overlayTop = _window.Top;
+
+                        targetLeft = _overlayLeft;
+                        targetTop = GetToastTop();
+                        hasAnchor = true;
+                    }
                 });
+
+                if (!hasAnchor)
+                {
+                    if (!TryGetFocusedSubnauticaWindowRect(out var rect))
+                        return;
+
+                    _overlayLeft = rect.Left + OverlayPadding;
+                    _overlayTop = rect.Top + OverlayPadding;
+                    targetLeft = _overlayLeft;
+                    targetTop = GetToastTop();
+                }
 
                 if (_toastVisible)
                     await AnimateToastOutQuickAsync();
@@ -862,8 +884,6 @@ namespace SubnauticaLauncher.Gameplay
                 if (token.IsCancellationRequested || !_runActive)
                     return;
 
-                double targetLeft = _overlayLeft;
-                double targetTop = GetToastTop();
                 double startLeft = targetLeft + 28;
 
                 await Application.Current.Dispatcher.InvokeAsync(() =>

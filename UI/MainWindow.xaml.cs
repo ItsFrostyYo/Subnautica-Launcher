@@ -182,7 +182,6 @@ namespace SubnauticaLauncher.UI
             UpdateHardcoreSaveDeleterVisualState();
             UpdateSubnautica100TrackerVisualState();
 
-            DebugTelemetryController.Start();
             GameEventDocumenter.Start();
 
             if (LauncherSettings.Current.Subnautica100TrackerEnabled)
@@ -1098,7 +1097,6 @@ namespace SubnauticaLauncher.UI
             Logger.Log("Launcher is now closing");
 
             ExplosionResetDisplayController.ForceClose();
-            DebugTelemetryController.Stop();
             Subnautica100TrackerOverlayController.Stop();
             GameEventDocumenter.Stop();
 
