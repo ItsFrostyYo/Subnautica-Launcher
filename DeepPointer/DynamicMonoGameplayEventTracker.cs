@@ -160,6 +160,12 @@ namespace SubnauticaLauncher.Gameplay
         private readonly DeepPointer? _modernPosX;
         private readonly DeepPointer? _modernPosY;
         private readonly DeepPointer? _modernPosZ;
+        private readonly DeepPointer? _legacySkipProgress;
+        private readonly DeepPointer? _modernSkipProgress;
+        private bool _hasRunStartBaseline;
+        private bool _previousIntroCinematicActive;
+        private bool _previousPlayerCinematicActive;
+        private bool _startedBefore;
 
         public DynamicMonoGameplayEventTracker(string gameName)
         {
@@ -175,6 +181,9 @@ namespace SubnauticaLauncher.Gameplay
                 _modernPosX = new DeepPointer("UnityPlayer.dll", 0x1839CE0, 0x28, 0x10, 0x150, 0xA58);
                 _modernPosY = new DeepPointer("UnityPlayer.dll", 0x1839CE0, 0x28, 0x10, 0x150, 0xA5C);
                 _modernPosZ = new DeepPointer("UnityPlayer.dll", 0x1839CE0, 0x28, 0x10, 0x150, 0xA60);
+
+                _legacySkipProgress = new DeepPointer("mono.dll", 0x17FBC48, 0x1F0, 0x1E8, 0x4E0, 0xB10, 0xD0, 0x8, 0x68, 0x30, 0x40, 0x30, 0xF4);
+                _modernSkipProgress = new DeepPointer("UnityPlayer.dll", 0x17FBC48, 0x1F0, 0x1E8, 0x4E0, 0xB10, 0xD0, 0x8, 0x68, 0x30, 0x40, 0x30, 0xF4);
             }
         }
 
@@ -285,84 +294,50 @@ namespace SubnauticaLauncher.Gameplay
             return TryReadState(proc, out state);
         }
 
+        public bool TryDetectRunStart(Process proc, out string reason)
+        {
+            reason = string.Empty;
+
+            EnsureInitialized(proc);
+            if (!_ready)
+                return false;
+
+            return TryReadRunStart(proc, out reason);
+        }
+
         private bool TryReadState(Process proc, out GameState state)
         {
             state = GameState.Unknown;
-            bool hadAnySignal = false;
-            bool hasPlayer = false;
-            IntPtr playerMain = IntPtr.Zero;
-
-            if (TryReadStaticObject(proc, _playerMainField, out playerMain))
+            if (TryReadIsMainMenuPosition(proc, out bool isMainMenuPosition))
             {
-                hadAnySignal = true;
-                hasPlayer = playerMain != IntPtr.Zero;
+                state = isMainMenuPosition ? GameState.MainMenu : GameState.InGame;
+                return true;
             }
 
-            bool isLoading = false;
-            if (TryReadStaticObject(proc, _uGuiMainField, out var uGuiMain) && uGuiMain != IntPtr.Zero)
+            bool hadAnySignal = false;
+
+            if (TryReadStaticObject(proc, _playerMainField, out var playerMain))
             {
                 hadAnySignal = true;
-
-                if (_hasUGuiLoadingOffset &&
-                    _hasSceneLoadingIsLoadingOffset &&
-                    MemoryReader.ReadIntPtr(proc, IntPtr.Add(uGuiMain, _uGuiLoadingOffset), out var sceneLoading) &&
-                    sceneLoading != IntPtr.Zero &&
-                    TryReadBool(proc, IntPtr.Add(sceneLoading, _sceneLoadingIsLoadingOffset), out bool loadingFlag))
+                if (playerMain != IntPtr.Zero)
                 {
-                    hadAnySignal = true;
-                    isLoading = loadingFlag;
+                    state = GameState.InGame;
+                    return true;
                 }
             }
 
-            bool isIntroCinematic = false;
-            if (TryReadIntroCinematicActive(proc, out bool introCinematic))
+            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu))
             {
                 hadAnySignal = true;
-                isIntroCinematic = introCinematic;
-            }
-
-            if (hasPlayer &&
-                _hasPlayerCinematicModeOffset &&
-                TryReadBool(proc, IntPtr.Add(playerMain, _playerCinematicModeOffset), out bool playerCinematic))
-            {
-                hadAnySignal = true;
-                isIntroCinematic |= playerCinematic;
-            }
-
-            if (TryReadIsMainMenuPosition(proc, out bool isMainMenuPosition))
-            {
-                hadAnySignal = true;
-                if (isMainMenuPosition)
+                if (mainMenu != IntPtr.Zero)
                 {
                     state = GameState.MainMenu;
                     return true;
                 }
             }
 
-            if (hasPlayer)
-            {
-                if (isIntroCinematic)
-                {
-                    state = GameState.BlackScreen;
-                    return true;
-                }
-
-                state = GameState.InGame;
-                return true;
-            }
-
-            if (isLoading || isIntroCinematic)
-            {
-                state = GameState.BlackScreen;
-                return true;
-            }
-
-            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu) && mainMenu != IntPtr.Zero)
-            {
-                hadAnySignal = true;
-                state = GameState.MainMenu;
-                return true;
-            }
+            hadAnySignal |= TryReadLoadingState(proc, out _);
+            hadAnySignal |= TryReadIntroCinematicActive(proc, out _);
 
             return hadAnySignal;
         }
@@ -403,6 +378,122 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return TryReadBool(proc, IntPtr.Add(introObj, _cinematicModeActiveOffset), out active);
+        }
+
+        private bool TryReadLoadingState(Process proc, out bool isLoading)
+        {
+            isLoading = false;
+
+            if (!TryReadStaticObject(proc, _uGuiMainField, out var uGuiMain) || uGuiMain == IntPtr.Zero)
+                return false;
+
+            if (!_hasUGuiLoadingOffset || !_hasSceneLoadingIsLoadingOffset)
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(uGuiMain, _uGuiLoadingOffset), out var sceneLoading) ||
+                sceneLoading == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            return TryReadBool(proc, IntPtr.Add(sceneLoading, _sceneLoadingIsLoadingOffset), out isLoading);
+        }
+
+        private bool TryReadPlayerCinematicActive(Process proc, IntPtr playerMain, out bool active)
+        {
+            active = false;
+
+            if (playerMain == IntPtr.Zero || !_hasPlayerCinematicModeOffset)
+                return false;
+
+            return TryReadBool(proc, IntPtr.Add(playerMain, _playerCinematicModeOffset), out active);
+        }
+
+        private bool TryReadSkipProgress(Process proc, out float value)
+        {
+            value = 0f;
+
+            return TryReadSkipProgressFrom(proc, _modernSkipProgress, out value)
+                || TryReadSkipProgressFrom(proc, _legacySkipProgress, out value);
+        }
+
+        private static bool TryReadSkipProgressFrom(Process proc, DeepPointer? ptr, out float value)
+        {
+            value = 0f;
+
+            if (ptr == null || !ptr.TryReadFloat(proc, out value))
+                return false;
+
+            return !float.IsNaN(value) && !float.IsInfinity(value) && value >= -0.1f && value <= 1.2f;
+        }
+
+        private bool TryReadRunStart(Process proc, out string reason)
+        {
+            reason = string.Empty;
+
+            if (!string.Equals(_gameName, "Subnautica", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            bool hasMainMenu = TryReadIsMainMenuPosition(proc, out bool isMainMenu);
+            bool hasPlayerMain = TryReadStaticObject(proc, _playerMainField, out var playerMain);
+            bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
+            bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
+            bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
+            bool animationActive = false;
+            bool hasAnimation = hasPlayer && TryReadPlayerCinematicActive(proc, playerMain, out animationActive);
+            bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
+
+            if (hasMainMenu && isMainMenu)
+            {
+                _startedBefore = false;
+            }
+
+            if (!_hasRunStartBaseline)
+            {
+                _hasRunStartBaseline = true;
+                _previousIntroCinematicActive = hasIntro && introActive;
+                _previousPlayerCinematicActive = hasAnimation && animationActive;
+                return false;
+            }
+
+            bool runStarted = false;
+            if (!_startedBefore && hasMainMenu && !isMainMenu)
+            {
+                if (hasIntro && _previousIntroCinematicActive && !introActive)
+                {
+                    runStarted = true;
+                    reason = "IntroCinematicEnded";
+                }
+                else if (hasAnimation && _previousPlayerCinematicActive && !animationActive)
+                {
+                    runStarted = true;
+                    reason = "PlayerAnimationEnded";
+                }
+                else if (hasSkipProgress && skipProgress > 0.988f)
+                {
+                    runStarted = true;
+                    reason = "CutsceneSkipped";
+                }
+                else if (hasPlayer &&
+                    (!hasLoading || !isLoading) &&
+                    (!hasIntro || !introActive) &&
+                    (!hasAnimation || !animationActive))
+                {
+                    runStarted = true;
+                    reason = "InGameReady";
+                }
+            }
+
+            _previousIntroCinematicActive = hasIntro && introActive;
+            _previousPlayerCinematicActive = hasAnimation && animationActive;
+
+            if (runStarted)
+            {
+                _startedBefore = true;
+                return true;
+            }
+
+            return false;
         }
 
         private bool TryReadIsMainMenuPosition(Process proc, out bool isMainMenuPosition)
@@ -585,6 +676,10 @@ namespace SubnauticaLauncher.Gameplay
             _previousCraftTechType = -1;
             _recentCraftEndedUtc = DateTime.MinValue;
             _recentCraftTechType = -1;
+            _hasRunStartBaseline = false;
+            _previousIntroCinematicActive = false;
+            _previousPlayerCinematicActive = false;
+            _startedBefore = false;
         }
 
         private bool TryInitialize(Process proc)

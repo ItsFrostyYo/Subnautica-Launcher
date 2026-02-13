@@ -200,25 +200,9 @@ namespace SubnauticaLauncher.Gameplay
                 }
                 else
                 {
-                    int yearGroup;
-                    if (processName.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string? exe = process.MainModule?.FileName;
-                        if (string.IsNullOrWhiteSpace(exe))
-                            return;
-
-                        string root = Path.GetDirectoryName(exe)!;
-                        yearGroup = BuildYearResolver.ResolveGroupedYear(root);
-                    }
-                    else
-                    {
-                        yearGroup = BuildYearResolver.ResolveBelowZero();
-                    }
-
-                    var profile = GameStateDetectorRegistry.Get(yearGroup);
-                    var display = DisplayInfo.GetPrimary();
-                    state = GameStateDetector.Detect(processName, profile, display, focusGame: false);
-                    source = "pixel-state";
+                    // For Subnautica event tracking we rely only on dynamic-mono state,
+                    // to match autosplitter behavior and avoid pixel false positives.
+                    return;
                 }
 
                 // Ignore Unknown noise so the event log stays useful.
@@ -226,9 +210,13 @@ namespace SubnauticaLauncher.Gameplay
                     return;
 
                 bool changed;
-                bool shouldEmitRunStart;
                 GameState previous;
                 GameState current;
+                bool runStarted = false;
+                string runStartReason = string.Empty;
+
+                if (source == "dynamic-state")
+                    runStarted = tracker.TryDetectRunStart(process, out runStartReason);
 
                 lock (Sync)
                 {
@@ -239,26 +227,23 @@ namespace SubnauticaLauncher.Gameplay
                     }
 
                     changed = trackerState.TryPromote(state, out previous, out current);
-                    shouldEmitRunStart = trackerState.ShouldEmitRunStart(previous, current);
                 }
 
-                if (!changed)
+                if (changed)
                 {
-                    return;
+                    WriteEvent(new GameplayEvent
+                    {
+                        TimestampUtc = DateTime.UtcNow,
+                        Game = processName,
+                        ProcessId = process.Id,
+                        Type = GameplayEventType.GameStateChanged,
+                        Key = current.ToString(),
+                        Delta = 0,
+                        Source = source
+                    });
                 }
 
-                WriteEvent(new GameplayEvent
-                {
-                    TimestampUtc = DateTime.UtcNow,
-                    Game = processName,
-                    ProcessId = process.Id,
-                    Type = GameplayEventType.GameStateChanged,
-                    Key = current.ToString(),
-                    Delta = 0,
-                    Source = source
-                });
-
-                if (shouldEmitRunStart)
+                if (runStarted)
                 {
                     WriteEvent(new GameplayEvent
                     {
@@ -266,9 +251,9 @@ namespace SubnauticaLauncher.Gameplay
                         Game = processName,
                         ProcessId = process.Id,
                         Type = GameplayEventType.RunStarted,
-                        Key = $"{previous}->InGame",
+                        Key = string.IsNullOrWhiteSpace(runStartReason) ? "AutosplitterStart" : runStartReason,
                         Delta = 1,
-                        Source = "state-transition"
+                        Source = "autosplitter-start"
                     });
                 }
             }
@@ -281,8 +266,6 @@ namespace SubnauticaLauncher.Gameplay
         private sealed class ProcessStateTracker
         {
             private const int StableSamples = 3;
-            private const int StableSamplesInGameToBlackScreen = 8;
-            private static readonly TimeSpan RunStartCooldown = TimeSpan.FromSeconds(10);
 
             private bool _hasCandidate;
             private GameState _candidate;
@@ -290,10 +273,6 @@ namespace SubnauticaLauncher.Gameplay
 
             private bool _hasStable;
             private GameState _stable;
-
-            private bool _runArmed;
-            private bool _sawBlackScreenAfterMainMenu;
-            private DateTime _lastRunStartedUtc = DateTime.MinValue;
 
             public bool TryPromote(GameState rawState, out GameState previousStable, out GameState stableState)
             {
@@ -309,26 +288,13 @@ namespace SubnauticaLauncher.Gameplay
                 }
 
                 _candidateCount++;
-                int requiredSamples = StableSamples;
-                if (_hasStable && _stable == GameState.InGame && rawState == GameState.BlackScreen)
-                    requiredSamples = StableSamplesInGameToBlackScreen;
-
-                if (_candidateCount < requiredSamples)
+                if (_candidateCount < StableSamples)
                     return false;
 
                 if (!_hasStable)
                 {
                     _stable = rawState;
                     _hasStable = true;
-                    if (_stable == GameState.MainMenu)
-                    {
-                        _runArmed = true;
-                        _sawBlackScreenAfterMainMenu = false;
-                    }
-                    else if (_stable == GameState.BlackScreen && _runArmed)
-                    {
-                        _sawBlackScreenAfterMainMenu = true;
-                    }
 
                     previousStable = _stable;
                     stableState = _stable;
@@ -342,40 +308,6 @@ namespace SubnauticaLauncher.Gameplay
                 _stable = rawState;
                 stableState = _stable;
 
-                if (_stable == GameState.MainMenu)
-                {
-                    _runArmed = true;
-                    _sawBlackScreenAfterMainMenu = false;
-                }
-                else if (_stable == GameState.BlackScreen && _runArmed)
-                {
-                    _sawBlackScreenAfterMainMenu = true;
-                }
-
-                return true;
-            }
-
-            public bool ShouldEmitRunStart(GameState previousState, GameState currentState)
-            {
-                if (currentState != GameState.InGame)
-                    return false;
-
-                // Require a loading/cutscene phase before in-game, matching autosplitter behavior.
-                if (previousState != GameState.BlackScreen)
-                    return false;
-
-                if (!_runArmed)
-                    return false;
-
-                if (!_sawBlackScreenAfterMainMenu)
-                    return false;
-
-                DateTime now = DateTime.UtcNow;
-                if ((now - _lastRunStartedUtc) < RunStartCooldown)
-                    return false;
-
-                _runArmed = false;
-                _lastRunStartedUtc = now;
                 return true;
             }
         }

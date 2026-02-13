@@ -47,6 +47,9 @@ namespace SubnauticaLauncher.Gameplay
                 return HumanizeIdentifier(rawKey);
             }
 
+            if (type == GameplayEventType.RunStarted)
+                return HumanizeIdentifier(rawKey);
+
             return rawKey;
         }
 
