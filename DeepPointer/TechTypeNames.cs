@@ -805,5 +805,10 @@ namespace SubnauticaLauncher.Gameplay
         {
             return Map.TryGetValue(techType, out name!);
         }
+
+        public static IReadOnlyDictionary<int, string> GetAll()
+        {
+            return Map;
+        }
     }
 }

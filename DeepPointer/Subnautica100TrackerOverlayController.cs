@@ -24,14 +24,50 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly object Sync = new();
         private static readonly Regex ChecklistLineRegex = new(@"^(TRUE|FALSE)\s+(.+?)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex TrailingCountRegex = new(@"\s*\(\d+\)\s*$", RegexOptions.Compiled);
+        private static readonly Regex TrailingIdRegex = new(@"\s*\((\d+)\)\s*$", RegexOptions.Compiled);
 
         private static readonly HashSet<string> RequiredBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> RequiredDatabankEntries = new(StringComparer.Ordinal);
         private static readonly HashSet<string> PreInstalledBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> PreInstalledDatabankEntries = new(StringComparer.Ordinal);
 
+        private static readonly Dictionary<string, HashSet<string>> BlueprintAliasIndex = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, HashSet<string>> DatabankAliasIndex = new(StringComparer.Ordinal);
+
         private static readonly HashSet<string> RunBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> RunDatabankEntries = new(StringComparer.Ordinal);
+
+        private static readonly HashSet<string> LoggedUnmatchedBlueprintAliases = new(StringComparer.Ordinal);
+        private static readonly HashSet<string> LoggedUnmatchedDatabankAliases = new(StringComparer.Ordinal);
+
+        // Common internal-name to checklist-name mismatches and shorthand aliases.
+        private static readonly Dictionary<string, string[]> SpecialBlueprintAliasMap = new(StringComparer.Ordinal)
+        {
+            ["airsack"] = new[] { "bladderfish", "cookedcuredbladderfish" },
+            ["bladderfishanalysis"] = new[] { "bladderfish", "cookedcuredbladderfish" },
+            ["lavaboomerang"] = new[] { "magmarang", "cookedcuredmagmarang" },
+            ["lavaeyeye"] = new[] { "redeyeye", "cookedcuredredeyeye" },
+            ["exosuit"] = new[] { "prawnsuitmkiii" },
+            ["prawnsuit"] = new[] { "prawnsuitmkiii" },
+            ["tank"] = new[] { "standardo2tank" },
+            ["welder"] = new[] { "repairtool" },
+            ["knife"] = new[] { "survivalknife" },
+            ["builder"] = new[] { "habitatbuilder" },
+            ["pipesurfacefloater"] = new[] { "floatingairpump" },
+            ["constructor"] = new[] { "mobilevehiclebay" },
+            ["waterfiltrationsystem"] = new[] { "waterfiltrationmachine" },
+            ["neptuneescaperocket"] = new[] { "neptunelaunchplatform", "neptunegantry", "neptuneionboosters", "neptunefuelreserve", "neptunecockpit" }
+        };
+
+        private static readonly Dictionary<string, string[]> SpecialDatabankAliasMap = new(StringComparer.Ordinal)
+        {
+            ["airsack"] = new[] { "bladderfish" },
+            ["bladderfishanalysis"] = new[] { "bladderfish" },
+            ["lavaeyeye"] = new[] { "redeyeye" },
+            ["lavaboomerang"] = new[] { "magmarang" }
+        };
+
+        private static readonly IReadOnlyDictionary<int, string> TechTypeDatabase = TechTypeNames.GetAll();
 
         private static Subnautica100TrackerOverlay? _window;
         private static CancellationTokenSource? _cts;
@@ -114,10 +150,11 @@ namespace SubnauticaLauncher.Gameplay
             ParseChecklistFile(checklistFile);
 
             Logger.Log(
-                $"[100Tracker] Loaded checklist rules. " +
-                $"blueprints={RequiredBlueprints.Count} (pre={PreInstalledBlueprints.Count}), " +
-                $"databank={RequiredDatabankEntries.Count} (pre={PreInstalledDatabankEntries.Count}), " +
-                $"expectedTotal={RequiredCombinedTotal}");
+                $"[100Tracker] Database loaded. " +
+                $"techTypes={TechTypeDatabase.Count}, " +
+                $"requiredBlueprints={RequiredBlueprints.Count} (pre={PreInstalledBlueprints.Count}), " +
+                $"requiredDatabank={RequiredDatabankEntries.Count} (pre={PreInstalledDatabankEntries.Count}), " +
+                $"targetTotal={RequiredCombinedTotal}");
         }
 
         private static string? FindChecklistFile()
@@ -159,6 +196,8 @@ namespace SubnauticaLauncher.Gameplay
             RequiredDatabankEntries.Clear();
             PreInstalledBlueprints.Clear();
             PreInstalledDatabankEntries.Clear();
+            BlueprintAliasIndex.Clear();
+            DatabankAliasIndex.Clear();
 
             ParseMode mode = ParseMode.None;
             foreach (string rawLine in File.ReadLines(path))
@@ -195,29 +234,88 @@ namespace SubnauticaLauncher.Gameplay
                     if (LooksLikeSectionHeader(line))
                         continue;
 
-                    // Some checklist lines are plain item names without TRUE/FALSE.
-                    // Treat them as required and not pre-installed.
                     preInstalled = false;
                     candidateName = line;
                 }
 
-                string name = NormalizeChecklistName(candidateName);
-                if (name.Length == 0)
+                string normalizedName = NormalizeChecklistName(candidateName);
+                if (normalizedName.Length == 0)
                     continue;
 
-                if (mode == ParseMode.Blueprint)
+                AddRequirement(mode, normalizedName, preInstalled);
+            }
+
+            AddDerivedRequirementAliases();
+        }
+
+        private static void AddRequirement(ParseMode mode, string normalizedName, bool preInstalled)
+        {
+            if (mode == ParseMode.Blueprint)
+            {
+                RequiredBlueprints.Add(normalizedName);
+                if (preInstalled)
+                    PreInstalledBlueprints.Add(normalizedName);
+
+                AddAlias(BlueprintAliasIndex, normalizedName, normalizedName);
+            }
+            else
+            {
+                RequiredDatabankEntries.Add(normalizedName);
+                if (preInstalled)
+                    PreInstalledDatabankEntries.Add(normalizedName);
+
+                AddAlias(DatabankAliasIndex, normalizedName, normalizedName);
+            }
+        }
+
+        private static void AddDerivedRequirementAliases()
+        {
+            foreach (string requirement in RequiredBlueprints)
+            {
+                if (!requirement.StartsWith("cookedcured", StringComparison.Ordinal))
+                    continue;
+
+                string fish = requirement.Substring("cookedcured".Length);
+                if (fish.Length == 0)
+                    continue;
+
+                AddAlias(BlueprintAliasIndex, fish, requirement);
+                AddAlias(BlueprintAliasIndex, "cooked" + fish, requirement);
+                AddAlias(BlueprintAliasIndex, "cured" + fish, requirement);
+
+                if (fish == "bladderfish")
                 {
-                    RequiredBlueprints.Add(name);
-                    if (preInstalled)
-                        PreInstalledBlueprints.Add(name);
+                    AddAlias(BlueprintAliasIndex, "airsack", requirement);
+                    AddAlias(BlueprintAliasIndex, "cookedairsack", requirement);
+                    AddAlias(BlueprintAliasIndex, "curedairsack", requirement);
                 }
-                else
+                else if (fish == "magmarang")
                 {
-                    RequiredDatabankEntries.Add(name);
-                    if (preInstalled)
-                        PreInstalledDatabankEntries.Add(name);
+                    AddAlias(BlueprintAliasIndex, "lavaboomerang", requirement);
+                    AddAlias(BlueprintAliasIndex, "cookedlavaboomerang", requirement);
+                    AddAlias(BlueprintAliasIndex, "curedlavaboomerang", requirement);
+                }
+                else if (fish == "redeyeye")
+                {
+                    AddAlias(BlueprintAliasIndex, "lavaeyeye", requirement);
+                    AddAlias(BlueprintAliasIndex, "cookedlavaeyeye", requirement);
+                    AddAlias(BlueprintAliasIndex, "curedlavaeyeye", requirement);
                 }
             }
+        }
+
+        private static void AddAlias(Dictionary<string, HashSet<string>> aliasIndex, string alias, string requirement)
+        {
+            if (string.IsNullOrWhiteSpace(alias) || string.IsNullOrWhiteSpace(requirement))
+                return;
+
+            if (!aliasIndex.TryGetValue(alias, out HashSet<string>? targets))
+            {
+                targets = new HashSet<string>(StringComparer.Ordinal);
+                aliasIndex[alias] = targets;
+            }
+
+            targets.Add(requirement);
         }
 
         private static void OnEventWritten(GameplayEvent evt)
@@ -247,11 +345,21 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (evt.Type == GameplayEventType.BlueprintUnlocked)
                 {
-                    string name = NormalizeEventName(evt.Key);
-                    if (RequiredBlueprints.Contains(name))
+                    int added = 0;
+                    var matches = ResolveBlueprintMatches(evt.Key);
+                    foreach (string requirement in matches)
                     {
-                        RunBlueprints.Add(name);
+                        if (RunBlueprints.Add(requirement))
+                            added++;
+                    }
+
+                    if (added > 0)
+                    {
                         UpdateOverlayText();
+                    }
+                    else
+                    {
+                        LogUnmatchedBlueprint(evt.Key);
                     }
 
                     return;
@@ -259,14 +367,202 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (evt.Type == GameplayEventType.DatabankEntryUnlocked)
                 {
-                    string name = NormalizeEventName(evt.Key);
-                    if (RequiredDatabankEntries.Contains(name))
+                    int added = 0;
+                    var matches = ResolveDatabankMatches(evt.Key);
+                    foreach (string requirement in matches)
                     {
-                        RunDatabankEntries.Add(name);
+                        if (RunDatabankEntries.Add(requirement))
+                            added++;
+                    }
+
+                    if (added > 0)
+                    {
                         UpdateOverlayText();
+                    }
+                    else
+                    {
+                        LogUnmatchedDatabank(evt.Key);
                     }
                 }
             }
+        }
+
+        private static HashSet<string> ResolveBlueprintMatches(string eventKey)
+        {
+            var matches = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string alias in EnumerateBlueprintAliases(eventKey))
+            {
+                if (!BlueprintAliasIndex.TryGetValue(alias, out HashSet<string>? mapped))
+                    continue;
+
+                foreach (string requirement in mapped)
+                    matches.Add(requirement);
+            }
+
+            return matches;
+        }
+
+        private static HashSet<string> ResolveDatabankMatches(string eventKey)
+        {
+            var matches = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string alias in EnumerateDatabankAliases(eventKey))
+            {
+                if (!DatabankAliasIndex.TryGetValue(alias, out HashSet<string>? mapped))
+                    continue;
+
+                foreach (string requirement in mapped)
+                    matches.Add(requirement);
+            }
+
+            return matches;
+        }
+
+        private static IEnumerable<string> EnumerateBlueprintAliases(string eventKey)
+        {
+            var aliases = new HashSet<string>(StringComparer.Ordinal);
+            AddAliasCandidate(aliases, NormalizeEventName(eventKey));
+
+            if (TryExtractTechTypeId(eventKey, out int id) &&
+                TechTypeDatabase.TryGetValue(id, out var enumName) &&
+                !string.IsNullOrWhiteSpace(enumName))
+            {
+                AddAliasCandidate(aliases, NormalizeChecklistName(enumName));
+                AddAliasCandidate(aliases, NormalizeChecklistName(HumanizeIdentifier(enumName)));
+            }
+
+            ExpandAliasesInPlace(aliases, ExpandBlueprintAlias);
+            return aliases;
+        }
+
+        private static IEnumerable<string> EnumerateDatabankAliases(string eventKey)
+        {
+            var aliases = new HashSet<string>(StringComparer.Ordinal);
+            AddAliasCandidate(aliases, NormalizeEventName(eventKey));
+
+            if (TryExtractTechTypeId(eventKey, out int id) &&
+                TechTypeDatabase.TryGetValue(id, out var enumName) &&
+                !string.IsNullOrWhiteSpace(enumName))
+            {
+                AddAliasCandidate(aliases, NormalizeChecklistName(enumName));
+                AddAliasCandidate(aliases, NormalizeChecklistName(HumanizeIdentifier(enumName)));
+            }
+
+            ExpandAliasesInPlace(aliases, ExpandDatabankAlias);
+            return aliases;
+        }
+
+        private static void ExpandAliasesInPlace(HashSet<string> aliases, Func<string, IEnumerable<string>> expander)
+        {
+            var queue = new Queue<string>(aliases);
+            while (queue.Count > 0)
+            {
+                string current = queue.Dequeue();
+                foreach (string expanded in expander(current))
+                {
+                    if (aliases.Add(expanded))
+                        queue.Enqueue(expanded);
+                }
+            }
+        }
+
+        private static IEnumerable<string> ExpandBlueprintAlias(string alias)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+                yield break;
+
+            string stripped = StripCommonSuffixes(alias);
+            if (!string.Equals(alias, stripped, StringComparison.Ordinal))
+                yield return stripped;
+
+            if (alias.StartsWith("cooked", StringComparison.Ordinal) && alias.Length > "cooked".Length)
+            {
+                string fish = alias.Substring("cooked".Length);
+                yield return fish;
+                yield return "cookedcured" + fish;
+            }
+
+            if (alias.StartsWith("cured", StringComparison.Ordinal) && alias.Length > "cured".Length)
+            {
+                string fish = alias.Substring("cured".Length);
+                yield return fish;
+                yield return "cookedcured" + fish;
+            }
+
+            if (SpecialBlueprintAliasMap.TryGetValue(alias, out string[]? mapped))
+            {
+                foreach (string item in mapped)
+                    yield return item;
+            }
+        }
+
+        private static IEnumerable<string> ExpandDatabankAlias(string alias)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+                yield break;
+
+            string stripped = StripCommonSuffixes(alias);
+            if (!string.Equals(alias, stripped, StringComparison.Ordinal))
+                yield return stripped;
+
+            if (SpecialDatabankAliasMap.TryGetValue(alias, out string[]? mapped))
+            {
+                foreach (string item in mapped)
+                    yield return item;
+            }
+        }
+
+        private static string StripCommonSuffixes(string alias)
+        {
+            string value = alias;
+            value = StripSuffix(value, "blueprint");
+            value = StripSuffix(value, "fragment");
+            value = StripSuffix(value, "analysis");
+            value = StripSuffix(value, "databox");
+            return value;
+        }
+
+        private static string StripSuffix(string value, string suffix)
+        {
+            if (value.EndsWith(suffix, StringComparison.Ordinal) && value.Length > suffix.Length)
+                return value.Substring(0, value.Length - suffix.Length);
+
+            return value;
+        }
+
+        private static void AddAliasCandidate(HashSet<string> aliases, string alias)
+        {
+            if (string.IsNullOrWhiteSpace(alias))
+                return;
+
+            aliases.Add(alias);
+        }
+
+        private static bool TryExtractTechTypeId(string key, out int id)
+        {
+            id = 0;
+            Match m = TrailingIdRegex.Match(key ?? string.Empty);
+            if (!m.Success)
+                return false;
+
+            return int.TryParse(m.Groups[1].Value, out id);
+        }
+
+        private static void LogUnmatchedBlueprint(string eventKey)
+        {
+            string alias = NormalizeEventName(eventKey);
+            if (alias.Length == 0 || !LoggedUnmatchedBlueprintAliases.Add(alias))
+                return;
+
+            Logger.Log($"[100Tracker] Unmatched blueprint unlock: key={eventKey}");
+        }
+
+        private static void LogUnmatchedDatabank(string eventKey)
+        {
+            string alias = NormalizeEventName(eventKey);
+            if (alias.Length == 0 || !LoggedUnmatchedDatabankAliases.Add(alias))
+                return;
+
+            Logger.Log($"[100Tracker] Unmatched databank unlock: key={eventKey}");
         }
 
         private static void ResetRunState()
@@ -404,7 +700,6 @@ namespace SubnauticaLauncher.Gameplay
             if (line.StartsWith("!", StringComparison.Ordinal))
                 return true;
 
-            // Typical section/category header format in the checklist.
             if (Regex.IsMatch(line, @"^[A-Z0-9\s&+\-':]+(?:\(\d+\))?\s*$"))
                 return true;
 
@@ -442,6 +737,40 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return sb.ToString();
+        }
+
+        private static string HumanizeIdentifier(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            var sb = new StringBuilder(value.Length + 8);
+            char previous = '\0';
+
+            foreach (char current in value)
+            {
+                if (sb.Length > 0 && ShouldInsertSpace(previous, current))
+                    sb.Append(' ');
+
+                sb.Append(current);
+                previous = current;
+            }
+
+            return sb.ToString();
+        }
+
+        private static bool ShouldInsertSpace(char previous, char current)
+        {
+            if (previous == '\0' || previous == ' ')
+                return false;
+
+            if (char.IsDigit(previous) && char.IsLetter(current))
+                return true;
+
+            if (char.IsLetter(previous) && char.IsDigit(current))
+                return true;
+
+            return char.IsLower(previous) && char.IsUpper(current);
         }
 
         [DllImport("user32.dll")]
