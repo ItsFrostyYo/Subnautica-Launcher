@@ -131,6 +131,10 @@ namespace SubnauticaLauncher.Gameplay
             ["precursorionbattery"] = new[] { "ionbattery" },
             ["precursorionpowercell"] = new[] { "ionpowercell" },
             ["rocketbase"] = new[] { "neptunelaunchplatform" },
+            ["rocketbaseladder"] = new[] { "neptunegantry" },
+            ["rocketstage1"] = new[] { "neptuneionboosters" },
+            ["rocketstage2"] = new[] { "neptunefuelreserve" },
+            ["rocketstage3"] = new[] { "neptunecockpit" },
             ["starshipdesk"] = new[] { "desk" },
             ["starshipchair"] = new[] { "swivelchair" },
             ["starshipchair2"] = new[] { "officechair" },
@@ -148,6 +152,7 @@ namespace SubnauticaLauncher.Gameplay
             ["farmingtray"] = new[] { "exteriorgrowbed" },
             ["baseplanter"] = new[] { "wallplanter" },
             ["plantershelf"] = new[] { "plantshelf" },
+            ["marki2"] = new[] { "anunusualdoll" },
             ["waterfiltrationsystem"] = new[] { "waterfiltrationmachine" },
             ["neptuneescaperocket"] = new[] { "neptunelaunchplatform", "neptunegantry", "neptuneionboosters", "neptunefuelreserve", "neptunecockpit" }
         };
