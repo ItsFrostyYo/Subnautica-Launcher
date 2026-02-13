@@ -484,6 +484,7 @@ namespace SubnauticaLauncher.Gameplay
 
             bool runStarted = false;
             bool leftMainMenu = _runStartArmed && !isMainMenuNow;
+            bool hasAutosplitterCutsceneSignals = hasIntro || hasAnimation || hasSkipProgress;
 
             if (!_startedBefore && leftMainMenu)
             {
@@ -502,7 +503,8 @@ namespace SubnauticaLauncher.Gameplay
                     runStarted = true;
                     reason = "CutsceneSkipped";
                 }
-                else if (hasPlayer &&
+                else if (!hasAutosplitterCutsceneSignals &&
+                    hasPlayer &&
                     (!hasLoading || !isLoading) &&
                     (!hasIntro || !introActive) &&
                     (!hasAnimation || !animationActive))
