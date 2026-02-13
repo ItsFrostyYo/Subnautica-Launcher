@@ -127,7 +127,6 @@ namespace SubnauticaLauncher.Gameplay
         private readonly Dictionary<long, int?> _nestedObjectOffsetByClass = new();
         private readonly Dictionary<long, int?> _countFieldOffsetByClass = new();
         private readonly Dictionary<long, int?> _nestedListOffsetByClass = new();
-        private readonly Dictionary<long, int?> _pdaEntryUnlockedOffsetByClass = new();
 
         private bool _hasCrafterIsCraftingOffset;
         private int _crafterIsCraftingOffset;
@@ -262,6 +261,13 @@ namespace SubnauticaLauncher.Gameplay
         {
             state = GameState.Unknown;
             bool hadAnySignal = false;
+            bool hasPlayer = false;
+
+            if (TryReadStaticObject(proc, _playerMainField, out var playerMain))
+            {
+                hadAnySignal = true;
+                hasPlayer = playerMain != IntPtr.Zero;
+            }
 
             if (TryReadStaticObject(proc, _uGuiMainField, out var uGuiMain) && uGuiMain != IntPtr.Zero)
             {
@@ -279,15 +285,15 @@ namespace SubnauticaLauncher.Gameplay
                 }
             }
 
-            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu) && mainMenu != IntPtr.Zero)
+            if (hasPlayer)
             {
-                state = GameState.MainMenu;
+                state = GameState.InGame;
                 return true;
             }
 
-            if (TryReadStaticObject(proc, _playerMainField, out var playerMain) && playerMain != IntPtr.Zero)
+            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu) && mainMenu != IntPtr.Zero)
             {
-                state = GameState.InGame;
+                state = GameState.MainMenu;
                 return true;
             }
 
@@ -433,7 +439,6 @@ namespace SubnauticaLauncher.Gameplay
             _nestedObjectOffsetByClass.Clear();
             _countFieldOffsetByClass.Clear();
             _nestedListOffsetByClass.Clear();
-            _pdaEntryUnlockedOffsetByClass.Clear();
 
             _hasCrafterIsCraftingOffset = false;
             _crafterIsCraftingOffset = 0;
@@ -842,8 +847,11 @@ namespace SubnauticaLauncher.Gameplay
                 if (hashCode < 0)
                     continue;
 
-                if (!MemoryReader.ReadInt32(proc, IntPtr.Add(entry, 0x08), out int keyInt))
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(entry, 0x08), out var keyStringObj) ||
+                    keyStringObj == IntPtr.Zero)
+                {
                     continue;
+                }
 
                 if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(entry, valueOffset), out var entryData) ||
                     entryData == IntPtr.Zero)
@@ -851,10 +859,11 @@ namespace SubnauticaLauncher.Gameplay
                     continue;
                 }
 
-                if (!TryReadDatabankEntryUnlocked(proc, entryData, out bool unlocked) || !unlocked)
+                string key = ReadMonoString(proc, keyStringObj, 256);
+                if (!IsPlausibleDatabankKey(key))
                     continue;
 
-                values.Add(keyInt.ToString());
+                values.Add(key);
                 found++;
             }
 
@@ -907,9 +916,14 @@ namespace SubnauticaLauncher.Gameplay
                         continue;
                 }
 
-                int keyInt = 0;
-                if (keyBase != IntPtr.Zero)
-                    MemoryReader.ReadInt32(proc, IntPtr.Add(keyBase, i * 4), out keyInt);
+                if (keyBase == IntPtr.Zero)
+                    continue;
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(keyBase, i * ptrSize), out var keyStringObj) ||
+                    keyStringObj == IntPtr.Zero)
+                {
+                    continue;
+                }
 
                 if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(valueBase, i * ptrSize), out var entryData) ||
                     entryData == IntPtr.Zero)
@@ -917,37 +931,15 @@ namespace SubnauticaLauncher.Gameplay
                     continue;
                 }
 
-                if (!TryReadDatabankEntryUnlocked(proc, entryData, out bool unlocked) || !unlocked)
+                string key = ReadMonoString(proc, keyStringObj, 256);
+                if (!IsPlausibleDatabankKey(key))
                     continue;
 
-                if (keyInt != 0)
-                    values.Add(keyInt.ToString());
-                else
-                    values.Add($"entry:{i}");
-
+                values.Add(key);
                 found++;
             }
 
             return found > 0;
-        }
-
-        private bool TryReadDatabankEntryUnlocked(Process proc, IntPtr entryData, out bool unlocked)
-        {
-            unlocked = false;
-
-            if (!TryGetObjectClass(proc, entryData, out var klass) || klass == IntPtr.Zero)
-                return false;
-
-            if (!TryGetOrCacheFieldOffset(proc, klass, _pdaEntryUnlockedOffsetByClass,
-                new[] { "unlocked", "isUnlocked", "_unlocked", "m_unlocked" }, out int unlockedOffset))
-            {
-                if (!TryFindFieldOffsetByContainsAny(proc, klass, new[] { "unlock" }, out unlockedOffset))
-                    return false;
-
-                _pdaEntryUnlockedOffsetByClass[klass.ToInt64()] = unlockedOffset;
-            }
-
-            return TryReadBool(proc, IntPtr.Add(entryData, unlockedOffset), out unlocked);
         }
 
         private bool TryReadDatabankEntries(Process proc, out HashSet<string> values)
@@ -1921,6 +1913,28 @@ namespace SubnauticaLauncher.Gameplay
         private static bool IsPlausibleItemCount(int value)
         {
             return value > 0 && value <= MaxPlausibleItemCount;
+        }
+
+        private static bool IsPlausibleDatabankKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return false;
+
+            if (key.Length > 128)
+                return false;
+
+            foreach (char c in key)
+            {
+                if (char.IsLetterOrDigit(c))
+                    continue;
+
+                if (c == '_' || c == '-' || c == '.' || c == ':' || c == '/')
+                    continue;
+
+                return false;
+            }
+
+            return true;
         }
 
         private bool TryReadCraftState(Process proc, out bool isCrafting, out int craftingTechType)
