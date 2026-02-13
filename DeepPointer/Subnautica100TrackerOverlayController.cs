@@ -94,6 +94,7 @@ namespace SubnauticaLauncher.Gameplay
         private static CancellationTokenSource? _toastDisplayCts;
         private static Task? _loopTask;
         private static bool _runActive;
+        private static bool _sawMainMenu;
         private static bool _rulesLoaded;
         private static bool _toastVisible;
         private static double _overlayLeft;
@@ -441,12 +442,20 @@ namespace SubnauticaLauncher.Gameplay
                     if (state == "mainmenu")
                     {
                         ResetRunState();
+                        _sawMainMenu = true;
                         UpdateOverlayText();
                         return;
                     }
 
                     if (state == "ingame")
                     {
+                        if (!_runActive && _sawMainMenu)
+                        {
+                            StartRunState();
+                            Logger.Log("[100Tracker] Run fallback started from GameStateChanged InGame.");
+                            UpdateOverlayText();
+                        }
+
                         return;
                     }
                     return;
@@ -740,7 +749,7 @@ namespace SubnauticaLauncher.Gameplay
             if (string.IsNullOrWhiteSpace(value))
                 return string.Empty;
 
-            string spaced = HumanizeIdentifier(value);
+            string spaced = HumanizeIdentifier(NormalizeCompatibilityCharacters(value));
             var rawTokens = TokenSplitRegex.Split(spaced);
             var kept = new List<string>(rawTokens.Length);
 
@@ -906,7 +915,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (!hasAnchor)
                 {
-                    if (!TryGetSubnauticaWindowRect(out var rect))
+                    if (!TryGetFocusedSubnauticaWindowRect(out var rect))
                         return;
 
                     _overlayLeft = rect.Left + OverlayPadding;
@@ -1073,6 +1082,7 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             _runActive = false;
+            _sawMainMenu = false;
             _toastVisible = false;
             RunBlueprints.Clear();
             RunDatabankEntries.Clear();
@@ -1139,7 +1149,7 @@ namespace SubnauticaLauncher.Gameplay
                     RECT rect = default;
                     bool shouldShow = runActive
                         && !ExplosionResetDisplayController.IsActive
-                        && TryGetSubnauticaWindowRect(out rect);
+                        && TryGetFocusedSubnauticaWindowRect(out rect);
 
                     Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -1201,7 +1211,7 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
-        private static bool TryGetSubnauticaWindowRect(out RECT rect)
+        private static bool TryGetFocusedSubnauticaWindowRect(out RECT rect)
         {
             rect = default;
 
@@ -1216,10 +1226,6 @@ namespace SubnauticaLauncher.Gameplay
                     !p.HasExited &&
                     p.MainWindowHandle != IntPtr.Zero &&
                     p.MainWindowHandle == foreground);
-
-                proc ??= processes.FirstOrDefault(p =>
-                    !p.HasExited &&
-                    p.MainWindowHandle != IntPtr.Zero);
 
                 if (proc == null)
                     return false;
@@ -1274,7 +1280,7 @@ namespace SubnauticaLauncher.Gameplay
             if (string.IsNullOrWhiteSpace(value))
                 return string.Empty;
 
-            string normalized = value.Trim();
+            string normalized = NormalizeCompatibilityCharacters(value).Trim();
             if (removeTrailingNumericParentheses)
             {
                 while (true)
@@ -1295,6 +1301,36 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return sb.ToString();
+        }
+
+        private static string NormalizeCompatibilityCharacters(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return value;
+
+            var sb = new StringBuilder(value.Length);
+            foreach (char c in value)
+                sb.Append(MapCompatibilityDigit(c));
+
+            return sb.ToString();
+        }
+
+        private static char MapCompatibilityDigit(char c)
+        {
+            return c switch
+            {
+                '₀' or '⁰' => '0',
+                '₁' or '¹' => '1',
+                '₂' or '²' => '2',
+                '₃' or '³' => '3',
+                '₄' or '⁴' => '4',
+                '₅' or '⁵' => '5',
+                '₆' or '⁶' => '6',
+                '₇' or '⁷' => '7',
+                '₈' or '⁸' => '8',
+                '₉' or '⁹' => '9',
+                _ => c
+            };
         }
 
         private static string HumanizeIdentifier(string value)
