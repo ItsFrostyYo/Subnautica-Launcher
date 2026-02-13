@@ -157,6 +157,7 @@ namespace SubnauticaLauncher.Gameplay
             ["ledlight"] = "lightstick",
             ["lifepod"] = "2berthemergencylifepod",
             ["lifepod1"] = "lifepod2chieftechnicalofficeryusvoicelogt2min",
+            ["lifepod2"] = "lifepod12medicaloffierdanbyscrewlog",
             ["lifepod3"] = "lifepod3crewlog",
             ["lifepod4"] = "lifepod13emissarysvoicelog",
             ["lifepodcrashzone1"] = "lifepod6crewlog1",
