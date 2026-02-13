@@ -25,7 +25,7 @@ namespace SubnauticaLauncher.UI
                 : 0d;
 
             ProgressText.Text = $"({totalUnlocked}/{totalRequired}) {Math.Round(percent)}%";
-            BreakdownText.Text = $"Blueprints: {blueprintUnlocked}/{blueprintRequired} | Entries: {entriesUnlocked}/{entriesRequired}";
+            BreakdownText.Text = $"BP's: {blueprintUnlocked}/{blueprintRequired} | Ency: {entriesUnlocked}/{entriesRequired}";
         }
     }
 }

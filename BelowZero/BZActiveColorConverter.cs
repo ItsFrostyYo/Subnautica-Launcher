@@ -1,4 +1,5 @@
 ﻿using SubnauticaLauncher.BelowZero;
+using SubnauticaLauncher.Versions;
 using System;
 using System.Globalization;
 using System.Windows.Data;
@@ -16,9 +17,9 @@ namespace SubnauticaLauncher.UI
             return status switch
             {
                 BZVersionStatus.Active => Brushes.LimeGreen,
-                BZVersionStatus.Switching => Brushes.Orange,
-                BZVersionStatus.Launched => Brushes.Yellow,
-                BZVersionStatus.Launching => Brushes.Yellow,
+                BZVersionStatus.Launched => Brushes.Red,
+                BZVersionStatus.Launching => Brushes.Orange,
+                BZVersionStatus.Switching => Brushes.Yellow,
                 _ => Brushes.White
             };
         }
