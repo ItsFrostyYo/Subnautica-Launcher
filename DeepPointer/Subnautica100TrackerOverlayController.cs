@@ -20,9 +20,6 @@ namespace SubnauticaLauncher.Gameplay
     {
         private const int OverlayPadding = 12;
         private const double FallbackOverlayHeight = 88;
-        private const int RequiredBlueprintTotal = 157;
-        private const int RequiredDatabankTotal = 277;
-        private const int RequiredCombinedTotal = RequiredBlueprintTotal + RequiredDatabankTotal;
         private const int MaxAliasLength = 96;
 
         private static readonly object Sync = new();
@@ -99,6 +96,9 @@ namespace SubnauticaLauncher.Gameplay
         private static double _overlayLeft;
         private static double _overlayTop;
         private static readonly SemaphoreSlim ToastSemaphore = new(1, 1);
+        private static int RequiredBlueprintTotal => RequiredBlueprints.Count;
+        private static int RequiredDatabankTotal => RequiredDatabankEntries.Count;
+        private static int RequiredCombinedTotal => RequiredBlueprintTotal + RequiredDatabankTotal;
 
         public static void Start()
         {
@@ -201,6 +201,8 @@ namespace SubnauticaLauncher.Gameplay
                 $"techTypes={TechTypeDatabase.Count}, " +
                 $"requiredBlueprints={RequiredBlueprints.Count} (pre={PreInstalledBlueprints.Count}), " +
                 $"requiredDatabank={RequiredDatabankEntries.Count} (pre={PreInstalledDatabankEntries.Count}), " +
+                $"unlockableBlueprints={Math.Max(0, RequiredBlueprints.Count - PreInstalledBlueprints.Count)}, " +
+                $"unlockableDatabank={Math.Max(0, RequiredDatabankEntries.Count - PreInstalledDatabankEntries.Count)}, " +
                 $"techTypeBlueprintMappings={BlueprintRequirementsByTechType.Count}, " +
                 $"targetTotal={RequiredCombinedTotal}");
         }
