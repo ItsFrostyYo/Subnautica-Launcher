@@ -89,7 +89,6 @@ namespace SubnauticaLauncher.Gameplay
                 try
                 {
                     PollGame("Subnautica", token);
-                    PollGame("SubnauticaZero", token);
                 }
                 catch (Exception ex)
                 {
@@ -282,6 +281,7 @@ namespace SubnauticaLauncher.Gameplay
         private sealed class ProcessStateTracker
         {
             private const int StableSamples = 3;
+            private const int StableSamplesInGameToBlackScreen = 8;
             private static readonly TimeSpan RunStartCooldown = TimeSpan.FromSeconds(10);
 
             private bool _hasCandidate;
@@ -292,6 +292,7 @@ namespace SubnauticaLauncher.Gameplay
             private GameState _stable;
 
             private bool _runArmed;
+            private bool _sawBlackScreenAfterMainMenu;
             private DateTime _lastRunStartedUtc = DateTime.MinValue;
 
             public bool TryPromote(GameState rawState, out GameState previousStable, out GameState stableState)
@@ -308,7 +309,11 @@ namespace SubnauticaLauncher.Gameplay
                 }
 
                 _candidateCount++;
-                if (_candidateCount < StableSamples)
+                int requiredSamples = StableSamples;
+                if (_hasStable && _stable == GameState.InGame && rawState == GameState.BlackScreen)
+                    requiredSamples = StableSamplesInGameToBlackScreen;
+
+                if (_candidateCount < requiredSamples)
                     return false;
 
                 if (!_hasStable)
@@ -316,7 +321,14 @@ namespace SubnauticaLauncher.Gameplay
                     _stable = rawState;
                     _hasStable = true;
                     if (_stable == GameState.MainMenu)
+                    {
                         _runArmed = true;
+                        _sawBlackScreenAfterMainMenu = false;
+                    }
+                    else if (_stable == GameState.BlackScreen && _runArmed)
+                    {
+                        _sawBlackScreenAfterMainMenu = true;
+                    }
 
                     previousStable = _stable;
                     stableState = _stable;
@@ -331,7 +343,14 @@ namespace SubnauticaLauncher.Gameplay
                 stableState = _stable;
 
                 if (_stable == GameState.MainMenu)
+                {
                     _runArmed = true;
+                    _sawBlackScreenAfterMainMenu = false;
+                }
+                else if (_stable == GameState.BlackScreen && _runArmed)
+                {
+                    _sawBlackScreenAfterMainMenu = true;
+                }
 
                 return true;
             }
@@ -346,6 +365,9 @@ namespace SubnauticaLauncher.Gameplay
                     return false;
 
                 if (!_runArmed)
+                    return false;
+
+                if (!_sawBlackScreenAfterMainMenu)
                     return false;
 
                 DateTime now = DateTime.UtcNow;

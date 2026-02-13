@@ -18,7 +18,6 @@ namespace SubnauticaLauncher.Gameplay
         private static CancellationTokenSource? _cts;
         private static Task? _pollTask;
         private static string _subnauticaState = "Unknown";
-        private static string _belowZeroState = "Unknown";
 
         private static int _resolverPid = -1;
         private static IExplosionResolver? _resolver;
@@ -175,8 +174,6 @@ namespace SubnauticaLauncher.Gameplay
             {
                 if (evt.Game.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
                     _subnauticaState = evt.Key;
-                else if (evt.Game.Equals("SubnauticaZero", StringComparison.OrdinalIgnoreCase))
-                    _belowZeroState = evt.Key;
             }
 
             Application.Current.Dispatcher.Invoke(() =>
@@ -188,7 +185,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private static string BuildStateText()
         {
-            return $"Subnautica={_subnauticaState} | Below Zero={_belowZeroState}";
+            return $"Subnautica={_subnauticaState} | Below Zero tracking disabled";
         }
     }
 }

@@ -314,12 +314,6 @@ namespace SubnauticaLauncher.Gameplay
                 }
             }
 
-            if (isLoading)
-            {
-                state = GameState.BlackScreen;
-                return true;
-            }
-
             bool isIntroCinematic = false;
             if (TryReadIntroCinematicActive(proc, out bool introCinematic))
             {
@@ -357,16 +351,16 @@ namespace SubnauticaLauncher.Gameplay
                 return true;
             }
 
-            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu) && mainMenu != IntPtr.Zero)
+            if (isLoading || isIntroCinematic)
             {
-                hadAnySignal = true;
-                state = isIntroCinematic ? GameState.BlackScreen : GameState.MainMenu;
+                state = GameState.BlackScreen;
                 return true;
             }
 
-            if (isIntroCinematic)
+            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu) && mainMenu != IntPtr.Zero)
             {
-                state = GameState.BlackScreen;
+                hadAnySignal = true;
+                state = GameState.MainMenu;
                 return true;
             }
 

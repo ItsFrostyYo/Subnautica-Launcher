@@ -52,8 +52,21 @@ namespace SubnauticaLauncher.UI
 
         public void AppendEvent(GameplayEvent evt)
         {
+            string valueText = evt.Type switch
+            {
+                GameplayEventType.ItemPickedUp or GameplayEventType.ItemDropped or GameplayEventType.ItemCrafted
+                    => $"amount={evt.Delta}",
+                GameplayEventType.BlueprintUnlocked or GameplayEventType.DatabankEntryUnlocked
+                    => $"unlocked={evt.Delta}",
+                GameplayEventType.RunStarted
+                    => $"started={evt.Delta}",
+                _ => string.Empty
+            };
+
             string line =
-                $"[{evt.TimestampUtc:HH:mm:ss.fff}] [{evt.Game}] {evt.Type} key={evt.Key} delta={evt.Delta} src={evt.Source}";
+                $"[{evt.TimestampUtc:HH:mm:ss.fff}] [{evt.Game}] {evt.Type} key={evt.Key}" +
+                (string.IsNullOrEmpty(valueText) ? string.Empty : $" {valueText}") +
+                $" src={evt.Source}";
 
             _eventLines.Enqueue(line);
             while (_eventLines.Count > MaxLines)

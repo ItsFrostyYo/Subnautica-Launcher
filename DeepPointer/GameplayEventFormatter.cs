@@ -9,7 +9,9 @@ namespace SubnauticaLauncher.Gameplay
         public static GameplayEvent FormatForOutput(GameplayEvent evt)
         {
             string formattedKey = FormatKey(evt.Type, evt.Key);
-            if (formattedKey == evt.Key)
+            int normalizedDelta = NormalizeDelta(evt.Type, evt.Delta);
+
+            if (formattedKey == evt.Key && normalizedDelta == evt.Delta)
                 return evt;
 
             return new GameplayEvent
@@ -19,7 +21,7 @@ namespace SubnauticaLauncher.Gameplay
                 ProcessId = evt.ProcessId,
                 Type = evt.Type,
                 Key = formattedKey,
-                Delta = evt.Delta,
+                Delta = normalizedDelta,
                 Source = evt.Source
             };
         }
@@ -95,6 +97,28 @@ namespace SubnauticaLauncher.Gameplay
                 return true;
 
             return char.IsLower(previous) && char.IsUpper(current);
+        }
+
+        private static int NormalizeDelta(GameplayEventType type, int delta)
+        {
+            switch (type)
+            {
+                case GameplayEventType.GameStateChanged:
+                    return 0;
+
+                case GameplayEventType.RunStarted:
+                case GameplayEventType.BlueprintUnlocked:
+                case GameplayEventType.DatabankEntryUnlocked:
+                    return delta <= 0 ? 1 : delta;
+
+                case GameplayEventType.ItemCrafted:
+                case GameplayEventType.ItemPickedUp:
+                case GameplayEventType.ItemDropped:
+                    return Math.Abs(delta);
+
+                default:
+                    return delta;
+            }
         }
     }
 }
