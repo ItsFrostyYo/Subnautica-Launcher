@@ -182,7 +182,7 @@ namespace SubnauticaLauncher.UI
             UpdateHardcoreSaveDeleterVisualState();
 
             DebugTelemetryController.Start();
-            AcidMushroomRunOverlayController.Start();
+            Subnautica100TrackerOverlayController.Start();
             GameEventDocumenter.Start();
 
             Logger.Log("Startup complete");
@@ -1073,7 +1073,7 @@ namespace SubnauticaLauncher.UI
 
             ExplosionResetDisplayController.ForceClose();
             DebugTelemetryController.Stop();
-            AcidMushroomRunOverlayController.Stop();
+            Subnautica100TrackerOverlayController.Stop();
             GameEventDocumenter.Stop();
 
             var handle = new WindowInteropHelper(this).Handle;
