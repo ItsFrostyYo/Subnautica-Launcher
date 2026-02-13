@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SubnauticaLauncher.Macros
@@ -73,16 +74,6 @@ namespace SubnauticaLauncher.Macros
 
             // key up
             keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-        }
-
-        private static void SendKeyDown(byte vk)
-        {
-            keybd_event(vk, 0, 0, UIntPtr.Zero);
-        }
-
-        private static void SendKeyUp(byte vk)
-        {
-            keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
         }
 
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;

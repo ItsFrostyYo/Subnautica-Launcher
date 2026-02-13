@@ -23,7 +23,7 @@ public class BZInstalledVersion
     public string DisplayLabel => Status switch
     {
         BZVersionStatus.Switching => "Switching → " + GetTrimmedDisplayName(DisplayName),
-        BZVersionStatus.Launching => "Launching → " + GetTrimmedDisplayName(DisplayName),
+        BZVersionStatus.Launching => "Launched → " + GetTrimmedDisplayName(DisplayName),
         BZVersionStatus.Active => "Active → " + GetTrimmedDisplayName(DisplayName),
         _ => GetTrimmedDisplayName(DisplayName)
     };

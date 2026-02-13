@@ -1,9 +1,4 @@
-﻿using SubnauticaLauncher.Installer;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Versions;
-using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Versioning;
 
@@ -47,12 +42,4 @@ OriginalDownload={version.OriginalDownload}
 ");
     }
 
-    private static bool PathsAreSame(string a, string b)
-    {
-        return string.Equals(
-            Path.GetFullPath(a).TrimEnd('\\'),
-            Path.GetFullPath(b).TrimEnd('\\'),
-            StringComparison.OrdinalIgnoreCase
-        );
-    }
 }

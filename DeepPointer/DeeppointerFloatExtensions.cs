@@ -2,9 +2,6 @@
 
 namespace SubnauticaLauncher.Memory
 {
-    // ✅ TOP-LEVEL
-    // ✅ STATIC
-    // ✅ EXTENSION CLASS
     public static class DeepPointerFloatExtensions
     {
         public static bool TryReadFloat(
