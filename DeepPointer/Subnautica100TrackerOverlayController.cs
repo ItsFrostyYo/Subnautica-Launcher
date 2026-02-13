@@ -1,4 +1,5 @@
 using SubnauticaLauncher.Explosion;
+using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.UI;
 using System;
 using System.Collections.Generic;
@@ -33,6 +34,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private static readonly Dictionary<string, HashSet<string>> BlueprintAliasIndex = new(StringComparer.Ordinal);
         private static readonly Dictionary<string, HashSet<string>> DatabankAliasIndex = new(StringComparer.Ordinal);
+        private static readonly Dictionary<int, HashSet<string>> BlueprintRequirementsByTechType = new();
 
         private static readonly HashSet<string> RunBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> RunDatabankEntries = new(StringComparer.Ordinal);
@@ -74,6 +76,7 @@ namespace SubnauticaLauncher.Gameplay
         private static Task? _loopTask;
         private static bool _runActive;
         private static bool _rulesLoaded;
+        private static GameState _lastStableState = GameState.Unknown;
 
         public static void Start()
         {
@@ -103,6 +106,7 @@ namespace SubnauticaLauncher.Gameplay
                 _cts = null;
                 _loopTask = null;
                 _runActive = false;
+                _lastStableState = GameState.Unknown;
                 RunBlueprints.Clear();
                 RunDatabankEntries.Clear();
             }
@@ -138,59 +142,51 @@ namespace SubnauticaLauncher.Gameplay
             if (_rulesLoaded)
                 return;
 
-            _rulesLoaded = true;
-
-            string? checklistFile = FindChecklistFile();
-            if (checklistFile == null)
+            string text = ReadEmbeddedChecklistText();
+            if (string.IsNullOrWhiteSpace(text))
             {
-                Logger.Warn("[100Tracker] Checklist file not found. Overlay will show 0 progress.");
+                Logger.Warn("[100Tracker] Embedded checklist database is missing. Tracker will stay idle.");
                 return;
             }
 
-            ParseChecklistFile(checklistFile);
+            ParseChecklistText(text);
+            BuildBlueprintTechTypeRequirementIndex();
+            _rulesLoaded = true;
 
             Logger.Log(
                 $"[100Tracker] Database loaded. " +
                 $"techTypes={TechTypeDatabase.Count}, " +
                 $"requiredBlueprints={RequiredBlueprints.Count} (pre={PreInstalledBlueprints.Count}), " +
                 $"requiredDatabank={RequiredDatabankEntries.Count} (pre={PreInstalledDatabankEntries.Count}), " +
+                $"techTypeBlueprintMappings={BlueprintRequirementsByTechType.Count}, " +
                 $"targetTotal={RequiredCombinedTotal}");
         }
 
-        private static string? FindChecklistFile()
+        private static string ReadEmbeddedChecklistText()
         {
-            string[] fileNames = { "Checklist.txt", "CheckList.txt" };
-            var roots = new List<string>();
-
-            if (!string.IsNullOrWhiteSpace(AppContext.BaseDirectory))
-                roots.Add(AppContext.BaseDirectory);
-
-            if (!string.IsNullOrWhiteSpace(Environment.CurrentDirectory) &&
-                !roots.Contains(Environment.CurrentDirectory, StringComparer.OrdinalIgnoreCase))
+            try
             {
-                roots.Add(Environment.CurrentDirectory);
-            }
+                var asm = typeof(Subnautica100TrackerOverlayController).Assembly;
+                string? resourceName = asm.GetManifestResourceNames()
+                    .FirstOrDefault(n => n.EndsWith("Subnautica100Checklist.txt", StringComparison.OrdinalIgnoreCase));
 
-            foreach (string root in roots)
+                if (resourceName == null)
+                    return string.Empty;
+
+                using Stream? stream = asm.GetManifestResourceStream(resourceName);
+                if (stream == null)
+                    return string.Empty;
+
+                using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                return reader.ReadToEnd();
+            }
+            catch
             {
-                string? current = root;
-                for (int i = 0; i < 8 && !string.IsNullOrWhiteSpace(current); i++)
-                {
-                    foreach (string fileName in fileNames)
-                    {
-                        string candidate = Path.Combine(current, fileName);
-                        if (File.Exists(candidate))
-                            return candidate;
-                    }
-
-                    current = Directory.GetParent(current)?.FullName;
-                }
+                return string.Empty;
             }
-
-            return null;
         }
 
-        private static void ParseChecklistFile(string path)
+        private static void ParseChecklistText(string text)
         {
             RequiredBlueprints.Clear();
             RequiredDatabankEntries.Clear();
@@ -198,9 +194,10 @@ namespace SubnauticaLauncher.Gameplay
             PreInstalledDatabankEntries.Clear();
             BlueprintAliasIndex.Clear();
             DatabankAliasIndex.Clear();
+            BlueprintRequirementsByTechType.Clear();
 
             ParseMode mode = ParseMode.None;
-            foreach (string rawLine in File.ReadLines(path))
+            foreach (string rawLine in text.Split('\n'))
             {
                 string line = rawLine.Trim();
                 if (line.Length == 0)
@@ -246,6 +243,37 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             AddDerivedRequirementAliases();
+        }
+
+        private static void BuildBlueprintTechTypeRequirementIndex()
+        {
+            BlueprintRequirementsByTechType.Clear();
+
+            foreach (var kv in TechTypeDatabase)
+            {
+                int techTypeId = kv.Key;
+                string enumName = kv.Value;
+                if (string.IsNullOrWhiteSpace(enumName))
+                    continue;
+
+                var aliases = new HashSet<string>(StringComparer.Ordinal);
+                AddAliasCandidate(aliases, NormalizeChecklistName(enumName));
+                AddAliasCandidate(aliases, NormalizeChecklistName(HumanizeIdentifier(enumName)));
+                ExpandAliasesInPlace(aliases, ExpandBlueprintAlias);
+
+                var matches = new HashSet<string>(StringComparer.Ordinal);
+                foreach (string alias in aliases)
+                {
+                    if (!BlueprintAliasIndex.TryGetValue(alias, out HashSet<string>? mapped))
+                        continue;
+
+                    foreach (string requirement in mapped)
+                        matches.Add(requirement);
+                }
+
+                if (matches.Count > 0)
+                    BlueprintRequirementsByTechType[techTypeId] = matches;
+            }
         }
 
         private static void AddRequirement(ParseMode mode, string normalizedName, bool preInstalled)
@@ -325,18 +353,45 @@ namespace SubnauticaLauncher.Gameplay
 
             lock (Sync)
             {
-                if (evt.Type == GameplayEventType.GameStateChanged &&
-                    evt.Key.Equals("MainMenu", StringComparison.OrdinalIgnoreCase))
+                if (evt.Type == GameplayEventType.GameStateChanged)
                 {
-                    ResetRunState();
-                    UpdateOverlayText();
+                    string state = NormalizeEventName(evt.Key);
+                    if (state == "mainmenu")
+                    {
+                        ResetRunState();
+                        _lastStableState = GameState.MainMenu;
+                        UpdateOverlayText();
+                        return;
+                    }
+
+                    if (state == "ingame")
+                    {
+                        if (!_runActive && _lastStableState == GameState.MainMenu)
+                        {
+                            // Fallback arming: if autosplitter RunStarted misses on a build,
+                            // still start tracker on a stable MainMenu -> InGame transition.
+                            StartRunState();
+                            Logger.Log("[100Tracker] Run started from state transition (MainMenu -> InGame).");
+                            UpdateOverlayText();
+                        }
+
+                        _lastStableState = GameState.InGame;
+                        return;
+                    }
+
+                    _lastStableState = GameState.Unknown;
                     return;
                 }
 
                 if (evt.Type == GameplayEventType.RunStarted)
                 {
-                    StartRunState();
-                    UpdateOverlayText();
+                    if (!_runActive)
+                    {
+                        StartRunState();
+                        Logger.Log("[100Tracker] Run started from RunStarted event.");
+                        UpdateOverlayText();
+                    }
+
                     return;
                 }
 
@@ -390,6 +445,16 @@ namespace SubnauticaLauncher.Gameplay
         private static HashSet<string> ResolveBlueprintMatches(string eventKey)
         {
             var matches = new HashSet<string>(StringComparer.Ordinal);
+
+            if (TryExtractTechTypeId(eventKey, out int techTypeId) &&
+                BlueprintRequirementsByTechType.TryGetValue(techTypeId, out HashSet<string>? mappedById))
+            {
+                foreach (string requirement in mappedById)
+                    matches.Add(requirement);
+
+                return matches;
+            }
+
             foreach (string alias in EnumerateBlueprintAliases(eventKey))
             {
                 if (!BlueprintAliasIndex.TryGetValue(alias, out HashSet<string>? mapped))
@@ -570,6 +635,8 @@ namespace SubnauticaLauncher.Gameplay
             _runActive = false;
             RunBlueprints.Clear();
             RunDatabankEntries.Clear();
+            LoggedUnmatchedBlueprintAliases.Clear();
+            LoggedUnmatchedDatabankAliases.Clear();
         }
 
         private static void StartRunState()
