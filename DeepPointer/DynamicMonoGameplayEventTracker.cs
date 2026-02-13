@@ -75,7 +75,9 @@ namespace SubnauticaLauncher.Gameplay
         private readonly string _gameName;
 
         private bool _ready;
+        private bool _hasGameplaySources;
         private bool _loggedInitFailure;
+        private bool _loggedGameplaySourceRetry;
         private int _pid = -1;
         private DateTime _nextInitAttemptUtc = DateTime.MinValue;
 
@@ -630,26 +632,56 @@ namespace SubnauticaLauncher.Gameplay
                     ResetState(proc.Id);
                 }
 
-                if (_ready || DateTime.UtcNow < _nextInitAttemptUtc)
+                DateTime now = DateTime.UtcNow;
+                bool retryGameplaySourceDiscovery = _ready && !_hasGameplaySources && now >= _nextInitAttemptUtc;
+
+                if (_ready && !retryGameplaySourceDiscovery)
                     return;
+
+                if (!_ready && now < _nextInitAttemptUtc)
+                    return;
+
+                bool wasReady = _ready;
+                bool hadGameplaySources = _hasGameplaySources;
 
                 if (TryInitialize(proc))
                 {
                     _ready = true;
+                    _hasGameplaySources = HasGameplaySourceBindings();
                     _loggedInitFailure = false;
-                    Logger.Log(
-                        $"Dynamic mono gameplay tracker initialized ({_gameName}, {_flavor}). " +
-                        $"Sources: blueprints={_knownTechField.IsValid || _scannerCompleteField.IsValid}, " +
-                        $"databank={_databankField.IsValid}, " +
-                        $"inventory={_inventoryMainField.IsValid}, " +
-                        $"craft={_crafterMainField.IsValid}, " +
-                        $"dictMode={(_useLegacyDictionaryLayout ? "legacy" : "modern")}, " +
-                        $"state={( _uGuiMainMenuField.IsValid || _uGuiMainField.IsValid || _playerMainField.IsValid)}");
+
+                    if (!wasReady || hadGameplaySources != _hasGameplaySources)
+                    {
+                        Logger.Log(
+                            $"Dynamic mono gameplay tracker initialized ({_gameName}, {_flavor}). " +
+                            $"Sources: blueprints={_knownTechField.IsValid || _scannerCompleteField.IsValid}, " +
+                            $"databank={_databankField.IsValid}, " +
+                            $"inventory={_inventoryMainField.IsValid}, " +
+                            $"craft={_crafterMainField.IsValid}, " +
+                            $"dictMode={(_useLegacyDictionaryLayout ? "legacy" : "modern")}, " +
+                            $"state={( _uGuiMainMenuField.IsValid || _uGuiMainField.IsValid || _playerMainField.IsValid)}");
+                    }
+
+                    if (!_hasGameplaySources)
+                    {
+                        _nextInitAttemptUtc = now.AddMilliseconds(InitRetryMs);
+                        if (!_loggedGameplaySourceRetry)
+                        {
+                            Logger.Warn($"Dynamic mono gameplay tracker missing gameplay sources ({_gameName}); retrying initialization.");
+                            _loggedGameplaySourceRetry = true;
+                        }
+                    }
+                    else
+                    {
+                        _nextInitAttemptUtc = DateTime.MinValue;
+                        _loggedGameplaySourceRetry = false;
+                    }
+
                     return;
                 }
 
-                _nextInitAttemptUtc = DateTime.UtcNow.AddMilliseconds(InitRetryMs);
-                if (!_loggedInitFailure)
+                _nextInitAttemptUtc = now.AddMilliseconds(InitRetryMs);
+                if (!wasReady && !_loggedInitFailure)
                 {
                     Logger.Warn($"Dynamic mono gameplay tracker init failed ({_gameName}).");
                     _loggedInitFailure = true;
@@ -657,11 +689,22 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
+        private bool HasGameplaySourceBindings()
+        {
+            return _knownTechField.IsValid
+                || _scannerCompleteField.IsValid
+                || _databankField.IsValid
+                || _inventoryMainField.IsValid
+                || _crafterMainField.IsValid;
+        }
+
         private void ResetState(int pid)
         {
             _pid = pid;
             _ready = false;
+            _hasGameplaySources = false;
             _loggedInitFailure = false;
+            _loggedGameplaySourceRetry = false;
             _nextInitAttemptUtc = DateTime.MinValue;
             _flavor = MonoFlavor.Unknown;
             _layout = LayoutV1;
