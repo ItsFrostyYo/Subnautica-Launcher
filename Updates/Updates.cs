@@ -34,7 +34,7 @@ public static class Updates
     {
         Version = "2.1.1",
         Title = "Small Hotfixes",
-        Date = "Feb 13, 2026 | Contributors (1) - ItsFrosti.",
+        Date = "Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
         Changes = new[]
         {
             "Hotfixed 100% Speedrun Tracker",
@@ -46,7 +46,7 @@ public static class Updates
     {
         Version = "2.1.0",
         Title = "Speedrun Tracking",
-        Date = "Feb 13, 2026 | Contributors (1) - ItsFrosti.",
+        Date = "Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
         Changes = new[]
         {            
             "Added a 100% Speedrun Tracker for tracking Blueprints and Entries (493 Total)",
