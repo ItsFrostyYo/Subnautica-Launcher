@@ -1267,13 +1267,15 @@ namespace SubnauticaLauncher.Gameplay
                     counts.Remove(techType);
             }
 
-            if (!parsedAny || counts.Count == 0)
+            if (!parsedAny)
             {
-                MaybeLogInventoryParseWarning(parsedAny, counts.Count);
+                MaybeLogInventoryParseWarning(parsedAnyCollection: false, countEntries: counts.Count);
                 return false;
             }
 
-            return counts.Count > 0;
+            // Empty inventory is a valid parsed state; returning true here avoids
+            // missing the very first pickup due to baseline initialization lag.
+            return true;
         }
 
         private bool TryReadInventoryCountsViaItemsDictionary(Process proc, out Dictionary<int, int> counts)

@@ -29,7 +29,8 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly Regex TokenSplitRegex = new(@"[^A-Za-z0-9]+", RegexOptions.Compiled);
         private static readonly HashSet<string> AliasStopWords = new(StringComparer.Ordinal)
         {
-            "the", "and", "of", "to", "on", "for", "in", "with", "a", "an"
+            "the", "and", "of", "to", "on", "for", "in", "with", "a", "an",
+            "unlocked", "unlock", "entry"
         };
 
         private static readonly HashSet<string> RequiredBlueprints = new(StringComparer.Ordinal);
@@ -71,7 +72,10 @@ namespace SubnauticaLauncher.Gameplay
             ["airsack"] = new[] { "bladderfish" },
             ["bladderfishanalysis"] = new[] { "bladderfish" },
             ["lavaeyeye"] = new[] { "redeyeye" },
-            ["lavaboomerang"] = new[] { "magmarang" }
+            ["lavaboomerang"] = new[] { "magmarang" },
+            ["bigcoraltubes"] = new[] { "giantcoraltubes" },
+            ["metalsalvage"] = new[] { "scatteredwreckage" },
+            ["metalsavlage"] = new[] { "scatteredwreckage" }
         };
 
         private static readonly IReadOnlyDictionary<int, string> TechTypeDatabase = TechTypeNames.GetAll();
@@ -595,6 +599,8 @@ namespace SubnauticaLauncher.Gameplay
             value = StripSuffix(value, "fragment");
             value = StripSuffix(value, "analysis");
             value = StripSuffix(value, "databox");
+            value = StripSuffix(value, "unlocked");
+            value = StripSuffix(value, "unlock");
             return value;
         }
 
