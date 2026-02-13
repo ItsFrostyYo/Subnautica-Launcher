@@ -181,6 +181,7 @@ namespace SubnauticaLauncher.UI
 
             UpdateHardcoreSaveDeleterVisualState();
 
+            DebugTelemetryController.Start();
             GameEventDocumenter.Start();
 
             Logger.Log("Startup complete");
@@ -1070,6 +1071,7 @@ namespace SubnauticaLauncher.UI
             Logger.Log("Launcher is now closing");
 
             ExplosionResetDisplayController.ForceClose();
+            DebugTelemetryController.Stop();
             GameEventDocumenter.Stop();
 
             var handle = new WindowInteropHelper(this).Handle;

@@ -25,6 +25,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private static CancellationTokenSource? _cts;
         private static Task? _loopTask;
+        public static event Action<GameplayEvent>? EventWritten;
 
         public static void Start()
         {
@@ -151,8 +152,8 @@ namespace SubnauticaLauncher.Gameplay
 
                     foreach (var evt in events)
                     {
-                        WriteEvent(evt);
-                        Logger.Log($"[GameEvent] {evt.Game} {evt.Type} key={evt.Key} delta={evt.Delta}");
+                        var outputEvent = WriteEvent(evt);
+                        Logger.Log($"[GameEvent] {outputEvent.Game} {outputEvent.Type} key={outputEvent.Key} delta={outputEvent.Delta}");
                     }
                 }
                 catch (InvalidOperationException)
@@ -280,7 +281,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private sealed class ProcessStateTracker
         {
-            private const int StableSamples = 2;
+            private const int StableSamples = 3;
             private static readonly TimeSpan RunStartCooldown = TimeSpan.FromSeconds(10);
 
             private bool _hasCandidate;
@@ -340,7 +341,8 @@ namespace SubnauticaLauncher.Gameplay
                 if (currentState != GameState.InGame)
                     return false;
 
-                if (previousState != GameState.MainMenu && previousState != GameState.BlackScreen)
+                // Require a loading/cutscene phase before in-game, matching autosplitter behavior.
+                if (previousState != GameState.BlackScreen)
                     return false;
 
                 if (!_runArmed)
@@ -385,19 +387,32 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
-        private static void WriteEvent(GameplayEvent evt)
+        private static GameplayEvent WriteEvent(GameplayEvent evt)
         {
+            GameplayEvent output = GameplayEventFormatter.FormatForOutput(evt);
+
             try
             {
                 Directory.CreateDirectory(AppPaths.DataPath);
                 string file = Path.Combine(AppPaths.DataPath, "gameplay_events.jsonl");
-                string json = JsonSerializer.Serialize(evt, JsonOptions);
+                string json = JsonSerializer.Serialize(output, JsonOptions);
                 File.AppendAllText(file, json + Environment.NewLine);
             }
             catch (Exception ex)
             {
                 Logger.Exception(ex, "Failed to write gameplay event log");
             }
+
+            try
+            {
+                EventWritten?.Invoke(output);
+            }
+            catch
+            {
+                // UI listeners are best-effort only.
+            }
+
+            return output;
         }
     }
 }

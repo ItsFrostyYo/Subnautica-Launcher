@@ -18,6 +18,10 @@ namespace SubnauticaLauncher.Gameplay
         private const int MaxPlausibleTechType = 200000;
         private const int MaxPlausibleItemCount = 10000;
         private const int MaxKnownTechType = 10005;
+        private const float MainMenuPosX = 0f;
+        private const float MainMenuPosY = 1.75f;
+        private const float MainMenuPosZ = 0f;
+        private const float MainMenuPositionTolerance = 0.01f;
 
         private static readonly MonoLayout LayoutV1 = new(
             assemblyImage: 0x58,
@@ -87,6 +91,7 @@ namespace SubnauticaLauncher.Gameplay
         private StaticFieldRef _playerMainField;
         private StaticFieldRef _uGuiMainField;
         private StaticFieldRef _uGuiMainMenuField;
+        private StaticFieldRef _escapePodMainField;
 
         private bool _hasInventoryContainerOffset;
         private int _inventoryContainerOffset;
@@ -122,6 +127,12 @@ namespace SubnauticaLauncher.Gameplay
         private int _inventoryItemTechTypeOffset;
         private bool _hasPickupableTechTypeOffset;
         private int _pickupableTechTypeOffset;
+        private bool _hasEscapePodIntroCinematicOffset;
+        private int _escapePodIntroCinematicOffset;
+        private bool _hasPlayerCinematicModeOffset;
+        private int _playerCinematicModeOffset;
+        private bool _hasCinematicModeActiveOffset;
+        private int _cinematicModeActiveOffset;
 
         private readonly Dictionary<long, int?> _directTechTypeOffsetByClass = new();
         private readonly Dictionary<long, int?> _nestedObjectOffsetByClass = new();
@@ -143,11 +154,28 @@ namespace SubnauticaLauncher.Gameplay
         private int _previousCraftTechType = -1;
         private DateTime _recentCraftEndedUtc = DateTime.MinValue;
         private int _recentCraftTechType = -1;
+        private readonly DeepPointer? _legacyPosX;
+        private readonly DeepPointer? _legacyPosY;
+        private readonly DeepPointer? _legacyPosZ;
+        private readonly DeepPointer? _modernPosX;
+        private readonly DeepPointer? _modernPosY;
+        private readonly DeepPointer? _modernPosZ;
 
         public DynamicMonoGameplayEventTracker(string gameName)
         {
             _gameName = gameName;
             _classFieldSize = Align(IntPtr.Size * 3 + 4, IntPtr.Size);
+
+            if (string.Equals(_gameName, "Subnautica", StringComparison.OrdinalIgnoreCase))
+            {
+                _legacyPosX = new DeepPointer("Subnautica.exe", 0x142B8C8, 0x180, 0x40, 0xA8, 0x7C0);
+                _legacyPosY = new DeepPointer("Subnautica.exe", 0x142B8C8, 0x180, 0x40, 0xA8, 0x7C4);
+                _legacyPosZ = new DeepPointer("Subnautica.exe", 0x142B8C8, 0x180, 0x40, 0xA8, 0x7C8);
+
+                _modernPosX = new DeepPointer("UnityPlayer.dll", 0x1839CE0, 0x28, 0x10, 0x150, 0xA58);
+                _modernPosY = new DeepPointer("UnityPlayer.dll", 0x1839CE0, 0x28, 0x10, 0x150, 0xA5C);
+                _modernPosZ = new DeepPointer("UnityPlayer.dll", 0x1839CE0, 0x28, 0x10, 0x150, 0xA60);
+            }
         }
 
         public bool TryPoll(Process proc, out IReadOnlyList<GameplayEvent> events)
@@ -262,13 +290,15 @@ namespace SubnauticaLauncher.Gameplay
             state = GameState.Unknown;
             bool hadAnySignal = false;
             bool hasPlayer = false;
+            IntPtr playerMain = IntPtr.Zero;
 
-            if (TryReadStaticObject(proc, _playerMainField, out var playerMain))
+            if (TryReadStaticObject(proc, _playerMainField, out playerMain))
             {
                 hadAnySignal = true;
                 hasPlayer = playerMain != IntPtr.Zero;
             }
 
+            bool isLoading = false;
             if (TryReadStaticObject(proc, _uGuiMainField, out var uGuiMain) && uGuiMain != IntPtr.Zero)
             {
                 hadAnySignal = true;
@@ -277,23 +307,66 @@ namespace SubnauticaLauncher.Gameplay
                     _hasSceneLoadingIsLoadingOffset &&
                     MemoryReader.ReadIntPtr(proc, IntPtr.Add(uGuiMain, _uGuiLoadingOffset), out var sceneLoading) &&
                     sceneLoading != IntPtr.Zero &&
-                    TryReadBool(proc, IntPtr.Add(sceneLoading, _sceneLoadingIsLoadingOffset), out bool isLoading) &&
-                    isLoading)
+                    TryReadBool(proc, IntPtr.Add(sceneLoading, _sceneLoadingIsLoadingOffset), out bool loadingFlag))
                 {
-                    state = GameState.BlackScreen;
+                    hadAnySignal = true;
+                    isLoading = loadingFlag;
+                }
+            }
+
+            if (isLoading)
+            {
+                state = GameState.BlackScreen;
+                return true;
+            }
+
+            bool isIntroCinematic = false;
+            if (TryReadIntroCinematicActive(proc, out bool introCinematic))
+            {
+                hadAnySignal = true;
+                isIntroCinematic = introCinematic;
+            }
+
+            if (hasPlayer &&
+                _hasPlayerCinematicModeOffset &&
+                TryReadBool(proc, IntPtr.Add(playerMain, _playerCinematicModeOffset), out bool playerCinematic))
+            {
+                hadAnySignal = true;
+                isIntroCinematic |= playerCinematic;
+            }
+
+            if (TryReadIsMainMenuPosition(proc, out bool isMainMenuPosition))
+            {
+                hadAnySignal = true;
+                if (isMainMenuPosition)
+                {
+                    state = GameState.MainMenu;
                     return true;
                 }
             }
 
             if (hasPlayer)
             {
+                if (isIntroCinematic)
+                {
+                    state = GameState.BlackScreen;
+                    return true;
+                }
+
                 state = GameState.InGame;
                 return true;
             }
 
             if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu) && mainMenu != IntPtr.Zero)
             {
-                state = GameState.MainMenu;
+                hadAnySignal = true;
+                state = isIntroCinematic ? GameState.BlackScreen : GameState.MainMenu;
+                return true;
+            }
+
+            if (isIntroCinematic)
+            {
+                state = GameState.BlackScreen;
                 return true;
             }
 
@@ -317,6 +390,63 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return false;
+        }
+
+        private bool TryReadIntroCinematicActive(Process proc, out bool active)
+        {
+            active = false;
+
+            if (!_escapePodMainField.IsValid || !_hasEscapePodIntroCinematicOffset || !_hasCinematicModeActiveOffset)
+                return false;
+
+            if (!TryReadStaticObject(proc, _escapePodMainField, out var escapePodMain) || escapePodMain == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(escapePodMain, _escapePodIntroCinematicOffset), out var introObj) ||
+                introObj == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            return TryReadBool(proc, IntPtr.Add(introObj, _cinematicModeActiveOffset), out active);
+        }
+
+        private bool TryReadIsMainMenuPosition(Process proc, out bool isMainMenuPosition)
+        {
+            isMainMenuPosition = false;
+
+            if (!TryReadPlayerPosition(proc, _modernPosX, _modernPosY, _modernPosZ, out float x, out float y, out float z) &&
+                !TryReadPlayerPosition(proc, _legacyPosX, _legacyPosY, _legacyPosZ, out x, out y, out z))
+            {
+                return false;
+            }
+
+            isMainMenuPosition =
+                Math.Abs(x - MainMenuPosX) <= MainMenuPositionTolerance &&
+                Math.Abs(y - MainMenuPosY) <= MainMenuPositionTolerance &&
+                Math.Abs(z - MainMenuPosZ) <= MainMenuPositionTolerance;
+            return true;
+        }
+
+        private static bool TryReadPlayerPosition(
+            Process proc,
+            DeepPointer? xPtr,
+            DeepPointer? yPtr,
+            DeepPointer? zPtr,
+            out float x,
+            out float y,
+            out float z)
+        {
+            x = 0f;
+            y = 0f;
+            z = 0f;
+
+            if (xPtr == null || yPtr == null || zPtr == null)
+                return false;
+
+            return xPtr.TryReadFloat(proc, out x)
+                && yPtr.TryReadFloat(proc, out y)
+                && zPtr.TryReadFloat(proc, out z);
         }
 
         private GameplayEvent CreateEvent(GameplayEventType type, string key, int delta, DateTime now)
@@ -399,6 +529,7 @@ namespace SubnauticaLauncher.Gameplay
             _playerMainField = default;
             _uGuiMainField = default;
             _uGuiMainMenuField = default;
+            _escapePodMainField = default;
 
             _hasInventoryContainerOffset = false;
             _inventoryContainerOffset = 0;
@@ -434,6 +565,12 @@ namespace SubnauticaLauncher.Gameplay
             _inventoryItemTechTypeOffset = 0;
             _hasPickupableTechTypeOffset = false;
             _pickupableTechTypeOffset = 0;
+            _hasEscapePodIntroCinematicOffset = false;
+            _escapePodIntroCinematicOffset = 0;
+            _hasPlayerCinematicModeOffset = false;
+            _playerCinematicModeOffset = 0;
+            _hasCinematicModeActiveOffset = false;
+            _cinematicModeActiveOffset = 0;
 
             _directTechTypeOffsetByClass.Clear();
             _nestedObjectOffsetByClass.Clear();
@@ -484,6 +621,8 @@ namespace SubnauticaLauncher.Gameplay
             IntPtr inventoryItemClass = FindClass(proc, mainImage, "InventoryItem");
             IntPtr pickupableClass = FindClass(proc, mainImage, "Pickupable");
             IntPtr playerClass = FindClass(proc, mainImage, "Player");
+            IntPtr playerCinematicControllerClass = FindClass(proc, mainImage, "PlayerCinematicController");
+            IntPtr escapePodClass = FindClass(proc, mainImage, "EscapePod");
             IntPtr uGuiClass = FindClass(proc, mainImage, "uGUI");
             IntPtr uGuiMainMenuClass = FindClass(proc, mainImage, "uGUI_MainMenu");
             IntPtr uGuiSceneLoadingClass = FindClass(proc, mainImage, "uGUI_SceneLoading");
@@ -585,6 +724,27 @@ namespace SubnauticaLauncher.Gameplay
             {
                 TryResolveStaticFieldRef(proc, playerClass,
                     new[] { "main", "_main", "s_main", "<main>k__BackingField" }, out _playerMainField);
+
+                _hasPlayerCinematicModeOffset = TryFindFieldOffsetAny(proc, playerClass,
+                    new[] { "_cinematicModeActive", "cinematicModeActive", "m_cinematicModeActive" },
+                    out _playerCinematicModeOffset);
+            }
+
+            if (escapePodClass != IntPtr.Zero)
+            {
+                TryResolveStaticFieldRef(proc, escapePodClass,
+                    new[] { "main", "_main", "s_main", "<main>k__BackingField" }, out _escapePodMainField);
+
+                _hasEscapePodIntroCinematicOffset = TryFindFieldOffsetAny(proc, escapePodClass,
+                    new[] { "introCinematic", "_introCinematic", "m_introCinematic" },
+                    out _escapePodIntroCinematicOffset);
+            }
+
+            if (playerCinematicControllerClass != IntPtr.Zero)
+            {
+                _hasCinematicModeActiveOffset = TryFindFieldOffsetAny(proc, playerCinematicControllerClass,
+                    new[] { "cinematicModeActive", "_cinematicModeActive", "m_cinematicModeActive" },
+                    out _cinematicModeActiveOffset);
             }
 
             if (uGuiClass != IntPtr.Zero)
@@ -654,7 +814,10 @@ namespace SubnauticaLauncher.Gameplay
                 anyReadableSource = true;
             }
 
-            bool hasStateSource = _playerMainField.IsValid || _uGuiMainField.IsValid || _uGuiMainMenuField.IsValid;
+            bool hasStateSource = _playerMainField.IsValid
+                || _uGuiMainField.IsValid
+                || _uGuiMainMenuField.IsValid
+                || _escapePodMainField.IsValid;
             return anyReadableSource || hasStateSource;
         }
 
