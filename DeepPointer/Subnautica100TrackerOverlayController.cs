@@ -94,7 +94,6 @@ namespace SubnauticaLauncher.Gameplay
         private static CancellationTokenSource? _toastDisplayCts;
         private static Task? _loopTask;
         private static bool _runActive;
-        private static bool _sawMainMenu;
         private static bool _rulesLoaded;
         private static bool _toastVisible;
         private static double _overlayLeft;
@@ -442,22 +441,10 @@ namespace SubnauticaLauncher.Gameplay
                     if (state == "mainmenu")
                     {
                         ResetRunState();
-                        _sawMainMenu = true;
                         UpdateOverlayText();
                         return;
                     }
 
-                    if (state == "ingame")
-                    {
-                        if (!_runActive && _sawMainMenu)
-                        {
-                            StartRunState();
-                            Logger.Log("[100Tracker] Run fallback started from GameStateChanged InGame.");
-                            UpdateOverlayText();
-                        }
-
-                        return;
-                    }
                     return;
                 }
 
@@ -473,29 +460,12 @@ namespace SubnauticaLauncher.Gameplay
                     return;
                 }
 
-                if (!_runActive &&
-                    (evt.Type == GameplayEventType.ItemPickedUp ||
-                     evt.Type == GameplayEventType.ItemDropped ||
-                     evt.Type == GameplayEventType.ItemCrafted))
-                {
-                    StartRunState();
-                    Logger.Log($"[100Tracker] Run fallback started from {evt.Type} event.");
-                    UpdateOverlayText();
-                }
+                if (!_runActive)
+                    return;
 
                 if (evt.Type == GameplayEventType.BlueprintUnlocked)
                 {
                     var matches = ResolveBlueprintMatches(evt.Key);
-
-                    if (!_runActive && matches.Any(requirement => !PreInstalledBlueprints.Contains(requirement)))
-                    {
-                        StartRunState();
-                        Logger.Log("[100Tracker] Run fallback started from non-default blueprint unlock.");
-                        UpdateOverlayText();
-                    }
-
-                    if (!_runActive)
-                        return;
 
                     int added = 0;
                     var newlyAdded = new List<string>();
@@ -525,16 +495,6 @@ namespace SubnauticaLauncher.Gameplay
                 if (evt.Type == GameplayEventType.DatabankEntryUnlocked)
                 {
                     var matches = ResolveDatabankMatches(evt.Key);
-
-                    if (!_runActive && matches.Any(requirement => !PreInstalledDatabankEntries.Contains(requirement)))
-                    {
-                        StartRunState();
-                        Logger.Log("[100Tracker] Run fallback started from non-default databank unlock.");
-                        UpdateOverlayText();
-                    }
-
-                    if (!_runActive)
-                        return;
 
                     int added = 0;
                     var newlyAdded = new List<string>();
@@ -1082,7 +1042,6 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             _runActive = false;
-            _sawMainMenu = false;
             _toastVisible = false;
             RunBlueprints.Clear();
             RunDatabankEntries.Clear();
@@ -1215,30 +1174,34 @@ namespace SubnauticaLauncher.Gameplay
         {
             rect = default;
 
-            var processes = Process.GetProcessesByName("Subnautica");
+            IntPtr foreground = GetForegroundWindow();
+            if (foreground == IntPtr.Zero || IsIconic(foreground))
+                return false;
+
+            _ = GetWindowThreadProcessId(foreground, out uint processId);
+            if (processId == 0)
+                return false;
+
+            Process? process = null;
             try
             {
-                if (processes.Length == 0)
+                process = Process.GetProcessById((int)processId);
+
+                if (process.HasExited)
                     return false;
 
-                IntPtr foreground = GetForegroundWindow();
-                Process? proc = processes.FirstOrDefault(p =>
-                    !p.HasExited &&
-                    p.MainWindowHandle != IntPtr.Zero &&
-                    p.MainWindowHandle == foreground);
-
-                if (proc == null)
+                if (!process.ProcessName.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
                     return false;
 
-                if (IsIconic(proc.MainWindowHandle))
-                    return false;
-
-                return GetWindowRect(proc.MainWindowHandle, out rect);
+                return GetWindowRect(foreground, out rect);
+            }
+            catch
+            {
+                return false;
             }
             finally
             {
-                foreach (var p in processes)
-                    p.Dispose();
+                process?.Dispose();
             }
         }
 
@@ -1372,6 +1335,9 @@ namespace SubnauticaLauncher.Gameplay
 
         [DllImport("user32.dll")]
         private static extern bool IsIconic(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
         [DllImport("user32.dll")]
         private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);

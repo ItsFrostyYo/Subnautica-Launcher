@@ -166,7 +166,9 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousIntroCinematicActive;
         private bool _previousPlayerCinematicActive;
         private bool _startedBefore;
-        private bool _runStartArmed;
+        private bool _hasPreviousRunStartPosition;
+        private float _previousRunStartPosX;
+        private float _previousRunStartPosZ;
 
         public DynamicMonoGameplayEventTracker(string gameName)
         {
@@ -459,13 +461,15 @@ namespace SubnauticaLauncher.Gameplay
             bool animationActive = false;
             bool hasAnimation = hasPlayer && TryReadPlayerCinematicActive(proc, playerMain, out animationActive);
             bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
+            bool hasPosition =
+                TryReadPlayerPosition(proc, _modernPosX, _modernPosY, _modernPosZ, out float posX, out _, out float posZ) ||
+                TryReadPlayerPosition(proc, _legacyPosX, _legacyPosY, _legacyPosZ, out posX, out _, out posZ);
 
             if (hasMainMenuSignal)
             {
                 if (isMainMenuNow)
                 {
                     _startedBefore = false;
-                    _runStartArmed = true;
                 }
             }
             else if (hasPlayer)
@@ -479,14 +483,30 @@ namespace SubnauticaLauncher.Gameplay
                 _hasRunStartBaseline = true;
                 _previousIntroCinematicActive = hasIntro && introActive;
                 _previousPlayerCinematicActive = hasAnimation && animationActive;
+
+                if (hasPosition)
+                {
+                    _hasPreviousRunStartPosition = true;
+                    _previousRunStartPosX = posX;
+                    _previousRunStartPosZ = posZ;
+                }
+                else
+                {
+                    _hasPreviousRunStartPosition = false;
+                }
+
                 return false;
             }
 
-            bool runStarted = false;
-            bool leftMainMenu = _runStartArmed && !isMainMenuNow;
-            bool hasAutosplitterCutsceneSignals = hasIntro || hasAnimation || hasSkipProgress;
+            bool movedSinceLastSample =
+                hasPosition &&
+                _hasPreviousRunStartPosition &&
+                (Math.Abs(posX - _previousRunStartPosX) > 0.01f || Math.Abs(posZ - _previousRunStartPosZ) > 0.01f);
 
-            if (!_startedBefore && leftMainMenu)
+            bool runStarted = false;
+            bool canStart = !_startedBefore && (hasPlayer || hasMainMenuSignal) && !isMainMenuNow;
+
+            if (canStart)
             {
                 if (hasIntro && _previousIntroCinematicActive && !introActive)
                 {
@@ -503,24 +523,33 @@ namespace SubnauticaLauncher.Gameplay
                     runStarted = true;
                     reason = "CutsceneSkipped";
                 }
-                else if (!hasAutosplitterCutsceneSignals &&
-                    hasPlayer &&
+                else if (movedSinceLastSample &&
                     (!hasLoading || !isLoading) &&
                     (!hasIntro || !introActive) &&
                     (!hasAnimation || !animationActive))
                 {
                     runStarted = true;
-                    reason = "InGameReady";
+                    reason = "PlayerMoved";
                 }
             }
 
             _previousIntroCinematicActive = hasIntro && introActive;
             _previousPlayerCinematicActive = hasAnimation && animationActive;
 
+            if (hasPosition)
+            {
+                _hasPreviousRunStartPosition = true;
+                _previousRunStartPosX = posX;
+                _previousRunStartPosZ = posZ;
+            }
+            else
+            {
+                _hasPreviousRunStartPosition = false;
+            }
+
             if (runStarted)
             {
                 _startedBefore = true;
-                _runStartArmed = false;
                 return true;
             }
 
@@ -711,7 +740,9 @@ namespace SubnauticaLauncher.Gameplay
             _previousIntroCinematicActive = false;
             _previousPlayerCinematicActive = false;
             _startedBefore = false;
-            _runStartArmed = false;
+            _hasPreviousRunStartPosition = false;
+            _previousRunStartPosX = 0f;
+            _previousRunStartPosZ = 0f;
         }
 
         private bool TryInitialize(Process proc)
