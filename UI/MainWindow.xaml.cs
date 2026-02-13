@@ -1,4 +1,4 @@
-using SubnauticaLauncher.BelowZero;
+﻿using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Explosion;
 using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Installer;
@@ -45,6 +45,7 @@ namespace SubnauticaLauncher.UI
         private Key _resetKey = Key.None;
         private bool _macroEnabled;
         private bool _renameOnCloseEnabled = true;
+        private DispatcherTimer? _statusRefreshTimer;
 
         private static CancellationTokenSource? _explosionCts;
         private static bool _explosionRunning;
@@ -149,6 +150,7 @@ namespace SubnauticaLauncher.UI
             SyncThemeDropdown(bg);
 
             LoadInstalledVersions();
+            StartStatusRefreshTimer();
             LoadMacroSettings();
 
             ExplosionResetSettings.Load();
@@ -523,8 +525,8 @@ namespace SubnauticaLauncher.UI
 
                 bool launched = await WaitForLaunchedAsync(process);
                 SetStatus(target, launched ? VersionStatus.Launched : VersionStatus.Active);
-                RegisterExitRefresh(process);
                 LoadInstalledVersions();
+                RefreshRunningStatusIndicators();
             }
             catch (Exception ex)
             {
@@ -591,8 +593,8 @@ namespace SubnauticaLauncher.UI
 
                 bool launched = await WaitForLaunchedAsync(process);
                 SetStatus(target, launched ? BZVersionStatus.Launched : BZVersionStatus.Active);
-                RegisterExitRefresh(process);
                 LoadInstalledVersions();
+                RefreshRunningStatusIndicators();
             }
             catch (Exception ex)
             {
@@ -616,33 +618,32 @@ namespace SubnauticaLauncher.UI
 
         private void LoadInstalledVersions()
         {
-            bool snRunning = IsProcessRunning("Subnautica");
             var snList = VersionLoader.LoadInstalled();
             foreach (var v in snList)
             {
                 string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
                 string active = Path.Combine(common, SnActiveFolder);
                 v.Status = PathsAreEqual(v.HomeFolder, active)
-                    ? (snRunning ? VersionStatus.Launched : VersionStatus.Active)
+                    ? VersionStatus.Active
                     : VersionStatus.Idle;
             }
 
             InstalledVersionsList.ItemsSource = snList;
             InstalledVersionsList.Items.Refresh();
 
-            bool bzRunning = IsProcessRunning("SubnauticaZero");
             var bzList = BZVersionLoader.LoadInstalled();
             foreach (var v in bzList)
             {
                 string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
                 string active = Path.Combine(common, BzActiveFolder);
                 v.Status = PathsAreEqual(v.HomeFolder, active)
-                    ? (bzRunning ? BZVersionStatus.Launched : BZVersionStatus.Active)
+                    ? BZVersionStatus.Active
                     : BZVersionStatus.Idle;
             }
 
             BZInstalledVersionsList.ItemsSource = bzList;
             BZInstalledVersionsList.Items.Refresh();
+            RefreshRunningStatusIndicators();
         }
 
         private void SetStatus(InstalledVersion version, VersionStatus status)
@@ -655,15 +656,6 @@ namespace SubnauticaLauncher.UI
         {
             version.Status = status;
             BZInstalledVersionsList.Items.Refresh();
-        }
-
-        private void RegisterExitRefresh(Process process)
-        {
-            process.EnableRaisingEvents = true;
-            process.Exited += (_, _) =>
-            {
-                Dispatcher.BeginInvoke(() => LoadInstalledVersions());
-            };
         }
 
         private static bool IsProcessRunning(string processName)
@@ -684,6 +676,72 @@ namespace SubnauticaLauncher.UI
                 foreach (var proc in processes)
                     proc.Dispose();
             }
+        }
+
+        private void StartStatusRefreshTimer()
+        {
+            _statusRefreshTimer?.Stop();
+            _statusRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _statusRefreshTimer.Tick += (_, _) => RefreshRunningStatusIndicators();
+            _statusRefreshTimer.Start();
+        }
+
+        private void RefreshRunningStatusIndicators()
+        {
+            bool snRunning = IsProcessRunning("Subnautica");
+            bool bzRunning = IsProcessRunning("SubnauticaZero");
+            bool snChanged = false;
+            bool bzChanged = false;
+
+            if (InstalledVersionsList.ItemsSource is IEnumerable<InstalledVersion> snVersions)
+            {
+                foreach (var v in snVersions)
+                {
+                    if (v.Status is VersionStatus.Switching or VersionStatus.Launching)
+                        continue;
+
+                    string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
+                    string active = Path.Combine(common, SnActiveFolder);
+                    VersionStatus next = PathsAreEqual(v.HomeFolder, active)
+                        ? (snRunning ? VersionStatus.Launched : VersionStatus.Active)
+                        : VersionStatus.Idle;
+
+                    if (v.Status != next)
+                    {
+                        v.Status = next;
+                        snChanged = true;
+                    }
+                }
+            }
+
+            if (BZInstalledVersionsList.ItemsSource is IEnumerable<BZInstalledVersion> bzVersions)
+            {
+                foreach (var v in bzVersions)
+                {
+                    if (v.Status is BZVersionStatus.Switching or BZVersionStatus.Launching)
+                        continue;
+
+                    string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
+                    string active = Path.Combine(common, BzActiveFolder);
+                    BZVersionStatus next = PathsAreEqual(v.HomeFolder, active)
+                        ? (bzRunning ? BZVersionStatus.Launched : BZVersionStatus.Active)
+                        : BZVersionStatus.Idle;
+
+                    if (v.Status != next)
+                    {
+                        v.Status = next;
+                        bzChanged = true;
+                    }
+                }
+            }
+
+            if (snChanged)
+                InstalledVersionsList.Items.Refresh();
+            if (bzChanged)
+                BZInstalledVersionsList.Items.Refresh();
         }
 
         private static async Task<bool> WaitForLaunchedAsync(Process process, int timeoutMs = 10000)
@@ -1170,6 +1228,7 @@ namespace SubnauticaLauncher.UI
         {
             await Task.Yield();
             Logger.Log("Launcher is now closing");
+            _statusRefreshTimer?.Stop();
 
             ExplosionResetDisplayController.ForceClose();
             Subnautica100TrackerOverlayController.Stop();

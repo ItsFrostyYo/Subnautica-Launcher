@@ -37,7 +37,8 @@ public static class Updates
         Date = "Feb 11, 2026 | Contributors (1) - ItsFrosti.",
         Changes = new[]
         {            
-            "Added a 100% Speedrun Tracker for tracking Blueprints and Entries (434 Total)"        
+            "Added a 100% Speedrun Tracker for tracking Blueprints and Entries (493 Total)",
+            "100% Speedrun Tracker Overlay Toggle"        
         }
     },
          
