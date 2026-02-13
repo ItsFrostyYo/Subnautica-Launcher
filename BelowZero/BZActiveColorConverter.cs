@@ -1,6 +1,5 @@
 ﻿using SubnauticaLauncher.BelowZero;
 using System;
-using System;
 using System.Globalization;
 using System.Windows.Data;
 using Brushes = System.Windows.Media.Brushes;
@@ -18,6 +17,7 @@ namespace SubnauticaLauncher.UI
             {
                 BZVersionStatus.Active => Brushes.LimeGreen,
                 BZVersionStatus.Switching => Brushes.Orange,
+                BZVersionStatus.Launched => Brushes.Yellow,
                 BZVersionStatus.Launching => Brushes.Yellow,
                 _ => Brushes.White
             };

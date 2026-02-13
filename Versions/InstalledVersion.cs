@@ -1,8 +1,4 @@
 ﻿using System.IO;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
 
 namespace SubnauticaLauncher.Versions;
 
@@ -22,7 +18,8 @@ public class InstalledVersion
     public string DisplayLabel => Status switch
     {
         VersionStatus.Switching => "Switching → " + GetTrimmedDisplayName(DisplayName),
-        VersionStatus.Launching => "Launched → " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Launching => "Launching → " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Launched => "Launched → " + GetTrimmedDisplayName(DisplayName),
         VersionStatus.Active => "Active → " + GetTrimmedDisplayName(DisplayName),
         _ => GetTrimmedDisplayName(DisplayName)
     };

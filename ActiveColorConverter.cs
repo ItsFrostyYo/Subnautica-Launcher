@@ -3,10 +3,7 @@ using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media;
 using Brushes = System.Windows.Media.Brushes;
-using SubnauticaLauncher.UI;
 using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
 
 namespace SubnauticaLauncher
 {
@@ -20,6 +17,7 @@ namespace SubnauticaLauncher
             return status switch
             {
                 VersionStatus.Active => Brushes.LimeGreen,
+                VersionStatus.Launched => Brushes.OrangeRed,
                 VersionStatus.Launching => Brushes.OrangeRed,
                 VersionStatus.Switching => Brushes.Gold,
                 _ => Brushes.White

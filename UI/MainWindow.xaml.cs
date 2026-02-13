@@ -511,15 +511,19 @@ namespace SubnauticaLauncher.UI
                 SetStatus(target, VersionStatus.Launching);
                 await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
 
-                Process.Start(new ProcessStartInfo
+                Process? process = Process.Start(new ProcessStartInfo
                 {
                     FileName = targetExe,
                     WorkingDirectory = activePath,
                     UseShellExecute = true
                 });
 
-                await Task.Delay(250);
-                SetStatus(target, VersionStatus.Active);
+                if (process == null)
+                    throw new InvalidOperationException("Failed to launch Subnautica.");
+
+                bool launched = await WaitForLaunchedAsync(process);
+                SetStatus(target, launched ? VersionStatus.Launched : VersionStatus.Active);
+                RegisterExitRefresh(process);
                 LoadInstalledVersions();
             }
             catch (Exception ex)
@@ -575,15 +579,19 @@ namespace SubnauticaLauncher.UI
                 SetStatus(target, BZVersionStatus.Launching);
                 await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
 
-                Process.Start(new ProcessStartInfo
+                Process? process = Process.Start(new ProcessStartInfo
                 {
                     FileName = targetExe,
                     WorkingDirectory = activePath,
                     UseShellExecute = true
                 });
 
-                await Task.Delay(250);
-                SetStatus(target, BZVersionStatus.Active);
+                if (process == null)
+                    throw new InvalidOperationException("Failed to launch Below Zero.");
+
+                bool launched = await WaitForLaunchedAsync(process);
+                SetStatus(target, launched ? BZVersionStatus.Launched : BZVersionStatus.Active);
+                RegisterExitRefresh(process);
                 LoadInstalledVersions();
             }
             catch (Exception ex)
@@ -608,26 +616,28 @@ namespace SubnauticaLauncher.UI
 
         private void LoadInstalledVersions()
         {
+            bool snRunning = IsProcessRunning("Subnautica");
             var snList = VersionLoader.LoadInstalled();
             foreach (var v in snList)
             {
                 string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
                 string active = Path.Combine(common, SnActiveFolder);
                 v.Status = PathsAreEqual(v.HomeFolder, active)
-                    ? VersionStatus.Active
+                    ? (snRunning ? VersionStatus.Launched : VersionStatus.Active)
                     : VersionStatus.Idle;
             }
 
             InstalledVersionsList.ItemsSource = snList;
             InstalledVersionsList.Items.Refresh();
 
+            bool bzRunning = IsProcessRunning("SubnauticaZero");
             var bzList = BZVersionLoader.LoadInstalled();
             foreach (var v in bzList)
             {
                 string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
                 string active = Path.Combine(common, BzActiveFolder);
                 v.Status = PathsAreEqual(v.HomeFolder, active)
-                    ? BZVersionStatus.Active
+                    ? (bzRunning ? BZVersionStatus.Launched : BZVersionStatus.Active)
                     : BZVersionStatus.Idle;
             }
 
@@ -645,6 +655,71 @@ namespace SubnauticaLauncher.UI
         {
             version.Status = status;
             BZInstalledVersionsList.Items.Refresh();
+        }
+
+        private void RegisterExitRefresh(Process process)
+        {
+            process.EnableRaisingEvents = true;
+            process.Exited += (_, _) =>
+            {
+                Dispatcher.BeginInvoke(() => LoadInstalledVersions());
+            };
+        }
+
+        private static bool IsProcessRunning(string processName)
+        {
+            var processes = Process.GetProcessesByName(processName);
+            try
+            {
+                foreach (var proc in processes)
+                {
+                    if (!proc.HasExited)
+                        return true;
+                }
+
+                return false;
+            }
+            finally
+            {
+                foreach (var proc in processes)
+                    proc.Dispose();
+            }
+        }
+
+        private static async Task<bool> WaitForLaunchedAsync(Process process, int timeoutMs = 10000)
+        {
+            int waited = 0;
+            const int stepMs = 100;
+
+            while (waited < timeoutMs)
+            {
+                try
+                {
+                    process.Refresh();
+                    if (process.HasExited)
+                        return false;
+
+                    if (process.MainWindowHandle != IntPtr.Zero)
+                        return true;
+                }
+                catch
+                {
+                    return false;
+                }
+
+                await Task.Delay(stepMs);
+                waited += stepMs;
+            }
+
+            try
+            {
+                process.Refresh();
+                return !process.HasExited;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private void InstalledVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)

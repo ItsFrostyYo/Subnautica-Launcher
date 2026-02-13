@@ -1,9 +1,4 @@
 ﻿using System.IO;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
-using SubnauticaLauncher.BelowZero;
 
 namespace SubnauticaLauncher.BelowZero;
 
@@ -23,7 +18,8 @@ public class BZInstalledVersion
     public string DisplayLabel => Status switch
     {
         BZVersionStatus.Switching => "Switching → " + GetTrimmedDisplayName(DisplayName),
-        BZVersionStatus.Launching => "Launched → " + GetTrimmedDisplayName(DisplayName),
+        BZVersionStatus.Launching => "Launching → " + GetTrimmedDisplayName(DisplayName),
+        BZVersionStatus.Launched => "Launched → " + GetTrimmedDisplayName(DisplayName),
         BZVersionStatus.Active => "Active → " + GetTrimmedDisplayName(DisplayName),
         _ => GetTrimmedDisplayName(DisplayName)
     };
