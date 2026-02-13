@@ -19,6 +19,7 @@ namespace SubnauticaLauncher.Gameplay
     public static class Subnautica100TrackerOverlayController
     {
         private const int OverlayPadding = 12;
+        private const double FallbackOverlayHeight = 88;
         private const int RequiredBlueprintTotal = 157;
         private const int RequiredDatabankTotal = 277;
         private const int RequiredCombinedTotal = RequiredBlueprintTotal + RequiredDatabankTotal;
@@ -869,13 +870,13 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (!hasAnchor)
                 {
-                    if (!TryGetFocusedSubnauticaWindowRect(out var rect))
+                    if (!TryGetSubnauticaWindowRect(out var rect))
                         return;
 
                     _overlayLeft = rect.Left + OverlayPadding;
                     _overlayTop = rect.Top + OverlayPadding;
                     targetLeft = _overlayLeft;
-                    targetTop = GetToastTop();
+                    targetTop = _overlayTop + FallbackOverlayHeight + 8;
                 }
 
                 if (_toastVisible)
@@ -934,10 +935,11 @@ namespace SubnauticaLauncher.Gameplay
 
                 _toastVisible = false;
             }
-            catch
+            catch (Exception ex)
             {
                 _toastVisible = false;
                 await Application.Current.Dispatcher.InvokeAsync(() => _toastWindow?.Hide());
+                Logger.Warn($"[100Tracker] Unlock toast failed: {ex.Message}");
             }
             finally
             {
@@ -1113,7 +1115,7 @@ namespace SubnauticaLauncher.Gameplay
                     RECT rect = default;
                     bool shouldShow = runActive
                         && !ExplosionResetDisplayController.IsActive
-                        && TryGetFocusedSubnauticaWindowRect(out rect);
+                        && TryGetSubnauticaWindowRect(out rect);
 
                     Application.Current.Dispatcher.Invoke(() =>
                     {
@@ -1175,22 +1177,33 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
-        private static bool TryGetFocusedSubnauticaWindowRect(out RECT rect)
+        private static bool TryGetSubnauticaWindowRect(out RECT rect)
         {
             rect = default;
-
-            IntPtr foreground = GetForegroundWindow();
-            if (foreground == IntPtr.Zero)
-                return false;
 
             var processes = Process.GetProcessesByName("Subnautica");
             try
             {
-                var proc = processes.FirstOrDefault(p => !p.HasExited && p.MainWindowHandle != IntPtr.Zero);
+                if (processes.Length == 0)
+                    return false;
+
+                IntPtr foreground = GetForegroundWindow();
+                Process? proc = processes.FirstOrDefault(p =>
+                    !p.HasExited &&
+                    p.MainWindowHandle != IntPtr.Zero &&
+                    p.MainWindowHandle == foreground);
+
+                proc ??= processes.FirstOrDefault(p =>
+                    !p.HasExited &&
+                    p.MainWindowHandle != IntPtr.Zero);
+
                 if (proc == null)
                     return false;
 
-                return proc.MainWindowHandle == foreground && GetWindowRect(proc.MainWindowHandle, out rect);
+                if (IsIconic(proc.MainWindowHandle))
+                    return false;
+
+                return GetWindowRect(proc.MainWindowHandle, out rect);
             }
             finally
             {
@@ -1296,6 +1309,9 @@ namespace SubnauticaLauncher.Gameplay
 
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool IsIconic(IntPtr hWnd);
 
         [DllImport("user32.dll")]
         private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
