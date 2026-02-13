@@ -1,4 +1,6 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -12,7 +14,7 @@ namespace SubnauticaLauncher.Explosion
 
         private static ExplosionResetDisplay? _window;
         private static int _resetCount;
-        private static CancellationTokenSource? _timeCts;
+        private static CancellationTokenSource? _overlayCts;
 
         public static int ResetCount => _resetCount;
 
@@ -34,7 +36,7 @@ namespace SubnauticaLauncher.Explosion
             Application.Current.Exit -= OnAppExit;
             Application.Current.Exit += OnAppExit;
 
-            StartExplosionTimeUpdater(proc, resolver);
+            StartOverlayUpdater(proc, resolver);
         }
 
         private static void OnAppExit(object? sender, ExitEventArgs e)
@@ -42,25 +44,84 @@ namespace SubnauticaLauncher.Explosion
             Stop("Launcher Closed");
         }
 
-        private static void StartExplosionTimeUpdater(Process proc, IExplosionResolver resolver)
+        private static void StartOverlayUpdater(Process proc, IExplosionResolver resolver)
         {
-            _timeCts?.Cancel();
-            _timeCts = new CancellationTokenSource();
+            _overlayCts?.Cancel();
+            _overlayCts = new CancellationTokenSource();
+            CancellationToken token = _overlayCts.Token;
 
             Task.Run(async () =>
             {
-                while (!_timeCts.IsCancellationRequested)
+                while (!token.IsCancellationRequested)
                 {
-                    if (resolver.TryRead(proc, out var snap))
+                    try
                     {
-                        Application.Current.Dispatcher.Invoke(() =>
+                        proc.Refresh();
+
+                        if (proc.HasExited)
                         {
-                            _window?.SetExplosionTime(snap.ExplosionTime);
-                        });
+                            Application.Current.Dispatcher.Invoke(() => _window?.Hide());
+                        }
+                        else
+                        {
+                            if (resolver.TryRead(proc, out var snap))
+                            {
+                                Application.Current.Dispatcher.Invoke(() =>
+                                {
+                                    _window?.SetExplosionTime(snap.ExplosionTime);
+                                });
+                            }
+
+                            UpdateOverlayWindowPosition(proc);
+                        }
+                    }
+                    catch
+                    {
+                        Application.Current.Dispatcher.Invoke(() => _window?.Hide());
                     }
 
-                    await Task.Delay(100);
+                    try
+                    {
+                        await Task.Delay(100, token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                 }
+            });
+        }
+
+        private static void UpdateOverlayWindowPosition(Process proc)
+        {
+            var window = _window;
+            if (window == null)
+                return;
+
+            IntPtr gameHwnd = proc.MainWindowHandle;
+            if (gameHwnd == IntPtr.Zero || !GetWindowRect(gameHwnd, out RECT rect))
+            {
+                Application.Current.Dispatcher.Invoke(() => window.Hide());
+                return;
+            }
+
+            bool gameFocused = GetForegroundWindow() == gameHwnd;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_window == null)
+                    return;
+
+                if (!gameFocused)
+                {
+                    _window.Hide();
+                    return;
+                }
+
+                _window.Left = rect.Left + 12;
+                _window.Top = rect.Top + 12;
+
+                if (!_window.IsVisible)
+                    _window.Show();
             });
         }
 
@@ -85,8 +146,8 @@ namespace SubnauticaLauncher.Explosion
             if (_window == null)
                 return;
 
-            _timeCts?.Cancel();
-            _timeCts = null;
+            _overlayCts?.Cancel();
+            _overlayCts = null;
 
             Application.Current.Dispatcher.Invoke(async () =>
             {
@@ -103,14 +164,28 @@ namespace SubnauticaLauncher.Explosion
         // 🔥 HARD KILL (used on launcher exit)
         public static void ForceClose()
         {
-            _timeCts?.Cancel();
-            _timeCts = null;
+            _overlayCts?.Cancel();
+            _overlayCts = null;
 
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _window?.Close();
                 _window = null;
             });
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        private struct RECT
+        {
+            public int Left;
+            public int Top;
+            public int Right;
+            public int Bottom;
         }
     }
 }
