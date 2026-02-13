@@ -166,6 +166,7 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousIntroCinematicActive;
         private bool _previousPlayerCinematicActive;
         private bool _startedBefore;
+        private bool _runStartArmed;
 
         public DynamicMonoGameplayEventTracker(string gameName)
         {
@@ -308,9 +309,9 @@ namespace SubnauticaLauncher.Gameplay
         private bool TryReadState(Process proc, out GameState state)
         {
             state = GameState.Unknown;
-            if (TryReadIsMainMenuPosition(proc, out bool isMainMenuPosition))
+            if (TryReadMainMenuSignal(proc, out bool isMainMenu))
             {
-                state = isMainMenuPosition ? GameState.MainMenu : GameState.InGame;
+                state = isMainMenu ? GameState.MainMenu : GameState.InGame;
                 return true;
             }
 
@@ -340,6 +341,22 @@ namespace SubnauticaLauncher.Gameplay
             hadAnySignal |= TryReadIntroCinematicActive(proc, out _);
 
             return hadAnySignal;
+        }
+
+        private bool TryReadMainMenuSignal(Process proc, out bool isMainMenu)
+        {
+            isMainMenu = false;
+
+            if (TryReadIsMainMenuPosition(proc, out isMainMenu))
+                return true;
+
+            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu))
+            {
+                isMainMenu = mainMenu != IntPtr.Zero;
+                return true;
+            }
+
+            return false;
         }
 
         private bool TryReadBool(Process proc, IntPtr address, out bool value)
@@ -434,7 +451,7 @@ namespace SubnauticaLauncher.Gameplay
             if (!string.Equals(_gameName, "Subnautica", StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            bool hasMainMenu = TryReadIsMainMenuPosition(proc, out bool isMainMenu);
+            bool hasMainMenuSignal = TryReadMainMenuSignal(proc, out bool isMainMenuNow);
             bool hasPlayerMain = TryReadStaticObject(proc, _playerMainField, out var playerMain);
             bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
             bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
@@ -443,9 +460,18 @@ namespace SubnauticaLauncher.Gameplay
             bool hasAnimation = hasPlayer && TryReadPlayerCinematicActive(proc, playerMain, out animationActive);
             bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
 
-            if (hasMainMenu && isMainMenu)
+            if (hasMainMenuSignal)
             {
-                _startedBefore = false;
+                if (isMainMenuNow)
+                {
+                    _startedBefore = false;
+                    _runStartArmed = true;
+                }
+            }
+            else if (hasPlayer)
+            {
+                // If player exists we can safely treat this as not-main-menu.
+                isMainMenuNow = false;
             }
 
             if (!_hasRunStartBaseline)
@@ -457,7 +483,9 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             bool runStarted = false;
-            if (!_startedBefore && hasMainMenu && !isMainMenu)
+            bool leftMainMenu = _runStartArmed && !isMainMenuNow;
+
+            if (!_startedBefore && leftMainMenu)
             {
                 if (hasIntro && _previousIntroCinematicActive && !introActive)
                 {
@@ -490,6 +518,7 @@ namespace SubnauticaLauncher.Gameplay
             if (runStarted)
             {
                 _startedBefore = true;
+                _runStartArmed = false;
                 return true;
             }
 
@@ -680,6 +709,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousIntroCinematicActive = false;
             _previousPlayerCinematicActive = false;
             _startedBefore = false;
+            _runStartArmed = false;
         }
 
         private bool TryInitialize(Process proc)
