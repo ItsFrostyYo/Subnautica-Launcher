@@ -32,6 +32,17 @@ public static class Updates
     {
          new UpdateEntry
     {
+        Version = "2.1.0",
+        Title = "Speedrun Tracking",
+        Date = "Feb 11, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {            
+            "Added a 100% Speedrun Tracker for tracking Blueprints and Entries (434 Total)"        
+        }
+    },
+         
+         new UpdateEntry
+    {
         Version = "2.0.1",
         Title = "Explosion Overlay fix",
         Date = "Feb 11, 2026 | Contributors (1) - ItsFrosti.",

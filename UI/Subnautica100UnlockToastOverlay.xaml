@@ -1,0 +1,28 @@
+<Window x:Class="SubnauticaLauncher.UI.Subnautica100UnlockToastOverlay"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="320"
+        Height="52"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowActivated="False"
+        Focusable="False"
+        IsHitTestVisible="False"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Opacity="0">
+
+    <Border CornerRadius="10"
+            Background="#66000000"
+            BorderBrush="#40FFFFFF"
+            BorderThickness="0.25"
+            Padding="12,8">
+        <TextBlock x:Name="UnlockText"
+                   Text="Blueprint &quot;Scanner&quot;"
+                   FontSize="13"
+                   Foreground="White"
+                   TextTrimming="CharacterEllipsis"/>
+    </Border>
+</Window>

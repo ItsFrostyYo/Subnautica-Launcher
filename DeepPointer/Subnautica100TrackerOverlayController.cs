@@ -11,6 +11,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Application = System.Windows.Application;
+using System.Windows;
+using System.Windows.Media.Animation;
 
 namespace SubnauticaLauncher.Gameplay
 {
@@ -42,6 +44,8 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly Dictionary<string, HashSet<string>> BlueprintAliasIndex = new(StringComparer.Ordinal);
         private static readonly Dictionary<string, HashSet<string>> DatabankAliasIndex = new(StringComparer.Ordinal);
         private static readonly Dictionary<int, HashSet<string>> BlueprintRequirementsByTechType = new();
+        private static readonly Dictionary<string, string> BlueprintDisplayNames = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, string> DatabankDisplayNames = new(StringComparer.Ordinal);
         private static readonly IReadOnlyDictionary<string, string> DatabankLocalizedRequirementByKey =
             SubnauticaDatabankLocalizationMap.KeyToRequirement;
 
@@ -84,10 +88,16 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly IReadOnlyDictionary<int, string> TechTypeDatabase = TechTypeNames.GetAll();
 
         private static Subnautica100TrackerOverlay? _window;
+        private static Subnautica100UnlockToastOverlay? _toastWindow;
         private static CancellationTokenSource? _cts;
+        private static CancellationTokenSource? _toastDisplayCts;
         private static Task? _loopTask;
         private static bool _runActive;
         private static bool _rulesLoaded;
+        private static bool _toastVisible;
+        private static double _overlayLeft;
+        private static double _overlayTop;
+        private static readonly SemaphoreSlim ToastSemaphore = new(1, 1);
 
         public static void Start()
         {
@@ -109,14 +119,18 @@ namespace SubnauticaLauncher.Gameplay
         {
             CancellationTokenSource? cts;
             Task? loopTask;
+            CancellationTokenSource? toastCts;
 
             lock (Sync)
             {
                 cts = _cts;
                 loopTask = _loopTask;
+                toastCts = _toastDisplayCts;
                 _cts = null;
+                _toastDisplayCts = null;
                 _loopTask = null;
                 _runActive = false;
+                _toastVisible = false;
                 RunBlueprints.Clear();
                 RunDatabankEntries.Clear();
             }
@@ -140,10 +154,28 @@ namespace SubnauticaLauncher.Gameplay
                 }
             }
 
+            if (toastCts != null)
+            {
+                try
+                {
+                    toastCts.Cancel();
+                }
+                catch
+                {
+                    // best effort shutdown
+                }
+                finally
+                {
+                    toastCts.Dispose();
+                }
+            }
+
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _window?.Close();
                 _window = null;
+                _toastWindow?.Close();
+                _toastWindow = null;
             });
         }
 
@@ -205,6 +237,8 @@ namespace SubnauticaLauncher.Gameplay
             BlueprintAliasIndex.Clear();
             DatabankAliasIndex.Clear();
             BlueprintRequirementsByTechType.Clear();
+            BlueprintDisplayNames.Clear();
+            DatabankDisplayNames.Clear();
 
             ParseMode mode = ParseMode.None;
             foreach (string rawLine in text.Split('\n'))
@@ -317,6 +351,7 @@ namespace SubnauticaLauncher.Gameplay
         private static void AddRequirement(ParseMode mode, string normalizedName, string rawName, bool preInstalled)
         {
             string tokenAlias = BuildTokenAlias(rawName);
+            string displayName = BuildDisplayName(rawName, normalizedName);
 
             if (mode == ParseMode.Blueprint)
             {
@@ -326,6 +361,8 @@ namespace SubnauticaLauncher.Gameplay
 
                 AddAlias(BlueprintAliasIndex, normalizedName, normalizedName);
                 AddAlias(BlueprintAliasIndex, tokenAlias, normalizedName);
+                if (!BlueprintDisplayNames.ContainsKey(normalizedName))
+                    BlueprintDisplayNames[normalizedName] = displayName;
             }
             else
             {
@@ -335,6 +372,8 @@ namespace SubnauticaLauncher.Gameplay
 
                 AddAlias(DatabankAliasIndex, normalizedName, normalizedName);
                 AddAlias(DatabankAliasIndex, tokenAlias, normalizedName);
+                if (!DatabankDisplayNames.ContainsKey(normalizedName))
+                    DatabankDisplayNames[normalizedName] = displayName;
             }
         }
 
@@ -430,16 +469,22 @@ namespace SubnauticaLauncher.Gameplay
                 if (evt.Type == GameplayEventType.BlueprintUnlocked)
                 {
                     int added = 0;
+                    var newlyAdded = new List<string>();
                     var matches = ResolveBlueprintMatches(evt.Key);
                     foreach (string requirement in matches)
                     {
                         if (RunBlueprints.Add(requirement))
+                        {
                             added++;
+                            newlyAdded.Add(requirement);
+                        }
                     }
 
                     if (added > 0)
                     {
                         UpdateOverlayText();
+                        foreach (string requirement in newlyAdded)
+                            QueueUnlockToast(GameplayEventType.BlueprintUnlocked, requirement, evt.Key);
                     }
                     else
                     {
@@ -452,16 +497,22 @@ namespace SubnauticaLauncher.Gameplay
                 if (evt.Type == GameplayEventType.DatabankEntryUnlocked)
                 {
                     int added = 0;
+                    var newlyAdded = new List<string>();
                     var matches = ResolveDatabankMatches(evt.Key);
                     foreach (string requirement in matches)
                     {
                         if (RunDatabankEntries.Add(requirement))
+                        {
                             added++;
+                            newlyAdded.Add(requirement);
+                        }
                     }
 
                     if (added > 0)
                     {
                         UpdateOverlayText();
+                        foreach (string requirement in newlyAdded)
+                            QueueUnlockToast(GameplayEventType.DatabankEntryUnlocked, requirement, evt.Key);
                     }
                     else
                     {
@@ -719,13 +770,273 @@ namespace SubnauticaLauncher.Gameplay
             Logger.Log($"[100Tracker] Unmatched databank unlock: key={eventKey}");
         }
 
+        private static void QueueUnlockToast(GameplayEventType type, string requirement, string fallbackEventKey)
+        {
+            string displayName = ResolveRequirementDisplayName(type, requirement, fallbackEventKey);
+            string prefix = type == GameplayEventType.BlueprintUnlocked ? "Blueprint" : "Databank";
+            string message = $"{prefix} \"{displayName}\"";
+
+            CancellationTokenSource currentCts;
+            CancellationTokenSource? previousCts;
+            lock (Sync)
+            {
+                previousCts = _toastDisplayCts;
+                currentCts = new CancellationTokenSource();
+                _toastDisplayCts = currentCts;
+            }
+
+            if (previousCts != null)
+            {
+                try
+                {
+                    previousCts.Cancel();
+                }
+                catch
+                {
+                    // best effort cancel
+                }
+                finally
+                {
+                    previousCts.Dispose();
+                }
+            }
+
+            _ = Task.Run(() => ShowToastSequenceAsync(message, currentCts.Token));
+        }
+
+        private static string ResolveRequirementDisplayName(
+            GameplayEventType type,
+            string requirement,
+            string fallbackEventKey)
+        {
+            if (type == GameplayEventType.BlueprintUnlocked &&
+                BlueprintDisplayNames.TryGetValue(requirement, out string? blueprintName) &&
+                !string.IsNullOrWhiteSpace(blueprintName))
+            {
+                return blueprintName;
+            }
+
+            if (type == GameplayEventType.DatabankEntryUnlocked &&
+                DatabankDisplayNames.TryGetValue(requirement, out string? entryName) &&
+                !string.IsNullOrWhiteSpace(entryName))
+            {
+                return entryName;
+            }
+
+            string fallback = BuildDisplayName(fallbackEventKey, NormalizeEventName(fallbackEventKey));
+            return string.IsNullOrWhiteSpace(fallback)
+                ? requirement
+                : fallback;
+        }
+
+        private static async Task ShowToastSequenceAsync(string message, CancellationToken token)
+        {
+            try
+            {
+                await ToastSemaphore.WaitAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            try
+            {
+                if (token.IsCancellationRequested || !_runActive)
+                    return;
+
+                if (!TryGetFocusedSubnauticaWindowRect(out var rect) || ExplosionResetDisplayController.IsActive)
+                    return;
+
+                _overlayLeft = rect.Left + OverlayPadding;
+                _overlayTop = rect.Top + OverlayPadding;
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _toastWindow ??= new Subnautica100UnlockToastOverlay();
+                });
+
+                if (_toastVisible)
+                    await AnimateToastOutQuickAsync();
+
+                if (token.IsCancellationRequested || !_runActive)
+                    return;
+
+                double targetLeft = _overlayLeft;
+                double targetTop = GetToastTop();
+                double startLeft = targetLeft + 28;
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    if (_toastWindow == null)
+                        return;
+
+                    _toastWindow.SetMessage(message);
+                    _toastWindow.Left = startLeft;
+                    _toastWindow.Top = targetTop;
+                    _toastWindow.Opacity = 0;
+
+                    if (!_toastWindow.IsVisible)
+                        _toastWindow.Show();
+                });
+
+                _toastVisible = true;
+                await AnimateToastAsync(
+                    fromLeft: startLeft,
+                    toLeft: targetLeft,
+                    fromOpacity: 0,
+                    toOpacity: 1,
+                    durationMs: 300,
+                    easing: new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 });
+
+                try
+                {
+                    await Task.Delay(1000, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    await AnimateToastOutQuickAsync();
+                    return;
+                }
+
+                await AnimateToastAsync(
+                    fromLeft: targetLeft,
+                    toLeft: targetLeft,
+                    fromOpacity: 1,
+                    toOpacity: 0,
+                    durationMs: 1000,
+                    easing: null);
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _toastWindow?.Hide();
+                });
+
+                _toastVisible = false;
+            }
+            catch
+            {
+                _toastVisible = false;
+                await Application.Current.Dispatcher.InvokeAsync(() => _toastWindow?.Hide());
+            }
+            finally
+            {
+                ToastSemaphore.Release();
+            }
+        }
+
+        private static async Task AnimateToastOutQuickAsync()
+        {
+            if (!_toastVisible)
+                return;
+
+            double fromLeft = 0;
+            double fromOpacity = 0;
+            bool canAnimate = false;
+
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                if (_toastWindow == null || !_toastWindow.IsVisible)
+                    return;
+
+                fromLeft = _toastWindow.Left;
+                fromOpacity = _toastWindow.Opacity;
+                canAnimate = true;
+            });
+
+            if (!canAnimate)
+            {
+                _toastVisible = false;
+                return;
+            }
+
+            await AnimateToastAsync(
+                fromLeft: fromLeft,
+                toLeft: fromLeft + 24,
+                fromOpacity: fromOpacity <= 0 ? 1 : fromOpacity,
+                toOpacity: 0,
+                durationMs: 140,
+                easing: null);
+
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                _toastWindow?.Hide();
+            });
+
+            _toastVisible = false;
+        }
+
+        private static Task AnimateToastAsync(
+            double fromLeft,
+            double toLeft,
+            double fromOpacity,
+            double toOpacity,
+            int durationMs,
+            IEasingFunction? easing)
+        {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_toastWindow == null)
+                {
+                    tcs.TrySetResult(true);
+                    return;
+                }
+
+                var storyboard = new Storyboard();
+
+                var leftAnimation = new DoubleAnimation(fromLeft, toLeft, TimeSpan.FromMilliseconds(durationMs))
+                {
+                    EasingFunction = easing
+                };
+                Storyboard.SetTarget(leftAnimation, _toastWindow);
+                Storyboard.SetTargetProperty(leftAnimation, new PropertyPath(Window.LeftProperty));
+
+                var opacityAnimation = new DoubleAnimation(fromOpacity, toOpacity, TimeSpan.FromMilliseconds(durationMs));
+                Storyboard.SetTarget(opacityAnimation, _toastWindow);
+                Storyboard.SetTargetProperty(opacityAnimation, new PropertyPath(UIElement.OpacityProperty));
+
+                storyboard.Children.Add(leftAnimation);
+                storyboard.Children.Add(opacityAnimation);
+                storyboard.Completed += (_, _) => tcs.TrySetResult(true);
+                storyboard.Begin();
+            });
+
+            return tcs.Task;
+        }
+
         private static void ResetRunState()
         {
+            CancellationTokenSource? toastCts = _toastDisplayCts;
+            _toastDisplayCts = null;
+            if (toastCts != null)
+            {
+                try
+                {
+                    toastCts.Cancel();
+                }
+                catch
+                {
+                    // best effort cancel
+                }
+                finally
+                {
+                    toastCts.Dispose();
+                }
+            }
+
             _runActive = false;
+            _toastVisible = false;
             RunBlueprints.Clear();
             RunDatabankEntries.Clear();
             LoggedUnmatchedBlueprintAliases.Clear();
             LoggedUnmatchedDatabankAliases.Clear();
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                _toastWindow?.Hide();
+            });
         }
 
         private static void StartRunState()
@@ -760,6 +1071,15 @@ namespace SubnauticaLauncher.Gameplay
             });
         }
 
+        private static double GetToastTop()
+        {
+            double overlayHeight = _window?.ActualHeight ?? 0;
+            if (overlayHeight <= 1)
+                overlayHeight = _window?.Height ?? 88;
+
+            return _overlayTop + overlayHeight + 8;
+        }
+
         private static async Task OverlayLoopAsync(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
@@ -791,21 +1111,37 @@ namespace SubnauticaLauncher.Gameplay
                                     RequiredDatabankTotal);
                             }
 
-                            _window.Left = rect.Left + OverlayPadding;
-                            _window.Top = rect.Top + OverlayPadding;
+                            _overlayLeft = rect.Left + OverlayPadding;
+                            _overlayTop = rect.Top + OverlayPadding;
+
+                            _window.Left = _overlayLeft;
+                            _window.Top = _overlayTop;
 
                             if (!_window.IsVisible)
                                 _window.Show();
+
+                            if (_toastWindow != null && _toastWindow.IsVisible)
+                            {
+                                _toastWindow.Left = _overlayLeft;
+                                _toastWindow.Top = GetToastTop();
+                            }
                         }
                         else
                         {
                             _window?.Hide();
+                            _toastWindow?.Hide();
+                            _toastVisible = false;
                         }
                     });
                 }
                 catch
                 {
-                    Application.Current.Dispatcher.Invoke(() => _window?.Hide());
+                    _toastVisible = false;
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        _window?.Hide();
+                        _toastWindow?.Hide();
+                    });
                 }
 
                 try
@@ -846,6 +1182,15 @@ namespace SubnauticaLauncher.Gameplay
         private static string NormalizeChecklistName(string name)
         {
             return NormalizeNameCore(name, removeTrailingNumericParentheses: true);
+        }
+
+        private static string BuildDisplayName(string rawName, string normalizedFallback)
+        {
+            string stripped = TrailingCountRegex.Replace(rawName ?? string.Empty, string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(stripped))
+                return stripped;
+
+            return HumanizeIdentifier(normalizedFallback);
         }
 
         private static bool LooksLikeSectionHeader(string line)

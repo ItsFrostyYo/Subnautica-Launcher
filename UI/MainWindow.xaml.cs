@@ -180,10 +180,15 @@ namespace SubnauticaLauncher.UI
             RenameOnCloseButton.Background = _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
 
             UpdateHardcoreSaveDeleterVisualState();
+            UpdateSubnautica100TrackerVisualState();
 
             DebugTelemetryController.Start();
-            Subnautica100TrackerOverlayController.Start();
             GameEventDocumenter.Start();
+
+            if (LauncherSettings.Current.Subnautica100TrackerEnabled)
+                Subnautica100TrackerOverlayController.Start();
+            else
+                Subnautica100TrackerOverlayController.Stop();
 
             Logger.Log("Startup complete");
             ShowView(InstallsView);
@@ -200,6 +205,13 @@ namespace SubnauticaLauncher.UI
             bool enabled = LauncherSettings.Current.HardcoreSaveDeleterEnabled;
             HardcoreSaveDeleterToggleButton.Content = enabled ? "Enabled" : "Disabled";
             HardcoreSaveDeleterToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
+        }
+
+        private void UpdateSubnautica100TrackerVisualState()
+        {
+            bool enabled = LauncherSettings.Current.Subnautica100TrackerEnabled;
+            Subnautica100TrackerToggleButton.Content = enabled ? "Enabled" : "Disabled";
+            Subnautica100TrackerToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
         }
 
         private void RegisterResetHotkey()
@@ -844,6 +856,20 @@ namespace SubnauticaLauncher.UI
             LauncherSettings.Save();
 
             UpdateHardcoreSaveDeleterVisualState();
+        }
+
+        private void Subnautica100TrackerToggle_Click(object sender, RoutedEventArgs e)
+        {
+            LauncherSettings.Current.Subnautica100TrackerEnabled =
+                !LauncherSettings.Current.Subnautica100TrackerEnabled;
+            LauncherSettings.Save();
+
+            UpdateSubnautica100TrackerVisualState();
+
+            if (LauncherSettings.Current.Subnautica100TrackerEnabled)
+                Subnautica100TrackerOverlayController.Start();
+            else
+                Subnautica100TrackerOverlayController.Stop();
         }
 
         private void HardcoreSaveDeleterPurge_Click(object sender, RoutedEventArgs e)

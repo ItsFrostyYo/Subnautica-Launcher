@@ -12,6 +12,12 @@ namespace SubnauticaLauncher.UI
             Top = 10;
         }
 
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            OverlayWindowNative.MakeClickThrough(this);
+        }
+
         public void SetProgress(int totalUnlocked, int totalRequired, int blueprintUnlocked, int blueprintRequired, int entriesUnlocked, int entriesRequired)
         {
             double percent = totalRequired > 0

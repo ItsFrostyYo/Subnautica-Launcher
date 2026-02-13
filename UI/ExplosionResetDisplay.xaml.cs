@@ -12,6 +12,12 @@ namespace SubnauticaLauncher.Explosion
             Top = 10;
         }
 
+        protected override void OnSourceInitialized(System.EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            UI.OverlayWindowNative.MakeClickThrough(this);
+        }
+
         public void SetStep(string text)
         {
             StepText.Text = text;

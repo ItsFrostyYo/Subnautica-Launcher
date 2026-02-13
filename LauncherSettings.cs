@@ -36,6 +36,7 @@ namespace SubnauticaLauncher
 
         // Tools
         public bool HardcoreSaveDeleterEnabled { get; set; } = false;
+        public bool Subnautica100TrackerEnabled { get; set; } = true;
 
         // Explosion reset settings
         public bool ExplosionResetEnabled { get; set; } = false;
