@@ -11,6 +11,7 @@ namespace SubnauticaLauncher.Explosion
     public static class ExplosionResetDisplayController
     {
         public static bool Enabled => ExplosionResetSettings.OverlayEnabled;
+        public static bool IsActive => _window != null;
 
         private static ExplosionResetDisplay? _window;
         private static int _resetCount;

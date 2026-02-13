@@ -32,6 +32,17 @@ public static class Updates
     {
          new UpdateEntry
     {
+        Version = "2.0.1",
+        Title = "Explosion Overlay fix",
+        Date = "Feb 11, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {            
+            "Explosion Reset Overlay updated to a full real overlay for subnautica"        
+        }
+    },
+         
+         new UpdateEntry
+    {
         Version = "2.0.0",
         Title = "Fully Combined Subnautica and Below Zero Launcher",
         Date = "Feb 11, 2026 | Contributors (1) - ItsFrosti.",
