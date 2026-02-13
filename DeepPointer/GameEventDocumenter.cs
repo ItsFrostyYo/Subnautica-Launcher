@@ -97,7 +97,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 try
                 {
-                    await Task.Delay(250, token);
+                    await Task.Delay(100, token);
                 }
                 catch (OperationCanceledException)
                 {

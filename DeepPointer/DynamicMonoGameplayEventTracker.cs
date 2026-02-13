@@ -1247,27 +1247,30 @@ namespace SubnauticaLauncher.Gameplay
         private bool TryReadInventoryCounts(Process proc, out Dictionary<int, int> counts)
         {
             counts = new Dictionary<int, int>();
+            bool parsedAny = false;
 
             if (TryReadInventoryCountsViaItemsDictionary(proc, out var dictCounts) && dictCounts.Count > 0)
             {
-                counts = dictCounts;
+                MergeCountsUsingMax(counts, dictCounts);
+                parsedAny = true;
             }
-            else
-            {
-                bool parsed = TryReadInventoryCountsViaGenericCollections(proc, out var genericCounts);
-                if (!parsed || genericCounts.Count == 0)
-                {
-                    MaybeLogInventoryParseWarning(parsed, genericCounts.Count);
-                    return false;
-                }
 
-                counts = genericCounts;
+            if (TryReadInventoryCountsViaGenericCollections(proc, out var genericCounts) && genericCounts.Count > 0)
+            {
+                MergeCountsUsingMax(counts, genericCounts);
+                parsedAny = true;
             }
 
             foreach (int techType in counts.Keys.ToList())
             {
                 if (!IsPlausibleTechType(techType) || counts[techType] <= 0)
                     counts.Remove(techType);
+            }
+
+            if (!parsedAny || counts.Count == 0)
+            {
+                MaybeLogInventoryParseWarning(parsedAny, counts.Count);
+                return false;
             }
 
             return counts.Count > 0;

@@ -1,5 +1,4 @@
 using SubnauticaLauncher.Explosion;
-using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.UI;
 using System;
 using System.Collections.Generic;
@@ -27,6 +26,11 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly Regex ChecklistLineRegex = new(@"^(TRUE|FALSE)\s+(.+?)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex TrailingCountRegex = new(@"\s*\(\d+\)\s*$", RegexOptions.Compiled);
         private static readonly Regex TrailingIdRegex = new(@"\s*\((\d+)\)\s*$", RegexOptions.Compiled);
+        private static readonly Regex TokenSplitRegex = new(@"[^A-Za-z0-9]+", RegexOptions.Compiled);
+        private static readonly HashSet<string> AliasStopWords = new(StringComparer.Ordinal)
+        {
+            "the", "and", "of", "to", "on", "for", "in", "with", "a", "an"
+        };
 
         private static readonly HashSet<string> RequiredBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> RequiredDatabankEntries = new(StringComparer.Ordinal);
@@ -77,7 +81,6 @@ namespace SubnauticaLauncher.Gameplay
         private static Task? _loopTask;
         private static bool _runActive;
         private static bool _rulesLoaded;
-        private static GameState _lastStableState = GameState.Unknown;
 
         public static void Start()
         {
@@ -107,7 +110,6 @@ namespace SubnauticaLauncher.Gameplay
                 _cts = null;
                 _loopTask = null;
                 _runActive = false;
-                _lastStableState = GameState.Unknown;
                 RunBlueprints.Clear();
                 RunDatabankEntries.Clear();
             }
@@ -240,7 +242,7 @@ namespace SubnauticaLauncher.Gameplay
                 if (normalizedName.Length == 0)
                     continue;
 
-                AddRequirement(mode, normalizedName, preInstalled);
+                AddRequirement(mode, normalizedName, candidateName, preInstalled);
             }
 
             AddDerivedRequirementAliases();
@@ -260,6 +262,8 @@ namespace SubnauticaLauncher.Gameplay
                 var aliases = new HashSet<string>(StringComparer.Ordinal);
                 AddAliasCandidate(aliases, NormalizeChecklistName(enumName));
                 AddAliasCandidate(aliases, NormalizeChecklistName(HumanizeIdentifier(enumName)));
+                AddAliasCandidate(aliases, BuildTokenAlias(enumName));
+                AddAliasCandidate(aliases, BuildTokenAlias(HumanizeIdentifier(enumName)));
                 ExpandAliasesInPlace(aliases, ExpandBlueprintAlias);
 
                 var matches = new HashSet<string>(StringComparer.Ordinal);
@@ -277,8 +281,10 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
-        private static void AddRequirement(ParseMode mode, string normalizedName, bool preInstalled)
+        private static void AddRequirement(ParseMode mode, string normalizedName, string rawName, bool preInstalled)
         {
+            string tokenAlias = BuildTokenAlias(rawName);
+
             if (mode == ParseMode.Blueprint)
             {
                 RequiredBlueprints.Add(normalizedName);
@@ -286,6 +292,7 @@ namespace SubnauticaLauncher.Gameplay
                     PreInstalledBlueprints.Add(normalizedName);
 
                 AddAlias(BlueprintAliasIndex, normalizedName, normalizedName);
+                AddAlias(BlueprintAliasIndex, tokenAlias, normalizedName);
             }
             else
             {
@@ -294,6 +301,7 @@ namespace SubnauticaLauncher.Gameplay
                     PreInstalledDatabankEntries.Add(normalizedName);
 
                 AddAlias(DatabankAliasIndex, normalizedName, normalizedName);
+                AddAlias(DatabankAliasIndex, tokenAlias, normalizedName);
             }
         }
 
@@ -360,27 +368,14 @@ namespace SubnauticaLauncher.Gameplay
                     if (state == "mainmenu")
                     {
                         ResetRunState();
-                        _lastStableState = GameState.MainMenu;
                         UpdateOverlayText();
                         return;
                     }
 
                     if (state == "ingame")
                     {
-                        if (!_runActive && _lastStableState == GameState.MainMenu)
-                        {
-                            // Fallback arming: if autosplitter RunStarted misses on a build,
-                            // still start tracker on a stable MainMenu -> InGame transition.
-                            StartRunState();
-                            Logger.Log("[100Tracker] Run started from state transition (MainMenu -> InGame).");
-                            UpdateOverlayText();
-                        }
-
-                        _lastStableState = GameState.InGame;
                         return;
                     }
-
-                    _lastStableState = GameState.Unknown;
                     return;
                 }
 
@@ -487,6 +482,7 @@ namespace SubnauticaLauncher.Gameplay
         {
             var aliases = new HashSet<string>(StringComparer.Ordinal);
             AddAliasCandidate(aliases, NormalizeEventName(eventKey));
+            AddAliasCandidate(aliases, BuildTokenAlias(eventKey));
 
             if (TryExtractTechTypeId(eventKey, out int id) &&
                 TechTypeDatabase.TryGetValue(id, out var enumName) &&
@@ -494,6 +490,8 @@ namespace SubnauticaLauncher.Gameplay
             {
                 AddAliasCandidate(aliases, NormalizeChecklistName(enumName));
                 AddAliasCandidate(aliases, NormalizeChecklistName(HumanizeIdentifier(enumName)));
+                AddAliasCandidate(aliases, BuildTokenAlias(enumName));
+                AddAliasCandidate(aliases, BuildTokenAlias(HumanizeIdentifier(enumName)));
             }
 
             ExpandAliasesInPlace(aliases, ExpandBlueprintAlias);
@@ -504,6 +502,7 @@ namespace SubnauticaLauncher.Gameplay
         {
             var aliases = new HashSet<string>(StringComparer.Ordinal);
             AddAliasCandidate(aliases, NormalizeEventName(eventKey));
+            AddAliasCandidate(aliases, BuildTokenAlias(eventKey));
 
             if (TryExtractTechTypeId(eventKey, out int id) &&
                 TechTypeDatabase.TryGetValue(id, out var enumName) &&
@@ -511,6 +510,8 @@ namespace SubnauticaLauncher.Gameplay
             {
                 AddAliasCandidate(aliases, NormalizeChecklistName(enumName));
                 AddAliasCandidate(aliases, NormalizeChecklistName(HumanizeIdentifier(enumName)));
+                AddAliasCandidate(aliases, BuildTokenAlias(enumName));
+                AddAliasCandidate(aliases, BuildTokenAlias(HumanizeIdentifier(enumName)));
             }
 
             ExpandAliasesInPlace(aliases, ExpandDatabankAlias);
@@ -611,6 +612,43 @@ namespace SubnauticaLauncher.Gameplay
                 return;
 
             aliases.Add(alias);
+        }
+
+        private static string BuildTokenAlias(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                return string.Empty;
+
+            string spaced = HumanizeIdentifier(value);
+            var rawTokens = TokenSplitRegex.Split(spaced);
+            var kept = new List<string>(rawTokens.Length);
+
+            foreach (string token in rawTokens)
+            {
+                if (string.IsNullOrWhiteSpace(token))
+                    continue;
+
+                string lower = token.ToLowerInvariant();
+                if (AliasStopWords.Contains(lower))
+                    continue;
+
+                kept.Add(lower);
+            }
+
+            while (kept.Count > 0 &&
+                   (kept[0] == "ency" || kept[0] == "encyclopedia" || kept[0] == "databank" || kept[0] == "desc" || kept[0] == "entry"))
+            {
+                kept.RemoveAt(0);
+            }
+
+            if (kept.Count == 0)
+                return string.Empty;
+
+            var sb = new StringBuilder(kept.Sum(t => t.Length));
+            foreach (string token in kept)
+                sb.Append(token);
+
+            return sb.ToString();
         }
 
         private static bool TryExtractTechTypeId(string key, out int id)
