@@ -24,6 +24,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private static readonly object Sync = new();
         private static readonly Regex ChecklistLineRegex = new(@"^(TRUE|FALSE)\s+(.+?)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex CookedCuredChecklistRegex = new(@"^Cooked\s*\+\s*Cured\s+(.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex TrailingCountRegex = new(@"\s*\(\d+\)\s*$", RegexOptions.Compiled);
         private static readonly Regex TrailingIdRegex = new(@"\s*\((\d+)\)\s*$", RegexOptions.Compiled);
         private static readonly Regex TokenSplitRegex = new(@"[^A-Za-z0-9]+", RegexOptions.Compiled);
@@ -51,10 +52,10 @@ namespace SubnauticaLauncher.Gameplay
         // Common internal-name to checklist-name mismatches and shorthand aliases.
         private static readonly Dictionary<string, string[]> SpecialBlueprintAliasMap = new(StringComparer.Ordinal)
         {
-            ["airsack"] = new[] { "bladderfish", "cookedcuredbladderfish" },
-            ["bladderfishanalysis"] = new[] { "bladderfish", "cookedcuredbladderfish" },
-            ["lavaboomerang"] = new[] { "magmarang", "cookedcuredmagmarang" },
-            ["lavaeyeye"] = new[] { "redeyeye", "cookedcuredredeyeye" },
+            ["airsack"] = new[] { "bladderfish", "cookedbladderfish", "curedbladderfish" },
+            ["bladderfishanalysis"] = new[] { "bladderfish", "cookedbladderfish", "curedbladderfish" },
+            ["lavaboomerang"] = new[] { "magmarang", "cookedmagmarang", "curedmagmarang" },
+            ["lavaeyeye"] = new[] { "redeyeye", "cookedredeyeye", "curedredeyeye" },
             ["exosuit"] = new[] { "prawnsuitmkiii" },
             ["prawnsuit"] = new[] { "prawnsuitmkiii" },
             ["tank"] = new[] { "standardo2tank" },
@@ -246,10 +247,36 @@ namespace SubnauticaLauncher.Gameplay
                 if (normalizedName.Length == 0)
                     continue;
 
+                if (mode == ParseMode.Blueprint && TryExpandCookedCuredRequirement(candidateName, preInstalled))
+                    continue;
+
                 AddRequirement(mode, normalizedName, candidateName, preInstalled);
             }
 
             AddDerivedRequirementAliases();
+        }
+
+        private static bool TryExpandCookedCuredRequirement(string rawName, bool preInstalled)
+        {
+            Match match = CookedCuredChecklistRegex.Match(rawName ?? string.Empty);
+            if (!match.Success)
+                return false;
+
+            string fishRaw = match.Groups[1].Value.Trim();
+            if (fishRaw.Length == 0)
+                return false;
+
+            string cookedRaw = "Cooked " + fishRaw;
+            string curedRaw = "Cured " + fishRaw;
+            string cookedNormalized = NormalizeChecklistName(cookedRaw);
+            string curedNormalized = NormalizeChecklistName(curedRaw);
+
+            if (cookedNormalized.Length == 0 || curedNormalized.Length == 0)
+                return false;
+
+            AddRequirement(ParseMode.Blueprint, cookedNormalized, cookedRaw, preInstalled);
+            AddRequirement(ParseMode.Blueprint, curedNormalized, curedRaw, preInstalled);
+            return true;
         }
 
         private static void BuildBlueprintTechTypeRequirementIndex()
