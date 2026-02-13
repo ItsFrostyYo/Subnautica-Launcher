@@ -42,6 +42,8 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly Dictionary<string, HashSet<string>> BlueprintAliasIndex = new(StringComparer.Ordinal);
         private static readonly Dictionary<string, HashSet<string>> DatabankAliasIndex = new(StringComparer.Ordinal);
         private static readonly Dictionary<int, HashSet<string>> BlueprintRequirementsByTechType = new();
+        private static readonly IReadOnlyDictionary<string, string> DatabankLocalizedRequirementByKey =
+            SubnauticaDatabankLocalizationMap.KeyToRequirement;
 
         private static readonly HashSet<string> RunBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> RunDatabankEntries = new(StringComparer.Ordinal);
@@ -497,6 +499,11 @@ namespace SubnauticaLauncher.Gameplay
         private static HashSet<string> ResolveDatabankMatches(string eventKey)
         {
             var matches = new HashSet<string>(StringComparer.Ordinal);
+
+            string normalizedEventKey = NormalizeEventName(eventKey);
+            if (DatabankLocalizedRequirementByKey.TryGetValue(normalizedEventKey, out string? mappedRequirement))
+                matches.Add(mappedRequirement);
+
             foreach (string alias in EnumerateDatabankAliases(eventKey))
             {
                 if (!DatabankAliasIndex.TryGetValue(alias, out HashSet<string>? mapped))
