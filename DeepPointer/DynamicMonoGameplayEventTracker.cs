@@ -88,6 +88,25 @@ namespace SubnauticaLauncher.Gameplay
         private bool _hasItemsListOffset;
         private int _itemsListOffset;
         private readonly List<int> _itemsContainerCollectionOffsets = new();
+        private bool _hasItemGroupItemsOffset;
+        private int _itemGroupItemsOffset;
+        private bool _hasItemGroupIdOffset;
+        private int _itemGroupIdOffset;
+        private bool _hasListSizeOffset;
+        private int _listSizeOffset;
+        private bool _useLegacyDictionaryLayout;
+        private bool _hasDictionaryEntriesOffset;
+        private int _dictionaryEntriesOffset;
+        private bool _hasDictionaryVersionOffset;
+        private int _dictionaryVersionOffset;
+        private bool _hasLegacyDictionaryKeySlotsOffset;
+        private int _legacyDictionaryKeySlotsOffset;
+        private bool _hasLegacyDictionaryValueSlotsOffset;
+        private int _legacyDictionaryValueSlotsOffset;
+        private bool _hasLegacyDictionaryLinkSlotsOffset;
+        private int _legacyDictionaryLinkSlotsOffset;
+        private bool _hasLegacyDictionaryTouchedOffset;
+        private int _legacyDictionaryTouchedOffset;
         private bool _hasInventoryItemOffset;
         private int _inventoryItemOffset;
         private bool _hasInventoryItemTechTypeOffset;
@@ -266,7 +285,8 @@ namespace SubnauticaLauncher.Gameplay
                         $"Sources: blueprints={_knownTechField.IsValid || _scannerCompleteField.IsValid}, " +
                         $"databank={_databankField.IsValid}, " +
                         $"inventory={_inventoryMainField.IsValid}, " +
-                        $"craft={_crafterMainField.IsValid}");
+                        $"craft={_crafterMainField.IsValid}, " +
+                        $"dictMode={(_useLegacyDictionaryLayout ? "legacy" : "modern")}");
                     return;
                 }
 
@@ -299,6 +319,25 @@ namespace SubnauticaLauncher.Gameplay
             _hasItemsListOffset = false;
             _itemsListOffset = 0;
             _itemsContainerCollectionOffsets.Clear();
+            _hasItemGroupItemsOffset = false;
+            _itemGroupItemsOffset = 0;
+            _hasItemGroupIdOffset = false;
+            _itemGroupIdOffset = 0;
+            _hasListSizeOffset = false;
+            _listSizeOffset = 0;
+            _useLegacyDictionaryLayout = false;
+            _hasDictionaryEntriesOffset = false;
+            _dictionaryEntriesOffset = 0;
+            _hasDictionaryVersionOffset = false;
+            _dictionaryVersionOffset = 0;
+            _hasLegacyDictionaryKeySlotsOffset = false;
+            _legacyDictionaryKeySlotsOffset = 0;
+            _hasLegacyDictionaryValueSlotsOffset = false;
+            _legacyDictionaryValueSlotsOffset = 0;
+            _hasLegacyDictionaryLinkSlotsOffset = false;
+            _legacyDictionaryLinkSlotsOffset = 0;
+            _hasLegacyDictionaryTouchedOffset = false;
+            _legacyDictionaryTouchedOffset = 0;
             _hasInventoryItemOffset = false;
             _inventoryItemOffset = 0;
             _hasInventoryItemTechTypeOffset = false;
@@ -351,10 +390,18 @@ namespace SubnauticaLauncher.Gameplay
             IntPtr databankClass = FindClass(proc, mainImage, "PDAEncyclopedia");
             IntPtr inventoryClass = FindClass(proc, mainImage, "Inventory");
             IntPtr itemsContainerClass = FindClass(proc, mainImage, "ItemsContainer");
+            IntPtr itemGroupClass = FindClass(proc, mainImage, "ItemGroup");
             IntPtr inventoryItemClass = FindClass(proc, mainImage, "InventoryItem");
             IntPtr pickupableClass = FindClass(proc, mainImage, "Pickupable");
             IntPtr crafterClass = FindClass(proc, mainImage, "CrafterLogic");
             IntPtr craftingMenuClass = FindClass(proc, mainImage, "uGUI_CraftingMenu");
+            IntPtr coreImage = FindFirstAssemblyImage(proc, assembliesList,
+                "mscorlib",
+                "mscorlib.dll",
+                "System.Private.CoreLib",
+                "System.Private.CoreLib.dll",
+                "netstandard",
+                "netstandard.dll");
 
             bool anyReadableSource = false;
 
@@ -381,6 +428,13 @@ namespace SubnauticaLauncher.Gameplay
             {
                 _hasInventoryContainerOffset = TryFindFieldOffsetAny(proc, inventoryClass,
                     new[] { "container", "_container", "m_container" }, out _inventoryContainerOffset);
+
+                if (!_hasInventoryContainerOffset)
+                {
+                    _hasInventoryContainerOffset = TryFindFieldOffsetByContainsAny(proc, inventoryClass,
+                        new[] { "container" }, out _inventoryContainerOffset);
+                }
+
                 anyReadableSource = true;
             }
 
@@ -388,6 +442,12 @@ namespace SubnauticaLauncher.Gameplay
             {
                 _hasItemsListOffset = TryFindFieldOffsetAny(proc, itemsContainerClass,
                     new[] { "items", "_items", "m_items" }, out _itemsListOffset);
+
+                if (!_hasItemsListOffset)
+                {
+                    _hasItemsListOffset = TryFindFieldOffsetByContainsAny(proc, itemsContainerClass,
+                        new[] { "items" }, out _itemsListOffset);
+                }
 
                 AddCollectionOffsetIfExists(proc, itemsContainerClass, "items", _itemsContainerCollectionOffsets);
                 AddCollectionOffsetIfExists(proc, itemsContainerClass, "_items", _itemsContainerCollectionOffsets);
@@ -403,6 +463,29 @@ namespace SubnauticaLauncher.Gameplay
                 AddCollectionOffsetIfExists(proc, itemsContainerClass, "countByTechType", _itemsContainerCollectionOffsets);
                 AddCollectionOffsetIfExists(proc, itemsContainerClass, "_countByTechType", _itemsContainerCollectionOffsets);
             }
+
+            if (itemGroupClass != IntPtr.Zero)
+            {
+                _hasItemGroupItemsOffset = TryFindFieldOffsetAny(proc, itemGroupClass,
+                    new[] { "items", "_items", "m_items" }, out _itemGroupItemsOffset);
+
+                if (!_hasItemGroupItemsOffset)
+                {
+                    _hasItemGroupItemsOffset = TryFindFieldOffsetByContainsAny(proc, itemGroupClass,
+                        new[] { "items" }, out _itemGroupItemsOffset);
+                }
+
+                _hasItemGroupIdOffset = TryFindFieldOffsetAny(proc, itemGroupClass,
+                    new[] { "id", "_id", "m_id", "techType", "_techType", "m_techType" }, out _itemGroupIdOffset);
+
+                if (!_hasItemGroupIdOffset)
+                {
+                    _hasItemGroupIdOffset = TryFindFieldOffsetByContainsAny(proc, itemGroupClass,
+                        new[] { "id", "techType" }, out _itemGroupIdOffset);
+                }
+            }
+
+            ResolveCoreCollectionOffsets(proc, coreImage);
 
             if (inventoryItemClass != IntPtr.Zero)
             {
@@ -441,6 +524,77 @@ namespace SubnauticaLauncher.Gameplay
             return anyReadableSource;
         }
 
+        private void ResolveCoreCollectionOffsets(Process proc, IntPtr coreImage)
+        {
+            _hasListSizeOffset = false;
+            _listSizeOffset = IntPtr.Size == 8 ? 0x18 : 0x0C;
+            _useLegacyDictionaryLayout = _flavor == MonoFlavor.MonoV1;
+            _hasDictionaryEntriesOffset = false;
+            _dictionaryEntriesOffset = IntPtr.Size == 8 ? 0x18 : 0x10;
+            _hasDictionaryVersionOffset = false;
+            _dictionaryVersionOffset = 0;
+
+            _hasLegacyDictionaryKeySlotsOffset = false;
+            _legacyDictionaryKeySlotsOffset = 0;
+            _hasLegacyDictionaryValueSlotsOffset = false;
+            _legacyDictionaryValueSlotsOffset = 0;
+            _hasLegacyDictionaryLinkSlotsOffset = false;
+            _legacyDictionaryLinkSlotsOffset = 0;
+            _hasLegacyDictionaryTouchedOffset = false;
+            _legacyDictionaryTouchedOffset = 0;
+
+            if (coreImage == IntPtr.Zero)
+                return;
+
+            IntPtr listClass = FindClass(proc, coreImage, "List`1");
+            if (listClass != IntPtr.Zero)
+            {
+                _hasListSizeOffset = TryFindFieldOffsetAny(proc, listClass,
+                    new[] { "_size", "size", "m_size", "_count", "count" }, out _listSizeOffset);
+            }
+
+            IntPtr dictClass = FindClass(proc, coreImage, "Dictionary`2");
+            if (dictClass == IntPtr.Zero)
+                return;
+
+            _hasDictionaryEntriesOffset = TryFindFieldOffsetAny(proc, dictClass,
+                new[] { "entries", "_entries", "m_entries" }, out _dictionaryEntriesOffset);
+
+            _hasDictionaryVersionOffset = TryFindFieldOffsetAny(proc, dictClass,
+                new[] { "version", "_version", "m_version" }, out _dictionaryVersionOffset);
+
+            _hasLegacyDictionaryKeySlotsOffset = TryFindFieldOffsetAny(proc, dictClass,
+                new[] { "keySlots", "_keySlots", "m_keySlots" }, out _legacyDictionaryKeySlotsOffset);
+
+            if (!_hasLegacyDictionaryKeySlotsOffset)
+            {
+                _hasLegacyDictionaryKeySlotsOffset = TryFindFieldOffsetByContainsAny(proc, dictClass,
+                    new[] { "keyslots", "key" }, out _legacyDictionaryKeySlotsOffset);
+            }
+
+            _hasLegacyDictionaryValueSlotsOffset = TryFindFieldOffsetAny(proc, dictClass,
+                new[] { "valueSlots", "_valueSlots", "m_valueSlots" }, out _legacyDictionaryValueSlotsOffset);
+
+            if (!_hasLegacyDictionaryValueSlotsOffset)
+            {
+                _hasLegacyDictionaryValueSlotsOffset = TryFindFieldOffsetByContainsAny(proc, dictClass,
+                    new[] { "valueslots", "value" }, out _legacyDictionaryValueSlotsOffset);
+            }
+
+            _hasLegacyDictionaryLinkSlotsOffset = TryFindFieldOffsetAny(proc, dictClass,
+                new[] { "linkSlots", "_linkSlots", "m_linkSlots" }, out _legacyDictionaryLinkSlotsOffset);
+
+            if (!_hasLegacyDictionaryLinkSlotsOffset)
+            {
+                _hasLegacyDictionaryLinkSlotsOffset = TryFindFieldOffsetByContainsAny(proc, dictClass,
+                    new[] { "linkslots", "link" }, out _legacyDictionaryLinkSlotsOffset);
+            }
+
+            _hasLegacyDictionaryTouchedOffset = TryFindFieldOffsetAny(proc, dictClass,
+                new[] { "touchedSlots", "_touchedSlots", "m_touchedSlots", "count", "_count", "m_count" },
+                out _legacyDictionaryTouchedOffset);
+        }
+
         private bool TryReadBlueprints(Process proc, out HashSet<int> values)
         {
             values = new HashSet<int>();
@@ -472,6 +626,245 @@ namespace SubnauticaLauncher.Gameplay
         }
 
         private bool TryReadInventoryCounts(Process proc, out Dictionary<int, int> counts)
+        {
+            counts = new Dictionary<int, int>();
+
+            if (TryReadInventoryCountsViaItemsDictionary(proc, out var dictCounts) && dictCounts.Count > 0)
+            {
+                counts = dictCounts;
+            }
+            else
+            {
+                bool parsed = TryReadInventoryCountsViaGenericCollections(proc, out var genericCounts);
+                if (!parsed || genericCounts.Count == 0)
+                {
+                    MaybeLogInventoryParseWarning(parsed, genericCounts.Count);
+                    return false;
+                }
+
+                counts = genericCounts;
+            }
+
+            foreach (int techType in counts.Keys.ToList())
+            {
+                if (!IsPlausibleTechType(techType) || counts[techType] <= 0)
+                    counts.Remove(techType);
+            }
+
+            return counts.Count > 0;
+        }
+
+        private bool TryReadInventoryCountsViaItemsDictionary(Process proc, out Dictionary<int, int> counts)
+        {
+            counts = new Dictionary<int, int>();
+
+            if (!_hasInventoryContainerOffset || !_hasItemsListOffset || !_hasItemGroupItemsOffset)
+                return false;
+
+            if (!TryReadStaticObject(proc, _inventoryMainField, out var inventoryMain) || inventoryMain == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(inventoryMain, _inventoryContainerOffset), out var container) ||
+                container == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(container, _itemsListOffset), out var dict) || dict == IntPtr.Zero)
+                return false;
+
+            return _useLegacyDictionaryLayout
+                ? TryReadLegacyItemsDictionaryCounts(proc, dict, counts)
+                : TryReadModernItemsDictionaryCounts(proc, dict, counts);
+        }
+
+        private bool TryReadModernItemsDictionaryCounts(Process proc, IntPtr dict, Dictionary<int, int> counts)
+        {
+            if (!_hasDictionaryEntriesOffset)
+                return false;
+
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                int versionBefore = 0;
+                if (_hasDictionaryVersionOffset)
+                    MemoryReader.ReadInt32(proc, IntPtr.Add(dict, _dictionaryVersionOffset), out versionBefore);
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(dict, _dictionaryEntriesOffset), out var entriesArray) ||
+                    entriesArray == IntPtr.Zero ||
+                    !TryGetArrayLength(proc, entriesArray, out int length) ||
+                    length <= 0)
+                {
+                    break;
+                }
+
+                int stride = IntPtr.Size == 8 ? 24 : 16;
+                int valueOffset = IntPtr.Size == 8 ? 0x10 : 0x0C;
+                int dataOffset = GetMonoArrayDataOffset();
+
+                counts.Clear();
+
+                for (int i = 0; i < length; i++)
+                {
+                    IntPtr entry = IntPtr.Add(entriesArray, dataOffset + i * stride);
+
+                    if (!MemoryReader.ReadInt32(proc, entry, out int hashCode))
+                        break;
+
+                    if (hashCode < 0)
+                        continue;
+
+                    if (!MemoryReader.ReadInt32(proc, IntPtr.Add(entry, 0x08), out int keyInt) ||
+                        !IsPlausibleTechType(keyInt))
+                    {
+                        continue;
+                    }
+
+                    if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(entry, valueOffset), out var itemGroup) ||
+                        itemGroup == IntPtr.Zero)
+                    {
+                        continue;
+                    }
+
+                    int id = keyInt;
+                    if (_hasItemGroupIdOffset &&
+                        MemoryReader.ReadInt32(proc, IntPtr.Add(itemGroup, _itemGroupIdOffset), out int rawId) &&
+                        IsPlausibleTechType(rawId))
+                    {
+                        id = rawId;
+                    }
+
+                    if (id != keyInt)
+                        continue;
+
+                    if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(itemGroup, _itemGroupItemsOffset), out var itemList) ||
+                        itemList == IntPtr.Zero)
+                    {
+                        continue;
+                    }
+
+                    if (!ReadListCount(proc, itemList, out int itemCount))
+                        continue;
+
+                    if (!IsPlausibleItemCount(itemCount))
+                        continue;
+
+                    counts[keyInt] = itemCount;
+                }
+
+                int versionAfter = versionBefore;
+                if (_hasDictionaryVersionOffset)
+                    MemoryReader.ReadInt32(proc, IntPtr.Add(dict, _dictionaryVersionOffset), out versionAfter);
+
+                if (!_hasDictionaryVersionOffset || versionAfter == versionBefore)
+                    return counts.Count > 0;
+
+                counts.Clear();
+            }
+
+            return counts.Count > 0;
+        }
+
+        private bool TryReadLegacyItemsDictionaryCounts(Process proc, IntPtr dict, Dictionary<int, int> counts)
+        {
+            if (!_hasLegacyDictionaryValueSlotsOffset)
+                return false;
+
+            IntPtr keyArray = IntPtr.Zero;
+            IntPtr valueArray = IntPtr.Zero;
+            IntPtr linkArray = IntPtr.Zero;
+            int touched = 0;
+
+            if (_hasLegacyDictionaryKeySlotsOffset)
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(dict, _legacyDictionaryKeySlotsOffset), out keyArray);
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(dict, _legacyDictionaryValueSlotsOffset), out valueArray) ||
+                valueArray == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            if (_hasLegacyDictionaryLinkSlotsOffset)
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(dict, _legacyDictionaryLinkSlotsOffset), out linkArray);
+
+            if (_hasLegacyDictionaryTouchedOffset)
+                MemoryReader.ReadInt32(proc, IntPtr.Add(dict, _legacyDictionaryTouchedOffset), out touched);
+
+            if (!TryGetArrayLength(proc, valueArray, out int valueLength) || valueLength <= 0)
+                return false;
+
+            int upper = valueLength;
+            if (touched > 0 && touched <= valueLength)
+                upper = touched;
+
+            IntPtr keyBase = keyArray != IntPtr.Zero ? IntPtr.Add(keyArray, GetMonoArrayDataOffset()) : IntPtr.Zero;
+            IntPtr valueBase = IntPtr.Add(valueArray, GetMonoArrayDataOffset());
+            IntPtr linkBase = linkArray != IntPtr.Zero ? IntPtr.Add(linkArray, GetMonoArrayDataOffset()) : IntPtr.Zero;
+            int ptrSize = IntPtr.Size;
+
+            for (int i = 0; i < upper; i++)
+            {
+                if (linkBase != IntPtr.Zero)
+                {
+                    // linkSlots entry = hashCode(int) + next(int)
+                    if (!MemoryReader.ReadInt32(proc, IntPtr.Add(linkBase, i * 8), out int h) || h == 0)
+                        continue;
+                }
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(valueBase, i * ptrSize), out var itemGroup) ||
+                    itemGroup == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                int id = 0;
+                if (_hasItemGroupIdOffset)
+                    MemoryReader.ReadInt32(proc, IntPtr.Add(itemGroup, _itemGroupIdOffset), out id);
+
+                int keyInt = id;
+                if (keyBase != IntPtr.Zero &&
+                    MemoryReader.ReadInt32(proc, IntPtr.Add(keyBase, i * 4), out int keySlot) &&
+                    IsPlausibleTechType(keySlot))
+                {
+                    if (id == 0 || id == keySlot)
+                        keyInt = keySlot;
+                }
+
+                if (!IsPlausibleTechType(keyInt))
+                    continue;
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(itemGroup, _itemGroupItemsOffset), out var itemList) ||
+                    itemList == IntPtr.Zero)
+                {
+                    continue;
+                }
+
+                if (!ReadListCount(proc, itemList, out int itemCount) || !IsPlausibleItemCount(itemCount))
+                    continue;
+
+                counts[keyInt] = itemCount;
+            }
+
+            return counts.Count > 0;
+        }
+
+        private bool ReadListCount(Process proc, IntPtr listObj, out int count)
+        {
+            count = 0;
+
+            if (listObj == IntPtr.Zero)
+                return false;
+
+            if (_hasListSizeOffset &&
+                MemoryReader.ReadInt32(proc, IntPtr.Add(listObj, _listSizeOffset), out count) &&
+                IsPlausibleItemCount(count))
+            {
+                return true;
+            }
+
+            return TryReadListHeader(proc, listObj, out _, out count) && IsPlausibleItemCount(count);
+        }
+
+        private bool TryReadInventoryCountsViaGenericCollections(Process proc, out Dictionary<int, int> counts)
         {
             counts = new Dictionary<int, int>();
 
@@ -509,23 +902,11 @@ namespace SubnauticaLauncher.Gameplay
 
             if (!parsed)
             {
-                // Fallback: some legacy builds expose item collections directly on inventory.
+                // Fallback: some builds expose item collections directly on inventory.
                 parsed = TryReadInventoryFromCollection(proc, container, counts, seenCollections);
             }
 
-            if (!parsed || counts.Count == 0)
-            {
-                MaybeLogInventoryParseWarning(parsed, counts.Count);
-                return false;
-            }
-
-            foreach (int techType in counts.Keys.ToList())
-            {
-                if (!IsPlausibleTechType(techType) || counts[techType] <= 0)
-                    counts.Remove(techType);
-            }
-
-            return counts.Count > 0;
+            return parsed;
         }
 
         private void MaybeLogInventoryParseWarning(bool parsedAnyCollection, int countEntries)
@@ -541,6 +922,9 @@ namespace SubnauticaLauncher.Gameplay
                 $"parsed={parsedAnyCollection}, entries={countEntries}, " +
                 $"hasContainerOffset={_hasInventoryContainerOffset}, " +
                 $"collectionOffsets={_itemsContainerCollectionOffsets.Count}, " +
+                $"dictMode={(_useLegacyDictionaryLayout ? "legacy" : "modern")}, " +
+                $"hasItemsDictOffset={_hasItemsListOffset}, " +
+                $"hasItemGroupItemsOffset={_hasItemGroupItemsOffset}, " +
                 $"hasInventoryItemOffset={_hasInventoryItemOffset}, " +
                 $"hasPickupableTechTypeOffset={_hasPickupableTechTypeOffset}");
         }
@@ -1154,6 +1538,79 @@ namespace SubnauticaLauncher.Gameplay
             return false;
         }
 
+        private bool TryFindFieldOffsetByContainsAny(Process proc, IntPtr klass, string[] fragments, out int fieldOffset)
+        {
+            var normalized = fragments
+                .Select(NormalizeFieldName)
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            return TryFindFieldOffsetByPredicate(proc, klass, fieldName =>
+            {
+                string f = NormalizeFieldName(fieldName);
+                if (string.IsNullOrWhiteSpace(f))
+                    return false;
+
+                return normalized.Any(n => f.Contains(n, StringComparison.OrdinalIgnoreCase));
+            }, out fieldOffset);
+        }
+
+        private bool TryFindFieldOffsetByPredicate(Process proc, IntPtr klass, Func<string, bool> predicate, out int fieldOffset)
+        {
+            fieldOffset = 0;
+
+            IntPtr current = klass;
+            int parentGuard = 0;
+            while (current != IntPtr.Zero && parentGuard++ < 32)
+            {
+                if (TryFindFieldByPredicate(proc, current, predicate, out fieldOffset))
+                    return true;
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(current, _layout.ClassParent), out current))
+                    break;
+            }
+
+            return false;
+        }
+
+        private bool TryFindFieldByPredicate(Process proc, IntPtr klass, Func<string, bool> predicate, out int fieldOffset)
+        {
+            fieldOffset = 0;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(klass, _layout.ClassFields), out var fields) || fields == IntPtr.Zero)
+                return false;
+
+            int countOffset = _flavor == MonoFlavor.MonoV2
+                ? _layout.ClassDefFieldCount
+                : _layout.ClassFieldCount;
+
+            if (countOffset < 0 || !MemoryReader.ReadInt32(proc, IntPtr.Add(klass, countOffset), out int fieldCount))
+                return false;
+
+            if (fieldCount <= 0 || fieldCount > 4000)
+                return false;
+
+            for (int i = 0; i < fieldCount; i++)
+            {
+                IntPtr field = new(fields.ToInt64() + (long)i * _classFieldSize);
+
+                if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(field, _layout.ClassFieldName), out var fieldNamePtr))
+                    continue;
+
+                string currentFieldName = MemoryReader.ReadUtf8String(proc, fieldNamePtr, 128);
+                if (!predicate(currentFieldName))
+                    continue;
+
+                if (!MemoryReader.ReadInt32(proc, IntPtr.Add(field, _layout.ClassFieldOffset), out fieldOffset))
+                    return false;
+
+                return true;
+            }
+
+            return false;
+        }
+
         private void AddCollectionOffsetIfExists(Process proc, IntPtr klass, string fieldName, List<int> offsets)
         {
             if (!TryFindFieldOffset(proc, klass, fieldName, out int offset))
@@ -1681,6 +2138,18 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(node, MonoLayout.GListNext), out node))
                     break;
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private IntPtr FindFirstAssemblyImage(Process proc, IntPtr assembliesList, params string[] imageNames)
+        {
+            foreach (string imageName in imageNames)
+            {
+                IntPtr image = FindAssemblyImage(proc, assembliesList, imageName);
+                if (image != IntPtr.Zero)
+                    return image;
             }
 
             return IntPtr.Zero;
