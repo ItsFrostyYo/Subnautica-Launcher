@@ -16,7 +16,7 @@ namespace SubnauticaLauncher.Gameplay
     {
         private static readonly object Sync = new();
         private static readonly Dictionary<string, DynamicMonoGameplayEventTracker> Trackers = new();
-        private static readonly Dictionary<string, GameState> LastStates = new();
+        private static readonly Dictionary<string, ProcessStateTracker> StateTrackers = new();
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             WriteIndented = false,
@@ -73,7 +73,7 @@ namespace SubnauticaLauncher.Gameplay
                 lock (Sync)
                 {
                     Trackers.Clear();
-                    LastStates.Clear();
+                    StateTrackers.Clear();
                 }
 
                 WriteLifecycleEvent("DocumenterStopped");
@@ -127,7 +127,7 @@ namespace SubnauticaLauncher.Gameplay
                 foreach (string key in stale)
                 {
                     Trackers.Remove(key);
-                    LastStates.Remove(key);
+                    StateTrackers.Remove(key);
                 }
             }
 
@@ -138,10 +138,13 @@ namespace SubnauticaLauncher.Gameplay
 
                 try
                 {
+                    if (process.HasExited)
+                        continue;
+
                     string trackerKey = processName + ":" + process.Id;
                     DynamicMonoGameplayEventTracker tracker = GetOrCreateTracker(processName, trackerKey);
 
-                    TryEmitStateEvents(processName, process, trackerKey);
+                    TryEmitStateEvents(processName, process, trackerKey, tracker);
 
                     if (!tracker.TryPoll(process, out var events) || events.Count == 0)
                         continue;
@@ -151,6 +154,10 @@ namespace SubnauticaLauncher.Gameplay
                         WriteEvent(evt);
                         Logger.Log($"[GameEvent] {evt.Game} {evt.Type} key={evt.Key} delta={evt.Delta}");
                     }
+                }
+                catch (InvalidOperationException)
+                {
+                    // Process exited mid-poll; safe to ignore.
                 }
                 catch (Exception ex)
                 {
@@ -176,90 +183,176 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
-        private static void TryEmitStateEvents(string processName, Process process, string trackerKey)
+        private static void TryEmitStateEvents(
+            string processName,
+            Process process,
+            string trackerKey,
+            DynamicMonoGameplayEventTracker tracker)
         {
             try
             {
-                int yearGroup;
+                GameState state;
+                string source;
 
-                if (processName.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
+                if (tracker.TryDetectState(process, out state))
                 {
-                    string? exe = process.MainModule?.FileName;
-                    if (string.IsNullOrWhiteSpace(exe))
-                        return;
-
-                    string root = Path.GetDirectoryName(exe)!;
-                    yearGroup = BuildYearResolver.ResolveGroupedYear(root);
+                    source = "dynamic-state";
                 }
                 else
                 {
-                    yearGroup = BuildYearResolver.ResolveBelowZero();
-                }
+                    int yearGroup;
+                    if (processName.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string? exe = process.MainModule?.FileName;
+                        if (string.IsNullOrWhiteSpace(exe))
+                            return;
 
-                var profile = GameStateDetectorRegistry.Get(yearGroup);
-                var display = DisplayInfo.GetPrimary();
-                var state = GameStateDetector.Detect(processName, profile, display, focusGame: false);
+                        string root = Path.GetDirectoryName(exe)!;
+                        yearGroup = BuildYearResolver.ResolveGroupedYear(root);
+                    }
+                    else
+                    {
+                        yearGroup = BuildYearResolver.ResolveBelowZero();
+                    }
+
+                    var profile = GameStateDetectorRegistry.Get(yearGroup);
+                    var display = DisplayInfo.GetPrimary();
+                    state = GameStateDetector.Detect(processName, profile, display, focusGame: false);
+                    source = "pixel-state";
+                }
 
                 // Ignore Unknown noise so the event log stays useful.
                 if (state == GameState.Unknown)
                     return;
 
-                bool hadPrevious;
+                bool changed;
+                bool shouldEmitRunStart;
                 GameState previous;
+                GameState current;
 
                 lock (Sync)
                 {
-                    hadPrevious = LastStates.TryGetValue(trackerKey, out previous);
-                    LastStates[trackerKey] = state;
+                    if (!StateTrackers.TryGetValue(trackerKey, out var trackerState))
+                    {
+                        trackerState = new ProcessStateTracker();
+                        StateTrackers[trackerKey] = trackerState;
+                    }
+
+                    changed = trackerState.TryPromote(state, out previous, out current);
+                    shouldEmitRunStart = trackerState.ShouldEmitRunStart(previous, current);
                 }
 
-                if (!hadPrevious)
+                if (!changed)
                 {
-                    WriteEvent(new GameplayEvent
-                    {
-                        TimestampUtc = DateTime.UtcNow,
-                        Game = processName,
-                        ProcessId = process.Id,
-                        Type = GameplayEventType.GameStateChanged,
-                        Key = state.ToString(),
-                        Delta = 0,
-                        Source = "pixel-state"
-                    });
                     return;
                 }
 
-                if (previous != state)
+                WriteEvent(new GameplayEvent
+                {
+                    TimestampUtc = DateTime.UtcNow,
+                    Game = processName,
+                    ProcessId = process.Id,
+                    Type = GameplayEventType.GameStateChanged,
+                    Key = current.ToString(),
+                    Delta = 0,
+                    Source = source
+                });
+
+                if (shouldEmitRunStart)
                 {
                     WriteEvent(new GameplayEvent
                     {
                         TimestampUtc = DateTime.UtcNow,
                         Game = processName,
                         ProcessId = process.Id,
-                        Type = GameplayEventType.GameStateChanged,
-                        Key = state.ToString(),
-                        Delta = 0,
-                        Source = "pixel-state"
+                        Type = GameplayEventType.RunStarted,
+                        Key = $"{previous}->InGame",
+                        Delta = 1,
+                        Source = "state-transition"
                     });
-
-                    if (state == GameState.InGame &&
-                        (previous == GameState.MainMenu || previous == GameState.BlackScreen))
-                    {
-                        WriteEvent(new GameplayEvent
-                        {
-                            TimestampUtc = DateTime.UtcNow,
-                            Game = processName,
-                            ProcessId = process.Id,
-                            Type = GameplayEventType.RunStarted,
-                            Key = $"{previous}->InGame",
-                            Delta = 1,
-                            Source = "state-transition"
-                        });
-                    }
                 }
             }
             catch
             {
                 // state detection is best-effort, never break event tracking
+            }
+        }
+
+        private sealed class ProcessStateTracker
+        {
+            private const int StableSamples = 2;
+            private static readonly TimeSpan RunStartCooldown = TimeSpan.FromSeconds(10);
+
+            private bool _hasCandidate;
+            private GameState _candidate;
+            private int _candidateCount;
+
+            private bool _hasStable;
+            private GameState _stable;
+
+            private bool _runArmed;
+            private DateTime _lastRunStartedUtc = DateTime.MinValue;
+
+            public bool TryPromote(GameState rawState, out GameState previousStable, out GameState stableState)
+            {
+                previousStable = GameState.Unknown;
+                stableState = GameState.Unknown;
+
+                if (!_hasCandidate || _candidate != rawState)
+                {
+                    _candidate = rawState;
+                    _candidateCount = 1;
+                    _hasCandidate = true;
+                    return false;
+                }
+
+                _candidateCount++;
+                if (_candidateCount < StableSamples)
+                    return false;
+
+                if (!_hasStable)
+                {
+                    _stable = rawState;
+                    _hasStable = true;
+                    if (_stable == GameState.MainMenu)
+                        _runArmed = true;
+
+                    previousStable = _stable;
+                    stableState = _stable;
+                    return true;
+                }
+
+                if (_stable == rawState)
+                    return false;
+
+                previousStable = _stable;
+                _stable = rawState;
+                stableState = _stable;
+
+                if (_stable == GameState.MainMenu)
+                    _runArmed = true;
+
+                return true;
+            }
+
+            public bool ShouldEmitRunStart(GameState previousState, GameState currentState)
+            {
+                if (currentState != GameState.InGame)
+                    return false;
+
+                if (previousState != GameState.MainMenu && previousState != GameState.BlackScreen)
+                    return false;
+
+                if (!_runArmed)
+                    return false;
+
+                DateTime now = DateTime.UtcNow;
+                if ((now - _lastRunStartedUtc) < RunStartCooldown)
+                    return false;
+
+                _runArmed = false;
+                _lastRunStartedUtc = now;
+                return true;
             }
         }
 
