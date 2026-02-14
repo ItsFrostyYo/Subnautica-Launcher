@@ -1,4 +1,4 @@
-!ALL BLUEPRINTS! (157) True = Pre Installed False = No Pre Installed
+!ALL BLUEPRINTS! (201) True = Pre Installed False = No Pre Installed
 BASIC MATERIALS (9)	
 TRUE	Titanium
 TRUE	Titanium Ingot
@@ -211,7 +211,7 @@ FALSE	Wall Shelves (1)
 HULL PLATES (1)	
 FALSE	An Unusual Doll (1)
 
-!ALL DATABANK ENTRIES! (277) True = Pre Installed False = No Pre Installed
+!ALL DATABANK ENTRIES! (292) True = Pre Installed False = No Pre Installed
 ADVANCED THEORIES (16)	
 FALSE	Alien Eggs
 FALSE	Bacterial Infection Report

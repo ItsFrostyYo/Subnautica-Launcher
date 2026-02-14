@@ -575,7 +575,7 @@ namespace SubnauticaLauncher.Gameplay
 
             new(
                 "lava_lakes",
-                "Lava Lakes",
+                "Active Lava Zone",
                 new[]
                 {
                     "lavaLakes",

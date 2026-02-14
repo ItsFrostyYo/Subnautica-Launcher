@@ -1,0 +1,30 @@
+This is to pair each Biome to what Blueprints and Entries are found there.
+BiomeGroup's string DisplayName (Biome Display Name) -> All Blueprint Unlocks and Entries Found (Each one from Subnautica100Checklist.txt)
+This will be for tracking what should be shown for each biome for the Basic Biome Tracker, this is not for the customizable one, this shows what i personally want shown as a baseline, SubnauticaBiome&UnlocksPairing.txt has the information of what can be found in each biome, this is just what i find important.
+
+Safe Shallows - [] {}
+Kelp Forest - [] {}
+Grassy Plateaus - [] {}
+Mushroom Forest - [] {}
+Jellyshroom Caves - [] {}
+Bulb Zone - [] {}
+Mountains - [] {}
+Floating Island - [] {}
+Underwater Islands - [] {}
+Crash Zone - [] {}
+Aurora - [] {}
+Dunes - [] {}
+Crag Field - [] {}
+Sparse Reef - [] {}
+Sea Treader's Path - [] {}
+Grand Reef - [] {}
+Blood Kelp Zone - [] {}
+Blood Kelp Trench - [] {}
+Lost River - [] {}
+Inactive Lava Zone - [] {}
+Active Lava Zone - [] {}
+Alien Thermal Plant - [] {}
+Disease Research Facility - [] {}
+Primary Containment Facility - [] {}
+Aquarium - [] {}
+Quarantine Enforcement Platform - [] {}
