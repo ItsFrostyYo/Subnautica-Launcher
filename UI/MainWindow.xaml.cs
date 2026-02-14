@@ -1004,6 +1004,15 @@ namespace SubnauticaLauncher.UI
                 Subnautica100TrackerOverlayController.Stop();
         }
 
+        private void Subnautica100TrackerCustomize_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show(
+                "Overlay customization UI is added next.\n\nThis button is now wired and ready.",
+                "100% Tracker Overlay",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+
         private void HardcoreSaveDeleterPurge_Click(object sender, RoutedEventArgs e)
         {
             var win = new HardcoreSaveDeleterWindow { Owner = this };

@@ -949,6 +949,12 @@ namespace SubnauticaLauncher.Gameplay
                 bool hasAnchor = false;
 
                 _toastWindow ??= new Subnautica100UnlockToastOverlay();
+                if (_window != null)
+                {
+                    double overlayWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
+                    if (overlayWidth > 1)
+                        _toastWindow.Width = overlayWidth;
+                }
 
                 if (_window != null && _window.IsVisible)
                 {
@@ -1038,25 +1044,14 @@ namespace SubnauticaLauncher.Gameplay
             if (!_toastVisible)
                 return;
 
-            double fromLeft = 0;
-            double fromOpacity = 0;
-            bool canAnimate = false;
-
             if (_toastWindow == null || !_toastWindow.IsVisible)
             {
                 _toastVisible = false;
                 return;
             }
 
-            fromLeft = _toastWindow.Left;
-            fromOpacity = _toastWindow.Opacity;
-            canAnimate = true;
-
-            if (!canAnimate)
-            {
-                _toastVisible = false;
-                return;
-            }
+            double fromLeft = _toastWindow.Left;
+            double fromOpacity = _toastWindow.Opacity;
 
             await AnimateToastAsync(
                 fromLeft: fromLeft,
@@ -1224,6 +1219,10 @@ namespace SubnauticaLauncher.Gameplay
 
                             if (_toastWindow != null && _toastWindow.IsVisible)
                             {
+                                double overlayWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
+                                if (overlayWidth > 1)
+                                    _toastWindow.Width = overlayWidth;
+
                                 _toastWindow.Left = _overlayLeft;
                                 _toastWindow.Top = GetToastTop();
                             }

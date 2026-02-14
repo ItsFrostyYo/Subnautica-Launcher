@@ -746,6 +746,15 @@ Click="ExplosionTrackToggle_Click"/>
                                             Style="{StaticResource RoundedButton}"
                                             Click="Subnautica100TrackerToggle_Click"/>
 
+                                    <Button x:Name="Subnautica100TrackerCustomizeButton"
+                                            Width="180"
+                                            Height="32"
+                                            Margin="0,8,0,0"
+                                            Background="#154966"
+                                            Content="Customize Overlay"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="Subnautica100TrackerCustomize_Click"/>
+
                                     <TextBlock Text="Subnautica only. Shows run progress and recent unlocks."
                                                TextWrapping="Wrap"
                                                Margin="0,12,0,0"/>
