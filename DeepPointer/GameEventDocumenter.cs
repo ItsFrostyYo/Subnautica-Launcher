@@ -35,6 +35,7 @@ namespace SubnauticaLauncher.Gameplay
                     return;
 
                 EnsureOutputFileExists();
+                SubnauticaBiomeCatalog.EnsureCatalogWritten();
                 WriteLifecycleEvent("DocumenterStarted");
 
                 _cts = new CancellationTokenSource();
@@ -212,14 +213,21 @@ namespace SubnauticaLauncher.Gameplay
                 bool changed;
                 GameState previous;
                 GameState current;
-                bool hasBiome = tracker.TryDetectBiome(process, out string biome);
+                bool hasBiome = tracker.TryDetectBiome(process, out string biomeRaw);
                 bool biomeChanged = false;
                 string currentBiome = string.Empty;
+                SubnauticaBiomeCatalog.BiomeMatch biomeMatch = default;
                 bool runStarted = false;
                 string runStartReason = string.Empty;
 
                 if (source == "dynamic-state")
                     runStarted = tracker.TryDetectRunStart(process, out runStartReason);
+
+                if (hasBiome)
+                {
+                    biomeMatch = SubnauticaBiomeCatalog.Resolve(biomeRaw);
+                    SubnauticaBiomeCatalog.RegisterObserved(biomeRaw, biomeMatch);
+                }
 
                 lock (Sync)
                 {
@@ -232,7 +240,7 @@ namespace SubnauticaLauncher.Gameplay
                     changed = trackerState.TryPromote(state, out previous, out current);
 
                     if (hasBiome)
-                        biomeChanged = trackerState.TryPromoteBiome(biome, out _, out currentBiome);
+                        biomeChanged = trackerState.TryPromoteBiome(biomeMatch.CanonicalKey, out _, out currentBiome);
                 }
 
                 if (changed)
@@ -257,7 +265,7 @@ namespace SubnauticaLauncher.Gameplay
                         Game = processName,
                         ProcessId = process.Id,
                         Type = GameplayEventType.BiomeChanged,
-                        Key = currentBiome,
+                        Key = SubnauticaBiomeCatalog.GetDisplayName(currentBiome),
                         Delta = 0,
                         Source = "dynamic-biome"
                     });
