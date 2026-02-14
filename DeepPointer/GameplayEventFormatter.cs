@@ -107,6 +107,7 @@ namespace SubnauticaLauncher.Gameplay
             switch (type)
             {
                 case GameplayEventType.GameStateChanged:
+                case GameplayEventType.BiomeChanged:
                     return 0;
 
                 case GameplayEventType.RunStarted:

@@ -164,10 +164,15 @@ namespace SubnauticaLauncher.Gameplay
         private readonly DeepPointer? _modernPosZ;
         private readonly DeepPointer? _legacySkipProgress;
         private readonly DeepPointer? _modernSkipProgress;
+        private readonly DeepPointer? _legacyBiome;
+        private readonly DeepPointer? _modernBiome;
         private bool _hasRunStartBaseline;
         private bool _previousIntroCinematicActive;
         private bool _previousPlayerCinematicActive;
+        private bool _skipProgressWasHigh;
         private bool _startedBefore;
+        private bool _pendingRunStartAfterCinematic;
+        private string _pendingRunStartReason = string.Empty;
         private bool _hasPreviousRunStartPosition;
         private float _previousRunStartPosX;
         private float _previousRunStartPosZ;
@@ -189,6 +194,8 @@ namespace SubnauticaLauncher.Gameplay
 
                 _legacySkipProgress = new DeepPointer("mono.dll", 0x17FBC48, 0x1F0, 0x1E8, 0x4E0, 0xB10, 0xD0, 0x8, 0x68, 0x30, 0x40, 0x30, 0xF4);
                 _modernSkipProgress = new DeepPointer("UnityPlayer.dll", 0x17FBC48, 0x1F0, 0x1E8, 0x4E0, 0xB10, 0xD0, 0x8, 0x68, 0x30, 0x40, 0x30, 0xF4);
+                _legacyBiome = new DeepPointer("Subnautica.exe", 0x142B908, 0x180, 0x128, 0x80, 0x1D0, 0x8, 0x248, 0x1D0, 0x14);
+                _modernBiome = new DeepPointer("UnityPlayer.dll", 0x17FBE70, 0x8, 0x10, 0x30, 0x58, 0x28, 0x1F0, 0x14);
             }
         }
 
@@ -308,6 +315,20 @@ namespace SubnauticaLauncher.Gameplay
                 return false;
 
             return TryReadRunStart(proc, out reason);
+        }
+
+        public bool TryDetectBiome(Process proc, out string biome)
+        {
+            biome = string.Empty;
+
+            EnsureInitialized(proc);
+            if (!_ready)
+                return false;
+
+            if (!string.Equals(_gameName, "Subnautica", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return TryReadBiome(proc, out biome);
         }
 
         private bool TryReadState(Process proc, out GameState state)
@@ -448,6 +469,61 @@ namespace SubnauticaLauncher.Gameplay
             return !float.IsNaN(value) && !float.IsInfinity(value) && value >= -0.1f && value <= 1.2f;
         }
 
+        private bool TryReadBiome(Process proc, out string biome)
+        {
+            biome = string.Empty;
+
+            return TryReadBiomeFrom(proc, _modernBiome, out biome)
+                || TryReadBiomeFrom(proc, _legacyBiome, out biome);
+        }
+
+        private static bool TryReadBiomeFrom(Process proc, DeepPointer? ptr, out string biome)
+        {
+            biome = string.Empty;
+
+            if (ptr == null || !ptr.Deref(proc, out IntPtr address) || address == IntPtr.Zero)
+                return false;
+
+            const int maxBiomeChars = 128;
+            if (!MemoryReader.ReadBytes(proc, address, maxBiomeChars * 2, out byte[] bytes))
+                return false;
+
+            int charBytes = 0;
+            while (charBytes + 1 < bytes.Length)
+            {
+                if (bytes[charBytes] == 0 && bytes[charBytes + 1] == 0)
+                    break;
+
+                charBytes += 2;
+            }
+
+            if (charBytes <= 0)
+                return false;
+
+            string raw = Encoding.Unicode.GetString(bytes, 0, charBytes).Trim();
+            if (!IsValidBiomeIdentifier(raw))
+                return false;
+
+            biome = raw;
+            return true;
+        }
+
+        private static bool IsValidBiomeIdentifier(string biome)
+        {
+            if (string.IsNullOrWhiteSpace(biome) || biome.Length > 128)
+                return false;
+
+            foreach (char c in biome)
+            {
+                if (char.IsLetterOrDigit(c) || c == '_' || c == '-' || c == ' ')
+                    continue;
+
+                return false;
+            }
+
+            return true;
+        }
+
         private bool TryReadRunStart(Process proc, out string reason)
         {
             reason = string.Empty;
@@ -472,6 +548,9 @@ namespace SubnauticaLauncher.Gameplay
                 if (isMainMenuNow)
                 {
                     _startedBefore = false;
+                    _pendingRunStartAfterCinematic = false;
+                    _pendingRunStartReason = string.Empty;
+                    _skipProgressWasHigh = false;
                 }
             }
             else if (hasPlayer)
@@ -485,6 +564,9 @@ namespace SubnauticaLauncher.Gameplay
                 _hasRunStartBaseline = true;
                 _previousIntroCinematicActive = hasIntro && introActive;
                 _previousPlayerCinematicActive = hasAnimation && animationActive;
+                _skipProgressWasHigh = hasSkipProgress && skipProgress > 0.02f;
+                _pendingRunStartAfterCinematic = false;
+                _pendingRunStartReason = string.Empty;
 
                 if (hasPosition)
                 {
@@ -507,32 +589,66 @@ namespace SubnauticaLauncher.Gameplay
 
             bool runStarted = false;
             bool canStart = !_startedBefore && (hasPlayer || hasMainMenuSignal) && !isMainMenuNow;
+            const float skipProgressActiveThreshold = 0.02f;
+            const float skipProgressFinishedThreshold = 0.01f;
+            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
+            bool animationEnded = hasAnimation && _previousPlayerCinematicActive && !animationActive;
+            bool loadingInactive = !hasLoading || !isLoading;
+            bool cinematicInactive = (!hasIntro || !introActive) && (!hasAnimation || !animationActive);
+            bool skipProgressActive = hasSkipProgress && skipProgress > skipProgressActiveThreshold;
+            bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
+            bool skipProgressFinished = !hasSkipProgress || !_skipProgressWasHigh || skipProgress <= skipProgressFinishedThreshold;
 
             if (canStart)
             {
-                if (hasIntro && _previousIntroCinematicActive && !introActive)
+                if (skipProgressActive)
+                    _skipProgressWasHigh = true;
+
+                if (introEnded)
+                {
+                    _pendingRunStartAfterCinematic = true;
+                    _pendingRunStartReason = "IntroCinematicEnded";
+                }
+
+                if (animationEnded)
+                {
+                    _pendingRunStartAfterCinematic = true;
+                    _pendingRunStartReason = "PlayerAnimationEnded";
+                }
+
+                if (skipProgressHigh)
+                {
+                    _skipProgressWasHigh = true;
+                    _pendingRunStartAfterCinematic = true;
+                    _pendingRunStartReason = "CutsceneSkipped";
+                }
+
+                if (_pendingRunStartAfterCinematic &&
+                    loadingInactive &&
+                    cinematicInactive &&
+                    (skipProgressFinished || movedSinceLastSample))
                 {
                     runStarted = true;
-                    reason = "IntroCinematicEnded";
+                    reason = string.IsNullOrWhiteSpace(_pendingRunStartReason)
+                        ? "PlayerAnimationEnded"
+                        : _pendingRunStartReason;
                 }
-                else if (hasAnimation && _previousPlayerCinematicActive && !animationActive)
-                {
-                    runStarted = true;
-                    reason = "PlayerAnimationEnded";
-                }
-                else if (hasSkipProgress && skipProgress > 0.988f)
-                {
-                    runStarted = true;
-                    reason = "CutsceneSkipped";
-                }
-                else if (movedSinceLastSample &&
-                    (!hasLoading || !isLoading) &&
-                    (!hasIntro || !introActive) &&
-                    (!hasAnimation || !animationActive))
+                else if (!_pendingRunStartAfterCinematic &&
+                    movedSinceLastSample &&
+                    loadingInactive &&
+                    cinematicInactive)
                 {
                     runStarted = true;
                     reason = "PlayerMoved";
                 }
+            }
+
+            if (hasSkipProgress)
+            {
+                if (skipProgressActive)
+                    _skipProgressWasHigh = true;
+                else if (skipProgress <= skipProgressFinishedThreshold && cinematicInactive)
+                    _skipProgressWasHigh = false;
             }
 
             _previousIntroCinematicActive = hasIntro && introActive;
@@ -552,6 +668,9 @@ namespace SubnauticaLauncher.Gameplay
             if (runStarted)
             {
                 _startedBefore = true;
+                _pendingRunStartAfterCinematic = false;
+                _pendingRunStartReason = string.Empty;
+                _skipProgressWasHigh = false;
                 return true;
             }
 
@@ -782,7 +901,10 @@ namespace SubnauticaLauncher.Gameplay
             _hasRunStartBaseline = false;
             _previousIntroCinematicActive = false;
             _previousPlayerCinematicActive = false;
+            _skipProgressWasHigh = false;
             _startedBefore = false;
+            _pendingRunStartAfterCinematic = false;
+            _pendingRunStartReason = string.Empty;
             _hasPreviousRunStartPosition = false;
             _previousRunStartPosX = 0f;
             _previousRunStartPosZ = 0f;

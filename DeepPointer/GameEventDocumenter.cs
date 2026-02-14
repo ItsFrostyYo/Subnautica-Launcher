@@ -212,6 +212,9 @@ namespace SubnauticaLauncher.Gameplay
                 bool changed;
                 GameState previous;
                 GameState current;
+                bool hasBiome = tracker.TryDetectBiome(process, out string biome);
+                bool biomeChanged = false;
+                string currentBiome = string.Empty;
                 bool runStarted = false;
                 string runStartReason = string.Empty;
 
@@ -227,6 +230,9 @@ namespace SubnauticaLauncher.Gameplay
                     }
 
                     changed = trackerState.TryPromote(state, out previous, out current);
+
+                    if (hasBiome)
+                        biomeChanged = trackerState.TryPromoteBiome(biome, out _, out currentBiome);
                 }
 
                 if (changed)
@@ -240,6 +246,20 @@ namespace SubnauticaLauncher.Gameplay
                         Key = current.ToString(),
                         Delta = 0,
                         Source = source
+                    });
+                }
+
+                if (biomeChanged)
+                {
+                    WriteEvent(new GameplayEvent
+                    {
+                        TimestampUtc = DateTime.UtcNow,
+                        Game = processName,
+                        ProcessId = process.Id,
+                        Type = GameplayEventType.BiomeChanged,
+                        Key = currentBiome,
+                        Delta = 0,
+                        Source = "dynamic-biome"
                     });
                 }
 
@@ -266,6 +286,7 @@ namespace SubnauticaLauncher.Gameplay
         private sealed class ProcessStateTracker
         {
             private const int StableSamples = 3;
+            private const int StableBiomeSamples = 2;
 
             private bool _hasCandidate;
             private GameState _candidate;
@@ -273,6 +294,11 @@ namespace SubnauticaLauncher.Gameplay
 
             private bool _hasStable;
             private GameState _stable;
+            private bool _hasBiomeCandidate;
+            private string _biomeCandidate = string.Empty;
+            private int _biomeCandidateCount;
+            private bool _hasBiomeStable;
+            private string _biomeStable = string.Empty;
 
             public bool TryPromote(GameState rawState, out GameState previousStable, out GameState stableState)
             {
@@ -308,6 +334,44 @@ namespace SubnauticaLauncher.Gameplay
                 _stable = rawState;
                 stableState = _stable;
 
+                return true;
+            }
+
+            public bool TryPromoteBiome(string rawBiome, out string previousBiome, out string stableBiome)
+            {
+                previousBiome = string.Empty;
+                stableBiome = string.Empty;
+
+                if (string.IsNullOrWhiteSpace(rawBiome))
+                    return false;
+
+                if (!_hasBiomeCandidate || !string.Equals(_biomeCandidate, rawBiome, StringComparison.Ordinal))
+                {
+                    _biomeCandidate = rawBiome;
+                    _biomeCandidateCount = 1;
+                    _hasBiomeCandidate = true;
+                    return false;
+                }
+
+                _biomeCandidateCount++;
+                if (_biomeCandidateCount < StableBiomeSamples)
+                    return false;
+
+                if (!_hasBiomeStable)
+                {
+                    _biomeStable = rawBiome;
+                    _hasBiomeStable = true;
+                    previousBiome = _biomeStable;
+                    stableBiome = _biomeStable;
+                    return true;
+                }
+
+                if (string.Equals(_biomeStable, rawBiome, StringComparison.Ordinal))
+                    return false;
+
+                previousBiome = _biomeStable;
+                _biomeStable = rawBiome;
+                stableBiome = _biomeStable;
                 return true;
             }
         }

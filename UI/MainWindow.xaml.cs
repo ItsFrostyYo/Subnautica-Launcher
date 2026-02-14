@@ -185,6 +185,7 @@ namespace SubnauticaLauncher.UI
             UpdateSubnautica100TrackerVisualState();
 
             GameEventDocumenter.Start();
+            DebugTelemetryController.Start();
 
             if (LauncherSettings.Current.Subnautica100TrackerEnabled)
                 Subnautica100TrackerOverlayController.Start();
@@ -1241,6 +1242,7 @@ namespace SubnauticaLauncher.UI
 
             ExplosionResetDisplayController.ForceClose();
             Subnautica100TrackerOverlayController.Stop();
+            DebugTelemetryController.Stop();
             GameEventDocumenter.Stop();
 
             var handle = new WindowInteropHelper(this).Handle;
