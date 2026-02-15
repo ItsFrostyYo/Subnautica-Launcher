@@ -627,7 +627,7 @@ namespace SubnauticaLauncher.Gameplay
                 _previousCreativeJumping = hasCreativeJump && creativeJumping;
                 _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
                 _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
-                _creativeStartArmed = gameModePlausible && !IsCreativeGameMode(gameMode);
+                _creativeStartArmed = false;
                 return false;
             }
 
@@ -646,24 +646,21 @@ namespace SubnauticaLauncher.Gameplay
             bool jumpTriggered = hasCreativeJump && creativeJumping && !_previousCreativeJumping;
             bool pdaTriggered = hasPdaOpen && creativePdaOpen && !_previousCreativePdaOpen;
             bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
-            bool movedActive = hasCreativeMove && creativeMoveActive;
-            bool jumpActive = hasCreativeJump && creativeJumping;
-            bool pdaActive = hasPdaOpen && creativePdaOpen;
-            bool fabricatorActive = hasFabricator && creativeFabricatorActive;
-            bool creativeInteractionTriggered = movedTriggered || jumpTriggered || pdaTriggered || fabricatorTriggered;
-            bool creativeInteractionActive = movedActive || jumpActive || pdaActive || fabricatorActive;
             bool inStartCutscene =
                 (hasIntro && introActive) ||
                 (hasAnimation && animationActive) ||
                 (hasSkipProgress && skipProgress > 0.02f);
 
-            if (!_creativeStartArmed &&
-                (skipJustCompleted ||
-                 introEnded ||
-                 animationEnded ||
-                 (hasDamageEffects && damageEffectsShowing)))
+            bool creativeJustArmed = false;
+            if (isCreativeMode &&
+                !_creativeStartArmed &&
+                inGameSession &&
+                !shouldBlockForLoading &&
+                hasPlayer &&
+                !inStartCutscene)
             {
                 _creativeStartArmed = true;
+                creativeJustArmed = true;
             }
 
             if (!_startedBefore && inGameSession && !shouldBlockForLoading)
@@ -695,26 +692,10 @@ namespace SubnauticaLauncher.Gameplay
                         runStarted = true;
                         runStartReason = "CutsceneSkipped";
                     }
-                    else if (!gameModePlausible &&
-                             _hasKnownGameMode &&
-                             !IsCreativeGameMode(_lastKnownGameMode) &&
-                             _creativeStartArmed &&
-                             !inStartCutscene &&
-                             creativeInteractionTriggered)
-                    {
-                        runStarted = true;
-                        runStartReason = movedTriggered
-                            ? "FallbackHorizontalMove"
-                            : jumpTriggered
-                                ? "FallbackJump"
-                                : pdaTriggered
-                                    ? "FallbackPdaOpen"
-                                    : "FallbackFabricatorInteraction";
-                    }
                 }
                 else
                 {
-                    if (_creativeStartArmed && !inStartCutscene)
+                    if (_creativeStartArmed && !creativeJustArmed && !inStartCutscene && hasPlayer)
                     {
                         if (movedTriggered)
                         {
