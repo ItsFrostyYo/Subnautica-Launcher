@@ -82,7 +82,7 @@ namespace SubnauticaLauncher.UI
             // small=2, medium=2-per-row, large=3-per-row.
             // Extra buffered cards are still rendered so the incoming card has no blank gap while scrolling.
             double laneCount = _columnsPerRow;
-            double availableWidth = Math.Max(1, viewportWidth - (laneCount * CardGap));
+            double availableWidth = Math.Max(1, viewportWidth - ((laneCount - 1) * CardGap));
             double slotWidth = availableWidth / laneCount;
             slotWidth = Math.Max(MinimumSlotWidth, Math.Min(slotWidth, viewportWidth - CardGap));
 
@@ -97,15 +97,15 @@ namespace SubnauticaLauncher.UI
                 ? NormalizeRow(bottomEntries, rowItemCount)
                 : Array.Empty<(string Type, string Name)>();
 
-            SetRowItems(TopItemsControl, normalizedTop, ref _topSignature, slotWidth, slotHeight);
+            SetRowItems(TopEntriesCanvas, normalizedTop, ref _topSignature, slotWidth, slotHeight);
 
             if (_rowCount > 1)
             {
-                SetRowItems(BottomItemsControl, normalizedBottom, ref _bottomSignature, slotWidth, slotHeight);
+                SetRowItems(BottomEntriesCanvas, normalizedBottom, ref _bottomSignature, slotWidth, slotHeight);
             }
             else
             {
-                BottomItemsControl.ItemsSource = null;
+                BottomEntriesCanvas.Children.Clear();
                 _bottomSignature = string.Empty;
             }
 
@@ -164,7 +164,7 @@ namespace SubnauticaLauncher.UI
         }
 
         private void SetRowItems(
-            ItemsControl target,
+            Canvas target,
             IReadOnlyList<(string Type, string Name)> entries,
             ref string signature,
             double slotWidth,
@@ -174,15 +174,65 @@ namespace SubnauticaLauncher.UI
             if (string.Equals(signature, nextSignature, StringComparison.Ordinal))
                 return;
 
-            target.ItemsSource = entries.Select(entry => new BiomeEntryModel
+            target.Children.Clear();
+            double stride = slotWidth + CardGap;
+
+            for (int i = 0; i < entries.Count; i++)
             {
-                Type = entry.Type,
-                Name = entry.Name,
-                SlotWidth = slotWidth,
-                SlotHeight = slotHeight,
-                TypeFontSize = _typeFontSize,
-                NameFontSize = FitNameFontSize(entry.Name, slotWidth, slotHeight)
-            }).ToList();
+                (string type, string name) = entries[i];
+                double nameFontSize = FitNameFontSize(name, slotWidth, slotHeight);
+
+                var border = new Border
+                {
+                    Width = slotWidth,
+                    Height = slotHeight,
+                    Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0x00, 0x00, 0x00)),
+                    CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(4, 3, 4, 3)
+                };
+
+                var contentGrid = new Grid();
+                contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+                var typeText = new TextBlock
+                {
+                    Text = type,
+                    FontSize = _typeFontSize,
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xBD, 0xE3, 0xFF, 0xFF)),
+                    FontWeight = FontWeights.SemiBold,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                    TextAlignment = TextAlignment.Center,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    Margin = new Thickness(0, 0, 0, 2)
+                };
+                Grid.SetRow(typeText, 0);
+
+                var nameText = new TextBlock
+                {
+                    Text = name,
+                    FontSize = nameFontSize,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    FontWeight = FontWeights.SemiBold,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                    TextAlignment = TextAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                    TextTrimming = TextTrimming.None,
+                    Margin = new Thickness(0)
+                };
+                Grid.SetRow(nameText, 1);
+
+                contentGrid.Children.Add(typeText);
+                contentGrid.Children.Add(nameText);
+                border.Child = contentGrid;
+
+                Canvas.SetLeft(border, i * stride);
+                Canvas.SetTop(border, 0);
+                target.Children.Add(border);
+            }
+
+            target.Width = entries.Count * stride;
+            target.Height = slotHeight;
 
             signature = nextSignature;
         }
@@ -237,16 +287,6 @@ namespace SubnauticaLauncher.UI
             }
 
             return sb.ToString();
-        }
-
-        private sealed class BiomeEntryModel
-        {
-            public string Type { get; set; } = string.Empty;
-            public string Name { get; set; } = string.Empty;
-            public double SlotWidth { get; set; }
-            public double SlotHeight { get; set; }
-            public double TypeFontSize { get; set; }
-            public double NameFontSize { get; set; }
         }
     }
 }

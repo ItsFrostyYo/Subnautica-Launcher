@@ -25,109 +25,19 @@
             </Grid.RowDefinitions>
 
             <Grid x:Name="TopViewport" ClipToBounds="True">
-                <ItemsControl x:Name="TopItemsControl">
-                    <ItemsControl.RenderTransform>
+                <Canvas x:Name="TopEntriesCanvas">
+                    <Canvas.RenderTransform>
                         <TranslateTransform x:Name="TopEntriesTranslateTransform"/>
-                    </ItemsControl.RenderTransform>
-
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                                    <Border Width="{Binding SlotWidth}"
-                                    Height="{Binding SlotHeight}"
-                                    Margin="0,0,4,0"
-                                    Background="#22000000"
-                                    CornerRadius="6"
-                                    Padding="4,3">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0"
-                                               FontSize="{Binding TypeFontSize}"
-                                               Foreground="#BDE3FF"
-                                               Text="{Binding Type}"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Stretch"
-                                               TextAlignment="Left"
-                                               TextTrimming="CharacterEllipsis"
-                                               Margin="1,0,0,2"/>
-
-                                    <TextBlock Grid.Row="1"
-                                               FontSize="{Binding NameFontSize}"
-                                               Foreground="White"
-                                               FontWeight="SemiBold"
-                                               Text="{Binding Name}"
-                                               HorizontalAlignment="Stretch"
-                                               TextAlignment="Left"
-                                               TextWrapping="Wrap"
-                                               TextTrimming="None"
-                                               Margin="1,0,0,0"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </Canvas.RenderTransform>
+                </Canvas>
             </Grid>
 
             <Grid x:Name="BottomViewport" Grid.Row="1" ClipToBounds="True" Visibility="Collapsed">
-                <ItemsControl x:Name="BottomItemsControl">
-                    <ItemsControl.RenderTransform>
+                <Canvas x:Name="BottomEntriesCanvas">
+                    <Canvas.RenderTransform>
                         <TranslateTransform x:Name="BottomEntriesTranslateTransform"/>
-                    </ItemsControl.RenderTransform>
-
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                                    <Border Width="{Binding SlotWidth}"
-                                    Height="{Binding SlotHeight}"
-                                    Margin="0,0,4,0"
-                                    Background="#22000000"
-                                    CornerRadius="6"
-                                    Padding="4,3">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-
-                                    <TextBlock Grid.Row="0"
-                                               FontSize="{Binding TypeFontSize}"
-                                               Foreground="#BDE3FF"
-                                               Text="{Binding Type}"
-                                               FontWeight="SemiBold"
-                                               HorizontalAlignment="Stretch"
-                                               TextAlignment="Left"
-                                               TextTrimming="CharacterEllipsis"
-                                               Margin="1,0,0,2"/>
-
-                                    <TextBlock Grid.Row="1"
-                                               FontSize="{Binding NameFontSize}"
-                                               Foreground="White"
-                                               FontWeight="SemiBold"
-                                               Text="{Binding Name}"
-                                               HorizontalAlignment="Stretch"
-                                               TextAlignment="Left"
-                                               TextWrapping="Wrap"
-                                               TextTrimming="None"
-                                               Margin="1,0,0,0"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    </Canvas.RenderTransform>
+                </Canvas>
             </Grid>
         </Grid>
     </Border>

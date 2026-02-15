@@ -1487,6 +1487,9 @@ namespace SubnauticaLauncher.Gameplay
             {
                 foreach (string requirement in databankRequirements)
                 {
+                    if (string.IsNullOrWhiteSpace(requirement))
+                        continue;
+
                     if (!RunDatabankEntries.Contains(requirement))
                         items.Add(new BiomeCycleItem(false, requirement));
                 }
@@ -1497,6 +1500,9 @@ namespace SubnauticaLauncher.Gameplay
             {
                 foreach (string requirement in blueprintRequirements)
                 {
+                    if (string.IsNullOrWhiteSpace(requirement))
+                        continue;
+
                     if (!RunBlueprints.Contains(requirement))
                         items.Add(new BiomeCycleItem(true, requirement));
                 }
@@ -1571,6 +1577,11 @@ namespace SubnauticaLauncher.Gameplay
             string name = item.IsBlueprint
                 ? ResolveRequirementDisplayName(GameplayEventType.BlueprintUnlocked, item.Requirement, item.Requirement)
                 : ResolveRequirementDisplayName(GameplayEventType.DatabankEntryUnlocked, item.Requirement, item.Requirement);
+
+            if (string.IsNullOrWhiteSpace(name))
+                name = item.Requirement;
+            if (string.IsNullOrWhiteSpace(name))
+                name = "Unknown";
 
             return (type, name);
         }
