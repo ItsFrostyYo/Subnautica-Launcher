@@ -614,7 +614,7 @@ namespace SubnauticaLauncher.Gameplay
                         if (IsCreativeRunStart(evt.Key))
                             ApplyCreativeDatabankExclusions();
                         ApplyPendingPreRunUnlocks();
-                        Logger.Log("[100Tracker] Run started from RunStarted event.");
+                        Logger.Log($"[100Tracker] Run started from RunStarted event. reason={evt.Key}");
                         UpdateOverlayText();
                     }
 

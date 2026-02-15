@@ -192,7 +192,6 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousCreativeJumping;
         private bool _previousCreativePdaOpen;
         private bool _previousCreativeFabricatorActive;
-        private int _creativeModeStableSamples;
         private int _notInGameStableSamples;
         private bool _startedBefore;
 
@@ -584,14 +583,6 @@ namespace SubnauticaLauncher.Gameplay
             bool hasPlayerMain = TryReadStaticObject(proc, _playerMainField, out var playerMain);
             bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
             bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
-            bool hasGameMode = TryReadGameMode(proc, out int gameMode);
-
-            bool gameModePlausible = hasGameMode && gameMode >= 0 && gameMode <= 3;
-            bool isCreativeGameMode = gameModePlausible && IsCreativeGameMode(gameMode);
-            if (isCreativeGameMode)
-                _creativeModeStableSamples = Math.Min(_creativeModeStableSamples + 1, 8);
-            else
-                _creativeModeStableSamples = 0;
 
             bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
             bool animationActive = false;
@@ -610,7 +601,6 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _startedBefore = false;
                     _hasRunStartBaseline = false;
-                    _creativeModeStableSamples = 0;
                     return false;
                 }
             }
@@ -632,7 +622,6 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _startedBefore = false;
                     _hasRunStartBaseline = false;
-                    _creativeModeStableSamples = 0;
                 }
             }
 
@@ -661,49 +650,33 @@ namespace SubnauticaLauncher.Gameplay
             bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
             bool inStartCutscene =
                 (hasIntro && introActive) ||
-                (hasAnimation && animationActive) ||
-                (hasSkipProgress && skipProgress > 0.02f);
-
-            bool survivalContextObserved =
-                (hasIntro && (introActive || _previousIntroCinematicActive)) ||
-                (hasAnimation && (animationActive || _previousPlayerCinematicActive)) ||
-                (hasSkipProgress && skipProgress > 0.02f) ||
-                (hasDamageEffects && (damageEffectsShowing || _previousDamageEffectsShowing));
-
-            bool allowCreativeStartChecks =
-                isCreativeGameMode &&
-                _creativeModeStableSamples >= 1;
-            bool allowSurvivalStartChecks = !isCreativeGameMode;
+                (hasAnimation && animationActive);
 
             if (!_startedBefore && inGameSession && !shouldBlockForLoading)
             {
-                if (allowSurvivalStartChecks && introEnded)
+                if (introEnded)
                 {
                     runStarted = true;
                     runStartReason = "IntroCinematicEnded";
                 }
-                else if (allowSurvivalStartChecks && animationEnded)
+                else if (animationEnded)
                 {
                     runStarted = true;
                     runStartReason = "PlayerAnimationEnded";
                 }
-                else if (allowSurvivalStartChecks && skipProgressHigh)
+                else if (skipProgressHigh)
                 {
                     runStarted = true;
                     runStartReason = "CutsceneSkipped";
                 }
-                else if (allowSurvivalStartChecks &&
-                         hasDamageEffects &&
+                else if (hasDamageEffects &&
                          damageEffectsShowing)
                 {
                     runStarted = true;
                     runStartReason = "LifepodRadioDamaged";
                 }
-                else if (allowCreativeStartChecks &&
-                         !isMainMenuNow &&
-                         !inStartCutscene &&
-                         !survivalContextObserved &&
-                         !(hasDamageEffects && damageEffectsShowing))
+                else if (!isMainMenuNow &&
+                         !inStartCutscene)
                 {
                     if (movedTriggered)
                     {
@@ -1147,7 +1120,6 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativeJumping = false;
             _previousCreativePdaOpen = false;
             _previousCreativeFabricatorActive = false;
-            _creativeModeStableSamples = 0;
             _notInGameStableSamples = 0;
             _startedBefore = false;
         }
