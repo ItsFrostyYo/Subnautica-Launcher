@@ -103,7 +103,8 @@ namespace SubnauticaLauncher.UI
             }
 
             double pitch = slotWidth + CardGap;
-            double offsetX = -clampedProgress * pitch;
+            // Keep one buffered card on the left so a full "next" card can always enter from the right.
+            double offsetX = -(1 + clampedProgress) * pitch;
             TopEntriesTranslateTransform.X = offsetX;
             BottomEntriesTranslateTransform.X = offsetX;
         }
