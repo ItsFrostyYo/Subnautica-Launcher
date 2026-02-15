@@ -55,20 +55,21 @@
                                                Foreground="#BDE3FF"
                                                Text="{Binding Type}"
                                                FontWeight="SemiBold"
-                                               HorizontalAlignment="Center"
-                                               TextAlignment="Center"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Left"
                                                TextTrimming="CharacterEllipsis"
-                                               Margin="0,0,0,2"/>
+                                               Margin="1,0,0,2"/>
 
                                     <TextBlock Grid.Row="1"
                                                FontSize="{Binding NameFontSize}"
                                                Foreground="White"
                                                FontWeight="SemiBold"
                                                Text="{Binding Name}"
-                                               HorizontalAlignment="Center"
-                                               TextAlignment="Center"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Left"
                                                TextWrapping="Wrap"
-                                               TextTrimming="None"/>
+                                               TextTrimming="None"
+                                               Margin="1,0,0,0"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -107,20 +108,21 @@
                                                Foreground="#BDE3FF"
                                                Text="{Binding Type}"
                                                FontWeight="SemiBold"
-                                               HorizontalAlignment="Center"
-                                               TextAlignment="Center"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Left"
                                                TextTrimming="CharacterEllipsis"
-                                               Margin="0,0,0,2"/>
+                                               Margin="1,0,0,2"/>
 
                                     <TextBlock Grid.Row="1"
                                                FontSize="{Binding NameFontSize}"
                                                Foreground="White"
                                                FontWeight="SemiBold"
                                                Text="{Binding Name}"
-                                               HorizontalAlignment="Center"
-                                               TextAlignment="Center"
+                                               HorizontalAlignment="Stretch"
+                                               TextAlignment="Left"
                                                TextWrapping="Wrap"
-                                               TextTrimming="None"/>
+                                               TextTrimming="None"
+                                               Margin="1,0,0,0"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
