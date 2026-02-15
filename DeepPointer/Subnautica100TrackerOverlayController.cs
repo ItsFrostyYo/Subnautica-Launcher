@@ -1378,6 +1378,9 @@ namespace SubnauticaLauncher.Gameplay
                     canonical = mappedCanonical;
             }
 
+            if (string.IsNullOrWhiteSpace(canonical))
+                return;
+
             if (string.Equals(_currentBiomeCanonical, canonical, StringComparison.Ordinal))
                 return;
 

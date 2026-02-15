@@ -78,10 +78,11 @@ namespace SubnauticaLauncher.UI
                 ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
                 : viewportHeight;
 
-            // Keep exactly the requested full cards visible at rest:
-            // small=2, medium=2-per-row, large=3-per-row.
-            // The next card becomes visible through horizontal translation.
-            double slotWidth = (viewportWidth / _columnsPerRow) - CardGap;
+            // Keep configured full-card count visible while reserving preview width for the incoming card.
+            // small: 2 + preview, medium: 2 per row + preview, large: 3 per row + preview.
+            double laneCount = _columnsPerRow + 0.5;
+            double availableWidth = Math.Max(1, viewportWidth - (laneCount * CardGap));
+            double slotWidth = availableWidth / laneCount;
             slotWidth = Math.Max(MinimumSlotWidth, Math.Min(slotWidth, viewportWidth - CardGap));
 
             double stride = slotWidth + CardGap;
