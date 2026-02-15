@@ -78,9 +78,20 @@ namespace SubnauticaLauncher.UI
                 ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
                 : viewportHeight;
 
-            double peekWidth = GetPeekWidth(viewportWidth);
-            double stride = Math.Max(1, (viewportWidth - peekWidth) / Math.Max(1, _columnsPerRow));
-            double slotWidth = Math.Max(MinimumSlotWidth, stride - CardGap);
+            double previewRatio = GetPreviewRatio();
+            double availableWidth = Math.Max(1, viewportWidth - (_columnsPerRow * CardGap));
+            double slotWidth = availableWidth / Math.Max(1, _columnsPerRow + previewRatio);
+            if (slotWidth < MinimumSlotWidth)
+                slotWidth = MinimumSlotWidth;
+
+            double peekWidth = availableWidth - (_columnsPerRow * slotWidth);
+            if (peekWidth < 18)
+            {
+                peekWidth = 18;
+                slotWidth = Math.Max(MinimumSlotWidth, (availableWidth - peekWidth) / Math.Max(1, _columnsPerRow));
+            }
+
+            double stride = slotWidth + CardGap;
 
             double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
             int rowItemCount = _columnsPerRow + 2;
@@ -102,7 +113,7 @@ namespace SubnauticaLauncher.UI
                 _bottomSignature = string.Empty;
             }
 
-            double pitch = slotWidth + CardGap;
+            double pitch = stride;
             // Keep scroll anchored to the current card; right-side buffer cards provide the "next" preview.
             double offsetX = -clampedProgress * pitch;
             TopEntriesTranslateTransform.X = offsetX;
@@ -205,20 +216,15 @@ namespace SubnauticaLauncher.UI
             return Math.Max(7, Math.Min(_nameFontSize, size));
         }
 
-        private double GetPeekWidth(double viewportWidth)
+        private double GetPreviewRatio()
         {
-            double desired = _columnsPerRow >= 3
-                ? viewportWidth * 0.18
-                : _rowCount > 1
-                    ? viewportWidth * 0.24
-                    : viewportWidth * 0.22;
+            if (_columnsPerRow >= 3)
+                return 0.70;
 
-            double minPeek = _columnsPerRow >= 3 ? 40 : 32;
-            double maxPeekWithoutGap = (viewportWidth / (_columnsPerRow + 1.0)) - CardGap - 2;
-            double hardCap = _columnsPerRow >= 3 ? 120 : 96;
-            double maxPeek = Math.Max(minPeek, Math.Min(hardCap, maxPeekWithoutGap));
+            if (_rowCount > 1)
+                return 0.80;
 
-            return Math.Clamp(desired, minPeek, maxPeek);
+            return 0.75;
         }
 
         private void SetEntryFonts(double typeSize, double nameSize)
