@@ -78,18 +78,10 @@ namespace SubnauticaLauncher.UI
                 ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
                 : viewportHeight;
 
-            double previewRatio = GetPreviewRatio();
             double availableWidth = Math.Max(1, viewportWidth - (_columnsPerRow * CardGap));
-            double slotWidth = availableWidth / Math.Max(1, _columnsPerRow + previewRatio);
+            double slotWidth = availableWidth / Math.Max(1, _columnsPerRow + 1.0);
             if (slotWidth < MinimumSlotWidth)
                 slotWidth = MinimumSlotWidth;
-
-            double peekWidth = availableWidth - (_columnsPerRow * slotWidth);
-            if (peekWidth < 18)
-            {
-                peekWidth = 18;
-                slotWidth = Math.Max(MinimumSlotWidth, (availableWidth - peekWidth) / Math.Max(1, _columnsPerRow));
-            }
 
             double stride = slotWidth + CardGap;
 
@@ -214,17 +206,6 @@ namespace SubnauticaLauncher.UI
                 size -= 0.75;
 
             return Math.Max(7, Math.Min(_nameFontSize, size));
-        }
-
-        private double GetPreviewRatio()
-        {
-            if (_columnsPerRow >= 3)
-                return 0.70;
-
-            if (_rowCount > 1)
-                return 0.80;
-
-            return 0.75;
         }
 
         private void SetEntryFonts(double typeSize, double nameSize)
