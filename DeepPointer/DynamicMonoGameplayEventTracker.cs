@@ -699,25 +699,28 @@ namespace SubnauticaLauncher.Gameplay
                 }
                 else
                 {
-                    if (movedTriggered || movedActive)
+                    if (!inStartCutscene)
                     {
-                        runStarted = true;
-                        runStartReason = "CreativeHorizontalMove";
-                    }
-                    else if (jumpTriggered || jumpActive)
-                    {
-                        runStarted = true;
-                        runStartReason = "CreativeJump";
-                    }
-                    else if (pdaTriggered || pdaActive)
-                    {
-                        runStarted = true;
-                        runStartReason = "CreativePdaOpen";
-                    }
-                    else if (fabricatorTriggered || fabricatorActive)
-                    {
-                        runStarted = true;
-                        runStartReason = "CreativeFabricatorInteraction";
+                        if (movedTriggered || movedActive)
+                        {
+                            runStarted = true;
+                            runStartReason = "CreativeHorizontalMove";
+                        }
+                        else if (jumpTriggered || jumpActive)
+                        {
+                            runStarted = true;
+                            runStartReason = "CreativeJump";
+                        }
+                        else if (pdaTriggered || pdaActive)
+                        {
+                            runStarted = true;
+                            runStartReason = "CreativePdaOpen";
+                        }
+                        else if (fabricatorTriggered || fabricatorActive)
+                        {
+                            runStarted = true;
+                            runStartReason = "CreativeFabricatorInteraction";
+                        }
                     }
                 }
             }

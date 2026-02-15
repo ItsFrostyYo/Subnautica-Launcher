@@ -1501,7 +1501,7 @@ namespace SubnauticaLauncher.Gameplay
         private static BiomeDisplayFrame BuildBiomeDisplayRows()
         {
             (int rowCount, int columnsPerRow) = GetBiomeGridLayout();
-            int rowItemCount = columnsPerRow + 2;
+            int rowItemCount = columnsPerRow + 3;
             List<BiomeCycleItem> missingItems = BuildCurrentBiomeMissingItems();
 
             if (missingItems.Count == 0)

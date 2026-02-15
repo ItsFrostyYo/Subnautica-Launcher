@@ -62,7 +62,7 @@ namespace SubnauticaLauncher.UI
         {
             _rowCount = Math.Max(1, rowCount);
             _columnsPerRow = Math.Max(1, columnsPerRow);
-            double clampedProgress = Math.Max(0, Math.Min(1, scrollProgress));
+            double clampedProgress = Math.Max(0, Math.Min(0.999, scrollProgress));
 
             ConfigureRowLayout();
 
@@ -78,16 +78,17 @@ namespace SubnauticaLauncher.UI
                 ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
                 : viewportHeight;
 
-            // Fixed lane model: always fit the configured columns plus one full "next" card.
+            // Fixed lane model: fit the configured columns plus one full "next" card.
             double laneCount = _columnsPerRow + 1.0;
             double availableWidth = Math.Max(1, viewportWidth - (laneCount * CardGap));
             double slotWidth = availableWidth / laneCount;
-            slotWidth = Math.Max(40, Math.Min(slotWidth, viewportWidth));
+            slotWidth = Math.Max(MinimumSlotWidth, Math.Min(slotWidth, viewportWidth));
 
             double stride = slotWidth + CardGap;
 
             double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
-            int rowItemCount = _columnsPerRow + 2;
+            // Keep extra buffered cards in the row so continuous scroll never shows a blank gap.
+            int rowItemCount = _columnsPerRow + 3;
 
             IReadOnlyList<(string Type, string Name)> normalizedTop = NormalizeRow(topEntries, rowItemCount);
             IReadOnlyList<(string Type, string Name)> normalizedBottom = _rowCount > 1
@@ -106,9 +107,7 @@ namespace SubnauticaLauncher.UI
                 _bottomSignature = string.Empty;
             }
 
-            double pitch = stride;
-            // Keep scroll anchored to the current card; right-side buffer cards provide the "next" preview.
-            double offsetX = -clampedProgress * pitch;
+            double offsetX = -(clampedProgress * stride);
             TopEntriesTranslateTransform.X = offsetX;
             BottomEntriesTranslateTransform.X = offsetX;
         }
