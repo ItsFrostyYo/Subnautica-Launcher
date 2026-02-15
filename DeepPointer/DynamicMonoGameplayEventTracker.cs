@@ -655,8 +655,18 @@ namespace SubnauticaLauncher.Gameplay
                 (hasAnimation && animationActive) ||
                 (hasSkipProgress && skipProgress > 0.02f);
 
+            bool survivalContextObserved =
+                (hasIntro && (introActive || _previousIntroCinematicActive)) ||
+                (hasAnimation && (animationActive || _previousPlayerCinematicActive)) ||
+                (hasSkipProgress && (skipProgress > 0.02f || _skipProgressWasHigh)) ||
+                (hasDamageEffects && (damageEffectsShowing || _previousDamageEffectsShowing));
+
+            bool allowCreativeStartChecks =
+                isCreativeMode ||
+                (!gameModePlausible && !_hasKnownGameMode && !survivalContextObserved);
+
             bool creativeJustArmed = false;
-            if (isCreativeMode &&
+            if (allowCreativeStartChecks &&
                 !_creativeStartArmed &&
                 inGameSession &&
                 !shouldBlockForLoading &&
@@ -669,58 +679,51 @@ namespace SubnauticaLauncher.Gameplay
 
             if (!_startedBefore && inGameSession && !shouldBlockForLoading)
             {
-                if (!isCreativeMode)
+                if (hasDamageEffects && damageEffectsShowing)
                 {
-                    if (hasDamageEffects && damageEffectsShowing)
-                    {
-                        runStarted = true;
-                        runStartReason = "LifepodRadioDamaged";
-                    }
-                    else if (introEnded)
-                    {
-                        runStarted = true;
-                        runStartReason = "IntroCinematicEnded";
-                    }
-                    else if (animationEnded)
-                    {
-                        runStarted = true;
-                        runStartReason = "PlayerAnimationEnded";
-                    }
-                    else if (skipProgressHigh)
-                    {
-                        runStarted = true;
-                        runStartReason = "CutsceneSkipped";
-                    }
-                    else if (skipJustCompleted)
-                    {
-                        runStarted = true;
-                        runStartReason = "CutsceneSkipped";
-                    }
+                    runStarted = true;
+                    runStartReason = "LifepodRadioDamaged";
                 }
-                else
+                else if (introEnded)
                 {
-                    if (_creativeStartArmed && !creativeJustArmed && !inStartCutscene && hasPlayer)
+                    runStarted = true;
+                    runStartReason = "IntroCinematicEnded";
+                }
+                else if (animationEnded)
+                {
+                    runStarted = true;
+                    runStartReason = "PlayerAnimationEnded";
+                }
+                else if (skipProgressHigh || skipJustCompleted)
+                {
+                    runStarted = true;
+                    runStartReason = "CutsceneSkipped";
+                }
+                else if (allowCreativeStartChecks &&
+                         _creativeStartArmed &&
+                         !creativeJustArmed &&
+                         !inStartCutscene &&
+                         hasPlayer)
+                {
+                    if (movedTriggered || movedActive)
                     {
-                        if (movedTriggered || movedActive)
-                        {
-                            runStarted = true;
-                            runStartReason = "CreativeHorizontalMove";
-                        }
-                        else if (jumpTriggered || jumpActive)
-                        {
-                            runStarted = true;
-                            runStartReason = "CreativeJump";
-                        }
-                        else if (pdaTriggered || pdaActive)
-                        {
-                            runStarted = true;
-                            runStartReason = "CreativePdaOpen";
-                        }
-                        else if (fabricatorTriggered || fabricatorActive)
-                        {
-                            runStarted = true;
-                            runStartReason = "CreativeFabricatorInteraction";
-                        }
+                        runStarted = true;
+                        runStartReason = "CreativeHorizontalMove";
+                    }
+                    else if (jumpTriggered || jumpActive)
+                    {
+                        runStarted = true;
+                        runStartReason = "CreativeJump";
+                    }
+                    else if (pdaTriggered || pdaActive)
+                    {
+                        runStarted = true;
+                        runStartReason = "CreativePdaOpen";
+                    }
+                    else if (fabricatorTriggered || fabricatorActive)
+                    {
+                        runStarted = true;
+                        runStartReason = "CreativeFabricatorInteraction";
                     }
                 }
             }

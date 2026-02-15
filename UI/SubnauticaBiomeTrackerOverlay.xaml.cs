@@ -90,8 +90,8 @@ namespace SubnauticaLauncher.UI
             double stride = slotWidth + CardGap;
 
             double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
-            // Keep extra buffered cards in the row so continuous scroll never shows a blank gap.
-            int rowItemCount = _columnsPerRow + 3;
+            // Keep enough buffered cards so the right-side preview never blanks at max scroll offset.
+            int rowItemCount = _columnsPerRow + 5;
 
             IReadOnlyList<(string Type, string Name)> normalizedTop = NormalizeRow(topEntries, rowItemCount);
             IReadOnlyList<(string Type, string Name)> normalizedBottom = _rowCount > 1
