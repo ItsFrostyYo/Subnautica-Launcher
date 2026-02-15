@@ -18,6 +18,7 @@ namespace SubnauticaLauncher.Gameplay
         private const int MaxPlausibleTechType = 200000;
         private const int MaxPlausibleItemCount = 10000;
         private const int MaxKnownTechType = 10005;
+        private const int RunStartFallbackMenuResetSamples = 6;
         private const float MainMenuPosX = 0f;
         private const float MainMenuPosY = 1.75f;
         private const float MainMenuPosZ = 0f;
@@ -186,7 +187,6 @@ namespace SubnauticaLauncher.Gameplay
         private bool _hasRunStartBaseline;
         private bool _previousIntroCinematicActive;
         private bool _previousPlayerCinematicActive;
-        private bool _skipProgressWasHigh;
         private bool _previousDamageEffectsShowing;
         private bool _previousCreativeMoveActive;
         private bool _previousCreativeJumping;
@@ -194,6 +194,7 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousCreativeFabricatorActive;
         private bool _creativeStartArmed;
         private int _creativeModeStableSamples;
+        private int _notInGameStableSamples;
         private bool _startedBefore;
 
         public DynamicMonoGameplayEventTracker(string gameName)
@@ -522,22 +523,29 @@ namespace SubnauticaLauncher.Gameplay
                 return false;
 
             const int maxBiomeChars = 128;
-            if (!MemoryReader.ReadBytes(proc, address, maxBiomeChars * 2, out byte[] bytes))
-                return false;
-
-            int charBytes = 0;
-            while (charBytes + 1 < bytes.Length)
+            string raw = ReadMonoString(proc, address, maxBiomeChars);
+            if (string.IsNullOrWhiteSpace(raw))
             {
-                if (bytes[charBytes] == 0 && bytes[charBytes + 1] == 0)
-                    break;
+                // Fallback for layouts where the pointer already targets UTF-16 character data.
+                if (!MemoryReader.ReadBytes(proc, address, maxBiomeChars * 2, out byte[] bytes))
+                    return false;
 
-                charBytes += 2;
+                int charBytes = 0;
+                while (charBytes + 1 < bytes.Length)
+                {
+                    if (bytes[charBytes] == 0 && bytes[charBytes + 1] == 0)
+                        break;
+
+                    charBytes += 2;
+                }
+
+                if (charBytes <= 0)
+                    return false;
+
+                raw = Encoding.Unicode.GetString(bytes, 0, charBytes);
             }
 
-            if (charBytes <= 0)
-                return false;
-
-            string raw = Encoding.Unicode.GetString(bytes, 0, charBytes).Trim();
+            raw = raw.Trim();
             if (!IsValidBiomeIdentifier(raw))
                 return false;
 
@@ -547,12 +555,17 @@ namespace SubnauticaLauncher.Gameplay
 
         private static bool IsValidBiomeIdentifier(string biome)
         {
-            if (string.IsNullOrWhiteSpace(biome) || biome.Length > 128)
+            if (string.IsNullOrWhiteSpace(biome) || biome.Length < 3 || biome.Length > 128)
                 return false;
 
             foreach (char c in biome)
             {
-                if (char.IsLetterOrDigit(c) || c == '_' || c == '-' || c == ' ')
+                bool isAsciiLetter =
+                    (c >= 'A' && c <= 'Z') ||
+                    (c >= 'a' && c <= 'z');
+                bool isAsciiDigit = c >= '0' && c <= '9';
+
+                if (isAsciiLetter || isAsciiDigit || c == '_' || c == '-' || c == ' ')
                     continue;
 
                 return false;
@@ -584,13 +597,13 @@ namespace SubnauticaLauncher.Gameplay
             bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
             bool animationActive = false;
             bool hasAnimation = hasPlayer && TryReadPlayerCinematicActive(proc, playerMain, out animationActive);
-            bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
             bool hasDamageEffects = TryReadEscapePodDamageEffects(proc, out bool damageEffectsShowing);
             bool hasCreativeMove = TryReadCreativeHorizontalMove(proc, out bool creativeMoveActive);
             bool creativeJumping = false;
             bool hasCreativeJump = hasPlayer && TryReadCreativeJumping(proc, playerMain, out creativeJumping);
             bool hasPdaOpen = TryReadCreativePdaOpen(proc, out bool creativePdaOpen);
             bool hasFabricator = TryReadCreativeFabricatorInteraction(proc, out bool creativeFabricatorActive);
+            bool hasCreativeBiome = TryReadBiome(proc, out _);
 
             if (hasMainMenuSignal)
             {
@@ -610,13 +623,27 @@ namespace SubnauticaLauncher.Gameplay
 
             bool shouldBlockForLoading = hasLoading && isLoading;
             bool inGameSession = (hasPlayer || hasMainMenuSignal) && !isMainMenuNow;
+            if (inGameSession || shouldBlockForLoading)
+            {
+                _notInGameStableSamples = 0;
+            }
+            else
+            {
+                _notInGameStableSamples = Math.Min(_notInGameStableSamples + 1, RunStartFallbackMenuResetSamples);
+                if (_notInGameStableSamples >= RunStartFallbackMenuResetSamples)
+                {
+                    _startedBefore = false;
+                    _hasRunStartBaseline = false;
+                    _creativeStartArmed = false;
+                    _creativeModeStableSamples = 0;
+                }
+            }
 
             if (!_hasRunStartBaseline)
             {
                 _hasRunStartBaseline = true;
                 _previousIntroCinematicActive = hasIntro && introActive;
                 _previousPlayerCinematicActive = hasAnimation && animationActive;
-                _skipProgressWasHigh = hasSkipProgress && skipProgress > 0.02f;
                 _previousDamageEffectsShowing = hasDamageEffects && damageEffectsShowing;
                 _previousCreativeMoveActive = hasCreativeMove && creativeMoveActive;
                 _previousCreativeJumping = hasCreativeJump && creativeJumping;
@@ -629,36 +656,23 @@ namespace SubnauticaLauncher.Gameplay
             bool runStarted = false;
             string runStartReason = string.Empty;
 
-            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
-            bool animationEnded = hasAnimation && _previousPlayerCinematicActive && !animationActive;
-            bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
-            bool skipJustCompleted =
-                hasSkipProgress &&
-                _skipProgressWasHigh &&
-                skipProgress <= 0.01f;
-
             bool movedTriggered = hasCreativeMove && creativeMoveActive && !_previousCreativeMoveActive;
             bool jumpTriggered = hasCreativeJump && creativeJumping && !_previousCreativeJumping;
             bool pdaTriggered = hasPdaOpen && creativePdaOpen && !_previousCreativePdaOpen;
             bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
-            bool movedActive = hasCreativeMove && creativeMoveActive;
-            bool jumpActive = hasCreativeJump && creativeJumping;
-            bool pdaActive = hasPdaOpen && creativePdaOpen;
-            bool fabricatorActive = hasFabricator && creativeFabricatorActive;
             bool inStartCutscene =
                 (hasIntro && introActive) ||
-                (hasAnimation && animationActive) ||
-                (hasSkipProgress && skipProgress > 0.02f);
+                (hasAnimation && animationActive);
 
             bool survivalContextObserved =
                 (hasIntro && (introActive || _previousIntroCinematicActive)) ||
                 (hasAnimation && (animationActive || _previousPlayerCinematicActive)) ||
-                (hasSkipProgress && (skipProgress > 0.02f || _skipProgressWasHigh)) ||
                 (hasDamageEffects && (damageEffectsShowing || _previousDamageEffectsShowing));
 
             bool allowCreativeStartChecks =
                 isCreativeGameMode &&
                 _creativeModeStableSamples >= 3;
+            bool allowSurvivalStartChecks = !isCreativeGameMode;
 
             if (!allowCreativeStartChecks || inStartCutscene || survivalContextObserved)
                 _creativeStartArmed = false;
@@ -669,7 +683,8 @@ namespace SubnauticaLauncher.Gameplay
                 inGameSession &&
                 !shouldBlockForLoading &&
                 hasPlayer &&
-                !inStartCutscene)
+                !inStartCutscene &&
+                hasCreativeBiome)
             {
                 _creativeStartArmed = true;
                 creativeJustArmed = true;
@@ -677,64 +692,42 @@ namespace SubnauticaLauncher.Gameplay
 
             if (!_startedBefore && inGameSession && !shouldBlockForLoading)
             {
-                if (hasDamageEffects && damageEffectsShowing)
+                if (allowSurvivalStartChecks &&
+                    hasDamageEffects &&
+                    damageEffectsShowing)
                 {
                     runStarted = true;
                     runStartReason = "LifepodRadioDamaged";
-                }
-                else if (introEnded)
-                {
-                    runStarted = true;
-                    runStartReason = "IntroCinematicEnded";
-                }
-                else if (animationEnded)
-                {
-                    runStarted = true;
-                    runStartReason = "PlayerAnimationEnded";
-                }
-                else if (skipProgressHigh || skipJustCompleted)
-                {
-                    runStarted = true;
-                    runStartReason = "CutsceneSkipped";
                 }
                 else if (allowCreativeStartChecks &&
                          _creativeStartArmed &&
                          !creativeJustArmed &&
                          !inStartCutscene &&
-                         hasPlayer)
+                         hasPlayer &&
+                         hasCreativeBiome &&
+                         !(hasDamageEffects && damageEffectsShowing))
                 {
-                    if (movedTriggered || movedActive)
+                    if (movedTriggered)
                     {
                         runStarted = true;
                         runStartReason = "CreativeHorizontalMove";
                     }
-                    else if (jumpTriggered || jumpActive)
+                    else if (jumpTriggered)
                     {
                         runStarted = true;
                         runStartReason = "CreativeJump";
                     }
-                    else if (pdaTriggered || pdaActive)
+                    else if (pdaTriggered)
                     {
                         runStarted = true;
                         runStartReason = "CreativePdaOpen";
                     }
-                    else if (fabricatorTriggered || fabricatorActive)
+                    else if (fabricatorTriggered)
                     {
                         runStarted = true;
                         runStartReason = "CreativeFabricatorInteraction";
                     }
                 }
-            }
-
-            if (hasSkipProgress)
-            {
-                const float skipProgressActiveThreshold = 0.02f;
-                const float skipProgressFinishedThreshold = 0.01f;
-
-                if (skipProgress > skipProgressActiveThreshold)
-                    _skipProgressWasHigh = true;
-                else if (skipProgress <= skipProgressFinishedThreshold)
-                    _skipProgressWasHigh = false;
             }
 
             _previousIntroCinematicActive = hasIntro && introActive;
@@ -1151,7 +1144,6 @@ namespace SubnauticaLauncher.Gameplay
             _hasRunStartBaseline = false;
             _previousIntroCinematicActive = false;
             _previousPlayerCinematicActive = false;
-            _skipProgressWasHigh = false;
             _previousDamageEffectsShowing = false;
             _previousCreativeMoveActive = false;
             _previousCreativeJumping = false;
@@ -1159,6 +1151,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativeFabricatorActive = false;
             _creativeStartArmed = false;
             _creativeModeStableSamples = 0;
+            _notInGameStableSamples = 0;
             _startedBefore = false;
         }
 
