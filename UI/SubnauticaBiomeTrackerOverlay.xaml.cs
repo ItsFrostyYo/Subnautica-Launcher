@@ -103,8 +103,8 @@ namespace SubnauticaLauncher.UI
             }
 
             double pitch = slotWidth + CardGap;
-            // Keep one buffered card on the left so a full "next" card can always enter from the right.
-            double offsetX = -(1 + clampedProgress) * pitch;
+            // Keep scroll anchored to the current card; right-side buffer cards provide the "next" preview.
+            double offsetX = -clampedProgress * pitch;
             TopEntriesTranslateTransform.X = offsetX;
             BottomEntriesTranslateTransform.X = offsetX;
         }
@@ -208,12 +208,12 @@ namespace SubnauticaLauncher.UI
         private double GetPeekWidth(double viewportWidth)
         {
             if (_columnsPerRow >= 3)
-                return Math.Clamp(viewportWidth * 0.18, 46, 110);
+                return Math.Clamp(viewportWidth * 0.22, 72, 140);
 
             if (_rowCount > 1)
-                return Math.Clamp(viewportWidth * 0.24, 56, 140);
+                return Math.Clamp(viewportWidth * 0.33, 100, 190);
 
-            return Math.Clamp(viewportWidth * 0.22, 48, 110);
+            return Math.Clamp(viewportWidth * 0.35, 96, 180);
         }
 
         private void SetEntryFonts(double typeSize, double nameSize)

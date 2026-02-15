@@ -1538,7 +1538,7 @@ namespace SubnauticaLauncher.Gameplay
                 int baseIndex = startIndex + (rowOffset * columnsPerRow);
                 for (int i = 0; i < rowItemCount; i++)
                 {
-                    int index = PositiveModulo(baseIndex - 1 + i, missingItems.Count);
+                    int index = PositiveModulo(baseIndex + i, missingItems.Count);
                     row.Add(FormatBiomeCycleItem(missingItems[index]));
                 }
 
