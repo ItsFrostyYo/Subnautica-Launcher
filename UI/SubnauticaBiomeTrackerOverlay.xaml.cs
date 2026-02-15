@@ -78,9 +78,10 @@ namespace SubnauticaLauncher.UI
                 ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
                 : viewportHeight;
 
-            // Keep configured full-card count visible while reserving preview width for the incoming card.
-            // small: 2 + preview, medium: 2 per row + preview, large: 3 per row + preview.
-            double laneCount = _columnsPerRow + 0.5;
+            // Show exactly the configured count at rest:
+            // small=2, medium=2-per-row, large=3-per-row.
+            // Extra buffered cards are still rendered so the incoming card has no blank gap while scrolling.
+            double laneCount = _columnsPerRow;
             double availableWidth = Math.Max(1, viewportWidth - (laneCount * CardGap));
             double slotWidth = availableWidth / laneCount;
             slotWidth = Math.Max(MinimumSlotWidth, Math.Min(slotWidth, viewportWidth - CardGap));
