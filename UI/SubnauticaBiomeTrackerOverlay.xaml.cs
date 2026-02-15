@@ -83,7 +83,7 @@ namespace SubnauticaLauncher.UI
             double slotWidth = Math.Max(MinimumSlotWidth, stride - CardGap);
 
             double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
-            int rowItemCount = _columnsPerRow + 1;
+            int rowItemCount = _columnsPerRow + 2;
 
             IReadOnlyList<(string Type, string Name)> normalizedTop = NormalizeRow(topEntries, rowItemCount);
             IReadOnlyList<(string Type, string Name)> normalizedBottom = _rowCount > 1
