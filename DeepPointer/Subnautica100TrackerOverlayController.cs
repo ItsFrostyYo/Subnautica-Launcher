@@ -739,7 +739,8 @@ namespace SubnauticaLauncher.Gameplay
         private static bool IsCreativeRunStart(string runStartKey)
         {
             string normalized = NormalizeEventName(runStartKey);
-            return normalized.StartsWith("creative", StringComparison.Ordinal);
+            return normalized.StartsWith("creative", StringComparison.Ordinal)
+                || normalized.StartsWith("fallback", StringComparison.Ordinal);
         }
 
         private static void ApplyCreativeDatabankExclusions()
@@ -1412,8 +1413,12 @@ namespace SubnauticaLauncher.Gameplay
 
         private static (double Width, double Height) GetBiomeOverlayDimensions()
         {
-            (double trackerWidth, double trackerHeight) = GetOverlayDimensions();
-            return (trackerWidth + 90, trackerHeight);
+            return LauncherSettings.Current.Subnautica100TrackerSize switch
+            {
+                Subnautica100TrackerOverlaySize.Small => (240, 64),
+                Subnautica100TrackerOverlaySize.Large => (620, 104),
+                _ => (420, 80)
+            };
         }
 
         private static void ApplyOverlaySizePreset()
@@ -1442,9 +1447,9 @@ namespace SubnauticaLauncher.Gameplay
         {
             return LauncherSettings.Current.SubnauticaBiomeTrackerScrollSpeed switch
             {
-                SubnauticaBiomeTrackerScrollSpeed.Slow => 5000,
-                SubnauticaBiomeTrackerScrollSpeed.Medium => 3400,
-                _ => 2200
+                SubnauticaBiomeTrackerScrollSpeed.Slow => 7000,
+                SubnauticaBiomeTrackerScrollSpeed.Medium => 4500,
+                _ => 2800
             };
         }
 
@@ -1665,7 +1670,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 try
                 {
-                    await Task.Delay(50, token);
+                    await Task.Delay(33, token);
                 }
                 catch (OperationCanceledException)
                 {

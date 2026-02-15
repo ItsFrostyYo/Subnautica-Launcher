@@ -184,6 +184,8 @@ namespace SubnauticaLauncher.Gameplay
         private readonly DeepPointer? _legacyBiome;
         private readonly DeepPointer? _modernBiome;
         private bool _hasRunStartBaseline;
+        private bool _hasKnownGameMode;
+        private int _lastKnownGameMode;
         private bool _previousIntroCinematicActive;
         private bool _previousPlayerCinematicActive;
         private bool _skipProgressWasHigh;
@@ -571,8 +573,16 @@ namespace SubnauticaLauncher.Gameplay
             bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
             bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
             bool hasGameMode = TryReadGameMode(proc, out int gameMode);
+            if (hasGameMode && gameMode >= 0 && gameMode <= 3)
+            {
+                _hasKnownGameMode = true;
+                _lastKnownGameMode = gameMode;
+            }
+
             bool gameModePlausible = hasGameMode && gameMode >= 0 && gameMode <= 3;
-            bool isCreativeMode = gameModePlausible && IsCreativeGameMode(gameMode);
+            bool isCreativeMode = gameModePlausible
+                ? IsCreativeGameMode(gameMode)
+                : _hasKnownGameMode && IsCreativeGameMode(_lastKnownGameMode);
 
             bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
             bool animationActive = false;
@@ -591,6 +601,8 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _startedBefore = false;
                     _hasRunStartBaseline = false;
+                    _hasKnownGameMode = false;
+                    _lastKnownGameMode = -1;
                     return false;
                 }
             }
@@ -1127,6 +1139,8 @@ namespace SubnauticaLauncher.Gameplay
             _recentCraftEndedUtc = DateTime.MinValue;
             _recentCraftTechType = -1;
             _hasRunStartBaseline = false;
+            _hasKnownGameMode = false;
+            _lastKnownGameMode = -1;
             _previousIntroCinematicActive = false;
             _previousPlayerCinematicActive = false;
             _skipProgressWasHigh = false;

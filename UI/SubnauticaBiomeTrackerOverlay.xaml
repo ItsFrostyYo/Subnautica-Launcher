@@ -17,7 +17,7 @@
             Background="#55000000"
             BorderBrush="#40FFFFFF"
             BorderThickness="0.25"
-            Padding="6,4">
+            Padding="4">
         <Grid x:Name="EntryViewport" ClipToBounds="True">
             <ItemsControl x:Name="EntryItemsControl">
                 <ItemsControl.RenderTransform>
@@ -26,17 +26,18 @@
 
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Vertical"/>
+                        <StackPanel Orientation="Horizontal"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
 
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Height="{Binding SlotHeight}"
-                                Margin="0,1,0,1"
+                        <Border Width="{Binding SlotWidth}"
+                                Height="{Binding SlotHeight}"
+                                Margin="0,0,4,0"
                                 Background="#22000000"
                                 CornerRadius="6"
-                                Padding="4,2">
+                                Padding="5,4">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -47,15 +48,17 @@
                                            FontSize="{Binding TypeFontSize}"
                                            Foreground="#BDE3FF"
                                            Text="{Binding Type}"
-                                           TextTrimming="CharacterEllipsis"/>
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="0,0,0,2"/>
 
                                 <TextBlock Grid.Row="1"
                                            FontSize="{Binding NameFontSize}"
                                            Foreground="White"
-                                           LineStackingStrategy="BlockLineHeight"
-                                           LineHeight="{Binding LineHeight}"
+                                           FontWeight="SemiBold"
                                            Text="{Binding Name}"
-                                           TextWrapping="Wrap"/>
+                                           TextWrapping="Wrap"
+                                           TextTrimming="None"/>
                             </Grid>
                         </Border>
                     </DataTemplate>
