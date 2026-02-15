@@ -42,7 +42,7 @@ namespace SubnauticaLauncher.UI
             switch (size)
             {
                 case Subnautica100TrackerOverlaySize.Small:
-                    SetEntryFonts(typeSize: 7.5, nameSize: 8.5);
+                    SetEntryFonts(typeSize: 8.5, nameSize: 9.5);
                     break;
                 case Subnautica100TrackerOverlaySize.Large:
                     SetEntryFonts(typeSize: 9, nameSize: 10.25);
@@ -190,40 +190,59 @@ namespace SubnauticaLauncher.UI
                     Padding = new Thickness(4, 3, 4, 3)
                 };
 
-                var contentGrid = new Grid();
-                contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-                var typeText = new TextBlock
+                if (string.IsNullOrWhiteSpace(type))
                 {
-                    Text = type,
-                    FontSize = _typeFontSize,
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x4F, 0xD3, 0x8B)),
-                    FontWeight = FontWeights.SemiBold,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                    TextAlignment = TextAlignment.Center,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    Margin = new Thickness(0, 0, 0, 2)
-                };
-                Grid.SetRow(typeText, 0);
-
-                var nameText = new TextBlock
+                    border.Child = new TextBlock
+                    {
+                        Text = name,
+                        FontSize = Math.Max(10, nameFontSize + 1.25),
+                        Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x4F, 0xD3, 0x8B)),
+                        FontWeight = FontWeights.Bold,
+                        HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextAlignment = TextAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap,
+                        TextTrimming = TextTrimming.None,
+                        Margin = new Thickness(0)
+                    };
+                }
+                else
                 {
-                    Text = name,
-                    FontSize = nameFontSize,
-                    Foreground = System.Windows.Media.Brushes.White,
-                    FontWeight = FontWeights.SemiBold,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                    TextAlignment = TextAlignment.Center,
-                    TextWrapping = TextWrapping.Wrap,
-                    TextTrimming = TextTrimming.None,
-                    Margin = new Thickness(0)
-                };
-                Grid.SetRow(nameText, 1);
+                    var contentGrid = new Grid();
+                    contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                    contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-                contentGrid.Children.Add(typeText);
-                contentGrid.Children.Add(nameText);
-                border.Child = contentGrid;
+                    var typeText = new TextBlock
+                    {
+                        Text = type,
+                        FontSize = _typeFontSize,
+                        Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x4F, 0xD3, 0x8B)),
+                        FontWeight = FontWeights.SemiBold,
+                        HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                        TextAlignment = TextAlignment.Center,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        Margin = new Thickness(0, 0, 0, 2)
+                    };
+                    Grid.SetRow(typeText, 0);
+
+                    var nameText = new TextBlock
+                    {
+                        Text = name,
+                        FontSize = nameFontSize,
+                        Foreground = System.Windows.Media.Brushes.White,
+                        FontWeight = FontWeights.SemiBold,
+                        HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
+                        TextAlignment = TextAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap,
+                        TextTrimming = TextTrimming.None,
+                        Margin = new Thickness(0)
+                    };
+                    Grid.SetRow(nameText, 1);
+
+                    contentGrid.Children.Add(typeText);
+                    contentGrid.Children.Add(nameText);
+                    border.Child = contentGrid;
+                }
 
                 Canvas.SetLeft(border, i * stride);
                 Canvas.SetTop(border, 0);

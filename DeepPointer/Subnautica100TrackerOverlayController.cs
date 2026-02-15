@@ -1530,15 +1530,13 @@ namespace SubnauticaLauncher.Gameplay
                 _biomeScrollOffset = 0;
                 _lastBiomeScrollUtc = DateTime.MinValue;
 
-                string message = string.IsNullOrWhiteSpace(_currentBiomeCanonical) ? "Waiting for biome data" : "Biome complete";
-                var topFallback = new List<(string Type, string Name)>
-                {
-                    ("Completed", message)
-                };
-                IReadOnlyList<(string Type, string Name)> bottomFallback = rowCount > 1
-                    ? new List<(string Type, string Name)> { ("Completed", message) }
-                    : Array.Empty<(string Type, string Name)>();
-                return new BiomeDisplayFrame(topFallback, bottomFallback, rowCount, columnsPerRow, 0);
+                string message = string.IsNullOrWhiteSpace(_currentBiomeCanonical)
+                    ? "Waiting for biome data"
+                    : "Biome Completed";
+
+                // Show a single full-width completion card instead of per-row duplicates.
+                var topFallback = new List<(string Type, string Name)> { (string.Empty, message) };
+                return new BiomeDisplayFrame(topFallback, Array.Empty<(string Type, string Name)>(), 1, 1, 0);
             }
 
             // If all remaining items already fit in view, keep them static and do not duplicate/scroll.
