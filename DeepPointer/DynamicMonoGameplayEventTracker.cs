@@ -184,8 +184,6 @@ namespace SubnauticaLauncher.Gameplay
         private readonly DeepPointer? _legacyBiome;
         private readonly DeepPointer? _modernBiome;
         private bool _hasRunStartBaseline;
-        private bool _hasKnownGameMode;
-        private int _lastKnownGameMode;
         private bool _previousIntroCinematicActive;
         private bool _previousPlayerCinematicActive;
         private bool _skipProgressWasHigh;
@@ -195,6 +193,7 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousCreativePdaOpen;
         private bool _previousCreativeFabricatorActive;
         private bool _creativeStartArmed;
+        private int _creativeModeStableSamples;
         private bool _startedBefore;
 
         public DynamicMonoGameplayEventTracker(string gameName)
@@ -574,16 +573,13 @@ namespace SubnauticaLauncher.Gameplay
             bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
             bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
             bool hasGameMode = TryReadGameMode(proc, out int gameMode);
-            if (hasGameMode && gameMode >= 0 && gameMode <= 3)
-            {
-                _hasKnownGameMode = true;
-                _lastKnownGameMode = gameMode;
-            }
 
             bool gameModePlausible = hasGameMode && gameMode >= 0 && gameMode <= 3;
-            bool isCreativeMode = gameModePlausible
-                ? IsCreativeGameMode(gameMode)
-                : _hasKnownGameMode && IsCreativeGameMode(_lastKnownGameMode);
+            bool isCreativeGameMode = gameModePlausible && IsCreativeGameMode(gameMode);
+            if (isCreativeGameMode)
+                _creativeModeStableSamples = Math.Min(_creativeModeStableSamples + 1, 8);
+            else
+                _creativeModeStableSamples = 0;
 
             bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
             bool animationActive = false;
@@ -602,9 +598,8 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _startedBefore = false;
                     _hasRunStartBaseline = false;
-                    _hasKnownGameMode = false;
-                    _lastKnownGameMode = -1;
                     _creativeStartArmed = false;
+                    _creativeModeStableSamples = 0;
                     return false;
                 }
             }
@@ -662,8 +657,11 @@ namespace SubnauticaLauncher.Gameplay
                 (hasDamageEffects && (damageEffectsShowing || _previousDamageEffectsShowing));
 
             bool allowCreativeStartChecks =
-                isCreativeMode ||
-                (!gameModePlausible && !_hasKnownGameMode && !survivalContextObserved);
+                isCreativeGameMode &&
+                _creativeModeStableSamples >= 3;
+
+            if (!allowCreativeStartChecks || inStartCutscene || survivalContextObserved)
+                _creativeStartArmed = false;
 
             bool creativeJustArmed = false;
             if (allowCreativeStartChecks &&
@@ -1151,8 +1149,6 @@ namespace SubnauticaLauncher.Gameplay
             _recentCraftEndedUtc = DateTime.MinValue;
             _recentCraftTechType = -1;
             _hasRunStartBaseline = false;
-            _hasKnownGameMode = false;
-            _lastKnownGameMode = -1;
             _previousIntroCinematicActive = false;
             _previousPlayerCinematicActive = false;
             _skipProgressWasHigh = false;
@@ -1162,6 +1158,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativePdaOpen = false;
             _previousCreativeFabricatorActive = false;
             _creativeStartArmed = false;
+            _creativeModeStableSamples = 0;
             _startedBefore = false;
         }
 

@@ -90,11 +90,9 @@ namespace SubnauticaLauncher.UI
 
             double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
             // Keep enough buffered cards so the right-side preview never blanks at max scroll offset.
-            int rowItemCount = _columnsPerRow + 5;
-
-            IReadOnlyList<(string Type, string Name)> normalizedTop = NormalizeRow(topEntries, rowItemCount);
+            IReadOnlyList<(string Type, string Name)> normalizedTop = NormalizeTopRow(topEntries, _columnsPerRow);
             IReadOnlyList<(string Type, string Name)> normalizedBottom = _rowCount > 1
-                ? NormalizeRow(bottomEntries, rowItemCount)
+                ? NormalizeBottomRow(bottomEntries)
                 : Array.Empty<(string Type, string Name)>();
 
             SetRowItems(TopEntriesCanvas, normalizedTop, ref _topSignature, slotWidth, slotHeight);
@@ -114,22 +112,23 @@ namespace SubnauticaLauncher.UI
             BottomEntriesTranslateTransform.X = offsetX;
         }
 
-        private static IReadOnlyList<(string Type, string Name)> NormalizeRow(
+        private static IReadOnlyList<(string Type, string Name)> NormalizeTopRow(
             IReadOnlyList<(string Type, string Name)> source,
-            int count)
+            int fallbackCount)
         {
-            count = Math.Max(1, count);
-            if (source == null || source.Count == 0)
-                return BuildRepeatedFallback("Waiting for biome data", count);
+            if (source != null && source.Count > 0)
+                return source;
 
-            if (source.Count >= count)
-                return source.Take(count).ToArray();
+            return BuildRepeatedFallback("Waiting for biome data", Math.Max(1, fallbackCount));
+        }
 
-            var rows = new List<(string Type, string Name)>(count);
-            rows.AddRange(source);
-            while (rows.Count < count)
-                rows.Add(source[rows.Count % source.Count]);
-            return rows;
+        private static IReadOnlyList<(string Type, string Name)> NormalizeBottomRow(
+            IReadOnlyList<(string Type, string Name)> source)
+        {
+            if (source != null && source.Count > 0)
+                return source;
+
+            return Array.Empty<(string Type, string Name)>();
         }
 
         private static IReadOnlyList<(string Type, string Name)> BuildRepeatedFallback(string message, int count)
@@ -199,7 +198,7 @@ namespace SubnauticaLauncher.UI
                 {
                     Text = type,
                     FontSize = _typeFontSize,
-                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xBD, 0xE3, 0xFF, 0xFF)),
+                    Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0xFF, 0x4F, 0xD3, 0x8B)),
                     FontWeight = FontWeights.SemiBold,
                     HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
                     TextAlignment = TextAlignment.Center,

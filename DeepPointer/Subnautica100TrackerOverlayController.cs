@@ -1475,6 +1475,8 @@ namespace SubnauticaLauncher.Gameplay
         private static List<BiomeCycleItem> BuildCurrentBiomeMissingItems()
         {
             var items = new List<BiomeCycleItem>();
+            var seenDatabank = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seenBlueprint = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (!_runActive || string.IsNullOrWhiteSpace(_currentBiomeCanonical))
                 return items;
@@ -1490,6 +1492,9 @@ namespace SubnauticaLauncher.Gameplay
                     if (string.IsNullOrWhiteSpace(requirement))
                         continue;
 
+                    if (!seenDatabank.Add(requirement))
+                        continue;
+
                     if (!RunDatabankEntries.Contains(requirement))
                         items.Add(new BiomeCycleItem(false, requirement));
                 }
@@ -1503,6 +1508,9 @@ namespace SubnauticaLauncher.Gameplay
                     if (string.IsNullOrWhiteSpace(requirement))
                         continue;
 
+                    if (!seenBlueprint.Add(requirement))
+                        continue;
+
                     if (!RunBlueprints.Contains(requirement))
                         items.Add(new BiomeCycleItem(true, requirement));
                 }
@@ -1514,22 +1522,56 @@ namespace SubnauticaLauncher.Gameplay
         private static BiomeDisplayFrame BuildBiomeDisplayRows()
         {
             (int rowCount, int columnsPerRow) = GetBiomeGridLayout();
-            int rowItemCount = columnsPerRow + 5;
+            int visibleSlots = rowCount * columnsPerRow;
             List<BiomeCycleItem> missingItems = BuildCurrentBiomeMissingItems();
 
             if (missingItems.Count == 0)
             {
-                string message = string.IsNullOrWhiteSpace(_currentBiomeCanonical)
-                    ? "Waiting for biome data"
-                    : "No remaining unlocks";
-                var topFallback = new List<(string Type, string Name)>(rowItemCount);
-                for (int i = 0; i < rowItemCount; i++)
-                    topFallback.Add(("Biome", message));
+                _biomeScrollOffset = 0;
+                _lastBiomeScrollUtc = DateTime.MinValue;
+
+                string message = string.IsNullOrWhiteSpace(_currentBiomeCanonical) ? "Waiting for biome data" : "Biome complete";
+                var topFallback = new List<(string Type, string Name)>
+                {
+                    ("Completed", message)
+                };
                 IReadOnlyList<(string Type, string Name)> bottomFallback = rowCount > 1
-                    ? new List<(string Type, string Name)>(topFallback)
+                    ? new List<(string Type, string Name)> { ("Completed", message) }
                     : Array.Empty<(string Type, string Name)>();
                 return new BiomeDisplayFrame(topFallback, bottomFallback, rowCount, columnsPerRow, 0);
             }
+
+            // If all remaining items already fit in view, keep them static and do not duplicate/scroll.
+            if (missingItems.Count <= visibleSlots)
+            {
+                _biomeScrollOffset = 0;
+                _lastBiomeScrollUtc = DateTime.MinValue;
+
+                List<(string Type, string Name)> BuildStaticRow(int rowOffset)
+                {
+                    var row = new List<(string Type, string Name)>(columnsPerRow);
+                    int start = rowOffset * columnsPerRow;
+                    for (int i = 0; i < columnsPerRow; i++)
+                    {
+                        int index = start + i;
+                        if (index >= missingItems.Count)
+                            break;
+
+                        row.Add(FormatBiomeCycleItem(missingItems[index]));
+                    }
+
+                    return row;
+                }
+
+                List<(string Type, string Name)> staticTopRow = BuildStaticRow(0);
+                IReadOnlyList<(string Type, string Name)> staticBottomRow = rowCount > 1
+                    ? BuildStaticRow(1)
+                    : Array.Empty<(string Type, string Name)>();
+
+                return new BiomeDisplayFrame(staticTopRow, staticBottomRow, rowCount, columnsPerRow, 0);
+            }
+
+            int rowItemCount = Math.Min(columnsPerRow + 5, missingItems.Count);
 
             DateTime utcNow = DateTime.UtcNow;
             if (_lastBiomeScrollUtc == DateTime.MinValue)
@@ -1714,7 +1756,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 try
                 {
-                    await Task.Delay(33, token);
+                    await Task.Delay(16, token);
                 }
                 catch (OperationCanceledException)
                 {
