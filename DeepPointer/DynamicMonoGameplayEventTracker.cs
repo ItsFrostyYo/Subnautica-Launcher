@@ -646,6 +646,10 @@ namespace SubnauticaLauncher.Gameplay
             bool jumpTriggered = hasCreativeJump && creativeJumping && !_previousCreativeJumping;
             bool pdaTriggered = hasPdaOpen && creativePdaOpen && !_previousCreativePdaOpen;
             bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
+            bool movedActive = hasCreativeMove && creativeMoveActive;
+            bool jumpActive = hasCreativeJump && creativeJumping;
+            bool pdaActive = hasPdaOpen && creativePdaOpen;
+            bool fabricatorActive = hasFabricator && creativeFabricatorActive;
             bool inStartCutscene =
                 (hasIntro && introActive) ||
                 (hasAnimation && animationActive) ||
@@ -697,22 +701,22 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     if (_creativeStartArmed && !creativeJustArmed && !inStartCutscene && hasPlayer)
                     {
-                        if (movedTriggered)
+                        if (movedTriggered || movedActive)
                         {
                             runStarted = true;
                             runStartReason = "CreativeHorizontalMove";
                         }
-                        else if (jumpTriggered)
+                        else if (jumpTriggered || jumpActive)
                         {
                             runStarted = true;
                             runStartReason = "CreativeJump";
                         }
-                        else if (pdaTriggered)
+                        else if (pdaTriggered || pdaActive)
                         {
                             runStarted = true;
                             runStartReason = "CreativePdaOpen";
                         }
-                        else if (fabricatorTriggered)
+                        else if (fabricatorTriggered || fabricatorActive)
                         {
                             runStarted = true;
                             runStartReason = "CreativeFabricatorInteraction";
