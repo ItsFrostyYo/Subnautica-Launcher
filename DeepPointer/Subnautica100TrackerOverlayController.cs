@@ -22,6 +22,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private static readonly object Sync = new();
         private static readonly Regex CookedCuredChecklistRegex = new(@"^Cooked\s*\+\s*Cured\s+(.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex CookedCuredPairingRegex = new(@"^Cooked\s*\+\s*Cured\s+(.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex TrailingCountRegex = new(@"\s*\(\d+\)\s*$", RegexOptions.Compiled);
         private static readonly Regex TrailingIdRegex = new(@"\s*\((\d+)\)\s*$", RegexOptions.Compiled);
         private static readonly Regex TokenSplitRegex = new(@"[^A-Za-z0-9]+", RegexOptions.Compiled);
@@ -182,7 +183,10 @@ namespace SubnauticaLauncher.Gameplay
             ["lifepod12medicalofficerdanbyscrewlog"] = new[] { "lifepod12medicaloffierdanbyscrewlog" },
             ["hatchingenzymes"] = new[] { "hatchingenzymes", "hatchingenzymesold" },
             ["curedcreature"] = new[] { "specimenwithinfectionsymptomsinhibited" },
-            ["infection"] = new[] { "specimenwithsymptomsofinfection" }
+            ["infection"] = new[] { "specimenwithsymptomsofinfection" },
+            ["reinforceddivesuit"] = new[] { "reinforcedsuit" },
+            ["aliencontainment"] = new[] { "waterpark" },
+            ["creaturedecoy"] = new[] { "decoy" }
         };
 
         private static readonly IReadOnlyDictionary<int, string> TechTypeDatabase = TechTypeNames.GetAll();
@@ -204,6 +208,19 @@ namespace SubnauticaLauncher.Gameplay
         private static bool _collectPreRunUnlocks;
         private static readonly HashSet<string> PendingPreRunBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> PendingPreRunDatabankEntries = new(StringComparer.Ordinal);
+        private static readonly string[] CreativeExcludedDatabankRawNames =
+        {
+            "Bioreactor",
+            "Nuclear Reactor",
+            "Thermal Plant",
+            "Alien Containment",
+            "Creature Decoy",
+            "Reinforced Dive Suit",
+            "Repulsion Cannon",
+            "Modification Station",
+            "Moonpool",
+            "Cyclops"
+        };
         private static readonly SemaphoreSlim ToastSemaphore = new(1, 1);
         private static int RequiredBlueprintTotal => RequiredBlueprints.Count;
         private static int RequiredDatabankTotal => RequiredDatabankEntries.Count;
@@ -446,7 +463,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 foreach (string pairingEntry in cycleEntries.BlueprintEntries)
                 {
-                    HashSet<string> matches = ResolveBlueprintMatches(pairingEntry);
+                    HashSet<string> matches = ResolveBlueprintPairingMatches(pairingEntry);
                     if (matches.Count == 0)
                     {
                         LogUnmatchedBiomePairing(group.DisplayName, "Blueprint", pairingEntry);
@@ -592,6 +609,8 @@ namespace SubnauticaLauncher.Gameplay
                     if (!_runActive)
                     {
                         StartRunState();
+                        if (IsCreativeRunStart(evt.Key))
+                            ApplyCreativeDatabankExclusions();
                         ApplyPendingPreRunUnlocks();
                         Logger.Log("[100Tracker] Run started from RunStarted event.");
                         UpdateOverlayText();
@@ -717,6 +736,29 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
+        private static bool IsCreativeRunStart(string runStartKey)
+        {
+            string normalized = NormalizeEventName(runStartKey);
+            return normalized.StartsWith("creative", StringComparison.Ordinal);
+        }
+
+        private static void ApplyCreativeDatabankExclusions()
+        {
+            int added = 0;
+
+            foreach (string rawName in CreativeExcludedDatabankRawNames)
+            {
+                foreach (string requirement in ResolveDatabankMatches(rawName))
+                {
+                    if (RunDatabankEntries.Add(requirement))
+                        added++;
+                }
+            }
+
+            if (added > 0)
+                Logger.Log($"[100Tracker] Applied creative databank exclusions: count={added}");
+        }
+
         private static HashSet<string> ResolveBlueprintMatches(string eventKey)
         {
             var matches = new HashSet<string>(StringComparer.Ordinal);
@@ -740,6 +782,27 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return matches;
+        }
+
+        private static HashSet<string> ResolveBlueprintPairingMatches(string pairingEntry)
+        {
+            HashSet<string> directMatches = ResolveBlueprintMatches(pairingEntry);
+            if (directMatches.Count > 0)
+                return directMatches;
+
+            Match cookedCuredMatch = CookedCuredPairingRegex.Match(pairingEntry ?? string.Empty);
+            if (!cookedCuredMatch.Success)
+                return directMatches;
+
+            string fishName = cookedCuredMatch.Groups[1].Value.Trim();
+            if (fishName.Length == 0)
+                return directMatches;
+
+            HashSet<string> expanded = ResolveBlueprintMatches("Cooked " + fishName);
+            foreach (string requirement in ResolveBlueprintMatches("Cured " + fishName))
+                expanded.Add(requirement);
+
+            return expanded;
         }
 
         private static HashSet<string> ResolveDatabankMatches(string eventKey)

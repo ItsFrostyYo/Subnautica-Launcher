@@ -215,6 +215,7 @@ namespace SubnauticaLauncher.Gameplay
                 GameState previous;
                 GameState current;
                 bool hasBiome = tracker.TryDetectBiome(process, out string biomeRaw);
+                bool hasDepth = tracker.TryDetectPlayerDepth(process, out float playerY);
                 bool biomeChanged = false;
                 string currentBiome = string.Empty;
                 SubnauticaBiomeCatalog.BiomeMatch biomeMatch = default;
@@ -226,7 +227,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (hasBiome)
                 {
-                    biomeMatch = SubnauticaBiomeCatalog.Resolve(biomeRaw);
+                    biomeMatch = SubnauticaBiomeCatalog.Resolve(biomeRaw, hasDepth ? playerY : null);
                     SubnauticaBiomeCatalog.RegisterObserved(biomeRaw, biomeMatch);
                 }
 
@@ -241,7 +242,11 @@ namespace SubnauticaLauncher.Gameplay
                     changed = trackerState.TryPromote(state, out previous, out current);
 
                     if (hasBiome)
-                        biomeChanged = trackerState.TryPromoteBiome(biomeMatch.CanonicalKey, out _, out currentBiome);
+                        biomeChanged = trackerState.TryPromoteBiome(
+                            biomeMatch.CanonicalKey,
+                            biomeMatch.IsKnown,
+                            out _,
+                            out currentBiome);
                 }
 
                 if (changed)
@@ -346,12 +351,16 @@ namespace SubnauticaLauncher.Gameplay
                 return true;
             }
 
-            public bool TryPromoteBiome(string rawBiome, out string previousBiome, out string stableBiome)
+            public bool TryPromoteBiome(string rawBiome, bool isKnown, out string previousBiome, out string stableBiome)
             {
                 previousBiome = string.Empty;
                 stableBiome = string.Empty;
 
                 if (string.IsNullOrWhiteSpace(rawBiome))
+                    return false;
+
+                // Unqualified/unknown biome aliases (ex: "WreckInterior") should not replace a known stable biome.
+                if (!isKnown && _hasBiomeStable)
                     return false;
 
                 if (!_hasBiomeCandidate || !string.Equals(_biomeCandidate, rawBiome, StringComparison.Ordinal))

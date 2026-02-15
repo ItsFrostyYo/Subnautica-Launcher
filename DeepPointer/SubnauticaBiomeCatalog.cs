@@ -556,9 +556,7 @@ namespace SubnauticaLauncher.Gameplay
                     "ILZChamber_Dragon",
                     "ILZChamber_MagmaBubble",
                     "ILZChamber_MagmaTree",
-                    "ILZCorridor",
-
-                    "Precursor_LavaCastleBase",
+                    "ILZCorridor",                    
                 },
                 new[]
                 {
@@ -614,10 +612,13 @@ namespace SubnauticaLauncher.Gameplay
                     "alienThermalPlant",
                     "PrecursorThermalRoom",
                     "precursorThermalRoom",
+                    "Precursor_LavaCastleBase",
                 },
                 new[]
                 {
                     "alienThermalPlant",
+                    "Precursor_LavaCastleBase",
+                    "Precursor_LavaCastleBase_",
                     "alienThermalPlant_",
                     "PrecursorThermal",
                     "PrecursorThermal_",
@@ -678,7 +679,6 @@ namespace SubnauticaLauncher.Gameplay
                     "Prison_Aquarium_Cave",
                     "Prison_Aquarium_Mid",
                     "Prison_Antechamber",
-                    "Prison_Moonpool",
                     "Prison_UpperRoom",
                 },
                 new[]
@@ -687,7 +687,6 @@ namespace SubnauticaLauncher.Gameplay
                     "Prison_Aquarium",
                     "Prison_Aquarium_",
                     "prisonAquarium_",
-                    "Prison_",
                 }),
 
             new(
@@ -696,6 +695,7 @@ namespace SubnauticaLauncher.Gameplay
                 new[]
                 {
                     "quarantineEnforcementPlatform",
+                    "PrecursorGun",
                     "Precursor_Gun",
                     "Precursor_Gun_ControlRoom",
                     "Precursor_Gun_InnerRooms",
@@ -707,6 +707,8 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     "quarantineEnforcementPlatform",
                     "quarantineEnforcementPlatform_",
+                    "PrecursorGun",
+                    "PrecursorGun_",
                     "precursorGun",
                     "precursorGun_",
                     "Precursor_Gun",
@@ -853,6 +855,31 @@ namespace SubnauticaLauncher.Gameplay
             return new BiomeMatch(canonical, display, false);
         }
 
+        public static BiomeMatch Resolve(string rawBiome, float? playerY)
+        {
+            BiomeMatch match = Resolve(rawBiome);
+            if (string.IsNullOrWhiteSpace(rawBiome))
+                return match;
+
+            string normalized = Normalize(rawBiome);
+            if (normalized.Length == 0)
+                return match;
+
+            if (IsUnqualifiedInteriorBiome(normalized))
+                return new BiomeMatch("unknown", "Unknown", false);
+
+            if (playerY.HasValue &&
+                playerY.Value <= -1000f &&
+                (normalized.StartsWith("Precursor_Gun", StringComparison.Ordinal) ||
+                 normalized.StartsWith("PrecursorGun", StringComparison.Ordinal) ||
+                 normalized.StartsWith("precursorGun", StringComparison.Ordinal)))
+            {
+                return new BiomeMatch("alien_thermal_plant", GetDisplayName("alien_thermal_plant"), true);
+            }
+
+            return match;
+        }
+
         public static string GetDisplayName(string canonicalKey)
         {
             if (string.IsNullOrWhiteSpace(canonicalKey))
@@ -952,6 +979,14 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return builder.ToString();
+        }
+
+        private static bool IsUnqualifiedInteriorBiome(string normalized)
+        {
+            return string.Equals(normalized, "WreckInterior", StringComparison.Ordinal)
+                || string.Equals(normalized, "wreckInterior", StringComparison.Ordinal)
+                || string.Equals(normalized, "Wreck", StringComparison.Ordinal)
+                || string.Equals(normalized, "wreck", StringComparison.Ordinal);
         }
 
         private static string Humanize(string value)
