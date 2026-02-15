@@ -32,16 +32,13 @@ namespace SubnauticaLauncher.UI
             switch (size)
             {
                 case Subnautica100TrackerOverlaySize.Small:
-                    TitleText.FontSize = 12;
                     SetEntryFonts(typeSize: 7, nameSize: 8, lineHeight: 8);
                     break;
                 case Subnautica100TrackerOverlaySize.Large:
-                    TitleText.FontSize = 16;
-                    SetEntryFonts(typeSize: 9, nameSize: 10, lineHeight: 10);
+                    SetEntryFonts(typeSize: 9.5, nameSize: 10.5, lineHeight: 10.5);
                     break;
                 default:
-                    TitleText.FontSize = 14;
-                    SetEntryFonts(typeSize: 8, nameSize: 9, lineHeight: 9);
+                    SetEntryFonts(typeSize: 8, nameSize: 9, lineHeight: 9.5);
                     break;
             }
         }

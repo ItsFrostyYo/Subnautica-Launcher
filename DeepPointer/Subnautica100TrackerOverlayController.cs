@@ -166,7 +166,23 @@ namespace SubnauticaLauncher.Gameplay
             ["lavaboomerang"] = new[] { "magmarang" },
             ["bigcoraltubes"] = new[] { "giantcoraltubes" },
             ["metalsalvage"] = new[] { "scatteredwreckage" },
-            ["metalsavlage"] = new[] { "scatteredwreckage" }
+            ["metalsavlage"] = new[] { "scatteredwreckage" },
+            ["droopingstingers"] = new[] { "droopingstinger" },
+            ["spottedreeds"] = new[] { "spotteddockleaf" },
+            ["bulbbush"] = new[] { "giantbulbbush" },
+            ["treecovetree"] = new[] { "giantcovetree" },
+            ["prawnsuit"] = new[] { "prawnsuitmkiii" },
+            ["exo"] = new[] { "prawnsuitmkiii" },
+            ["indoorgrowbed"] = new[] { "interiorgrowbed" },
+            ["bulkhead"] = new[] { "bulkheaddoor" },
+            ["marblemelon"] = new[] { "marblemelonplant" },
+            ["seaemperorleviathanjuvenile"] = new[] { "seaemperorjuvenile" },
+            ["seaemperorleviathaneggs"] = new[] { "theseaemperorseggs" },
+            ["seaemperorleviathan"] = new[] { "seaemperorleviathanresearchdata" },
+            ["lifepod12medicalofficerdanbyscrewlog"] = new[] { "lifepod12medicaloffierdanbyscrewlog" },
+            ["hatchingenzymes"] = new[] { "hatchingenzymes", "hatchingenzymesold" },
+            ["curedcreature"] = new[] { "specimenwithinfectionsymptomsinhibited" },
+            ["infection"] = new[] { "specimenwithsymptomsofinfection" }
         };
 
         private static readonly IReadOnlyDictionary<int, string> TechTypeDatabase = TechTypeNames.GetAll();
@@ -415,7 +431,10 @@ namespace SubnauticaLauncher.Gameplay
                 var blueprintSeen = new HashSet<string>(StringComparer.Ordinal);
                 var databankSeen = new HashSet<string>(StringComparer.Ordinal);
 
-                foreach (string pairingEntry in group.BlueprintEntries)
+                SubnauticaUnlockPairingCatalog.BiomeCycleEntries cycleEntries =
+                    SubnauticaUnlockPairingCatalog.GetCycleEntries(group);
+
+                foreach (string pairingEntry in cycleEntries.BlueprintEntries)
                 {
                     HashSet<string> matches = ResolveBlueprintMatches(pairingEntry);
                     if (matches.Count == 0)
@@ -431,7 +450,7 @@ namespace SubnauticaLauncher.Gameplay
                     }
                 }
 
-                foreach (string pairingEntry in group.DatabankEntries)
+                foreach (string pairingEntry in cycleEntries.DatabankEntries)
                 {
                     HashSet<string> matches = ResolveDatabankMatches(pairingEntry);
                     if (matches.Count == 0)
@@ -1288,8 +1307,8 @@ namespace SubnauticaLauncher.Gameplay
         {
             return LauncherSettings.Current.SubnauticaBiomeTrackerScrollSpeed switch
             {
-                SubnauticaBiomeTrackerScrollSpeed.Slow => 2200,
-                SubnauticaBiomeTrackerScrollSpeed.Fast => 700,
+                SubnauticaBiomeTrackerScrollSpeed.Slow => 3400,
+                SubnauticaBiomeTrackerScrollSpeed.Medium => 2200,
                 _ => 1300
             };
         }
