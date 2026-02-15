@@ -18,8 +18,8 @@ namespace SubnauticaLauncher.UI
 
         private int _rowCount = 1;
         private int _columnsPerRow = 2;
-        private double _typeFontSize = 7.5;
-        private double _nameFontSize = 9;
+        private double _typeFontSize = 8.5;
+        private double _nameFontSize = 10;
         private string _topSignature = string.Empty;
         private string _bottomSignature = string.Empty;
         private bool _isTwoRowLayout;
@@ -42,13 +42,13 @@ namespace SubnauticaLauncher.UI
             switch (size)
             {
                 case Subnautica100TrackerOverlaySize.Small:
-                    SetEntryFonts(typeSize: 7, nameSize: 8.25);
+                    SetEntryFonts(typeSize: 8, nameSize: 9);
                     break;
                 case Subnautica100TrackerOverlaySize.Large:
-                    SetEntryFonts(typeSize: 8.5, nameSize: 10);
+                    SetEntryFonts(typeSize: 9.5, nameSize: 11);
                     break;
                 default:
-                    SetEntryFonts(typeSize: 7.5, nameSize: 9);
+                    SetEntryFonts(typeSize: 8.5, nameSize: 10);
                     break;
             }
         }
@@ -83,7 +83,7 @@ namespace SubnauticaLauncher.UI
                 (viewportWidth - ((_columnsPerRow - 1) * CardGap)) / Math.Max(1, _columnsPerRow));
 
             double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
-            int rowItemCount = _columnsPerRow + 2;
+            int rowItemCount = _columnsPerRow + 1;
 
             IReadOnlyList<(string Type, string Name)> normalizedTop = NormalizeRow(topEntries, rowItemCount);
             IReadOnlyList<(string Type, string Name)> normalizedBottom = _rowCount > 1
@@ -103,7 +103,7 @@ namespace SubnauticaLauncher.UI
             }
 
             double pitch = slotWidth + CardGap;
-            double offsetX = -(1 + clampedProgress) * pitch;
+            double offsetX = -clampedProgress * pitch;
             TopEntriesTranslateTransform.X = offsetX;
             BottomEntriesTranslateTransform.X = offsetX;
         }
@@ -186,22 +186,22 @@ namespace SubnauticaLauncher.UI
             double size = _nameFontSize;
             int length = string.IsNullOrWhiteSpace(name) ? 0 : name.Length;
 
-            if (slotWidth < 92)
-                size -= 0.9;
-            else if (slotWidth < 110)
-                size -= 0.45;
+            if (slotWidth < 86)
+                size -= 1.0;
+            else if (slotWidth < 106)
+                size -= 0.5;
 
-            if (slotHeight < 60)
-                size -= 0.45;
+            if (slotHeight < 54)
+                size -= 0.5;
 
-            if (length > 28)
-                size -= 0.35;
-            if (length > 42)
-                size -= 0.55;
-            if (length > 58)
-                size -= 0.7;
+            if (length > 24)
+                size -= 0.3;
+            if (length > 38)
+                size -= 0.5;
+            if (length > 54)
+                size -= 0.75;
 
-            return Math.Max(7, Math.Min(_nameFontSize, size));
+            return Math.Max(7.5, Math.Min(_nameFontSize, size));
         }
 
         private void SetEntryFonts(double typeSize, double nameSize)
