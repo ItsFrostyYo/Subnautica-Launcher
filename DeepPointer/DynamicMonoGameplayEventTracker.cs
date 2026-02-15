@@ -192,7 +192,6 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousCreativeJumping;
         private bool _previousCreativePdaOpen;
         private bool _previousCreativeFabricatorActive;
-        private bool _creativeStartArmed;
         private int _creativeModeStableSamples;
         private int _notInGameStableSamples;
         private bool _startedBefore;
@@ -597,13 +596,13 @@ namespace SubnauticaLauncher.Gameplay
             bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
             bool animationActive = false;
             bool hasAnimation = hasPlayer && TryReadPlayerCinematicActive(proc, playerMain, out animationActive);
+            bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
             bool hasDamageEffects = TryReadEscapePodDamageEffects(proc, out bool damageEffectsShowing);
             bool hasCreativeMove = TryReadCreativeHorizontalMove(proc, out bool creativeMoveActive);
             bool creativeJumping = false;
             bool hasCreativeJump = hasPlayer && TryReadCreativeJumping(proc, playerMain, out creativeJumping);
             bool hasPdaOpen = TryReadCreativePdaOpen(proc, out bool creativePdaOpen);
             bool hasFabricator = TryReadCreativeFabricatorInteraction(proc, out bool creativeFabricatorActive);
-            bool hasCreativeBiome = TryReadBiome(proc, out _);
 
             if (hasMainMenuSignal)
             {
@@ -611,7 +610,6 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _startedBefore = false;
                     _hasRunStartBaseline = false;
-                    _creativeStartArmed = false;
                     _creativeModeStableSamples = 0;
                     return false;
                 }
@@ -634,7 +632,6 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _startedBefore = false;
                     _hasRunStartBaseline = false;
-                    _creativeStartArmed = false;
                     _creativeModeStableSamples = 0;
                 }
             }
@@ -649,62 +646,63 @@ namespace SubnauticaLauncher.Gameplay
                 _previousCreativeJumping = hasCreativeJump && creativeJumping;
                 _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
                 _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
-                _creativeStartArmed = false;
                 return false;
             }
 
             bool runStarted = false;
             string runStartReason = string.Empty;
 
+            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
+            bool animationEnded = hasAnimation && _previousPlayerCinematicActive && !animationActive;
+            bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
             bool movedTriggered = hasCreativeMove && creativeMoveActive && !_previousCreativeMoveActive;
             bool jumpTriggered = hasCreativeJump && creativeJumping && !_previousCreativeJumping;
             bool pdaTriggered = hasPdaOpen && creativePdaOpen && !_previousCreativePdaOpen;
             bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
             bool inStartCutscene =
                 (hasIntro && introActive) ||
-                (hasAnimation && animationActive);
+                (hasAnimation && animationActive) ||
+                (hasSkipProgress && skipProgress > 0.02f);
 
             bool survivalContextObserved =
                 (hasIntro && (introActive || _previousIntroCinematicActive)) ||
                 (hasAnimation && (animationActive || _previousPlayerCinematicActive)) ||
+                (hasSkipProgress && skipProgress > 0.02f) ||
                 (hasDamageEffects && (damageEffectsShowing || _previousDamageEffectsShowing));
 
             bool allowCreativeStartChecks =
                 isCreativeGameMode &&
-                _creativeModeStableSamples >= 3;
+                _creativeModeStableSamples >= 1;
             bool allowSurvivalStartChecks = !isCreativeGameMode;
-
-            if (!allowCreativeStartChecks || inStartCutscene || survivalContextObserved)
-                _creativeStartArmed = false;
-
-            bool creativeJustArmed = false;
-            if (allowCreativeStartChecks &&
-                !_creativeStartArmed &&
-                inGameSession &&
-                !shouldBlockForLoading &&
-                hasPlayer &&
-                !inStartCutscene &&
-                hasCreativeBiome)
-            {
-                _creativeStartArmed = true;
-                creativeJustArmed = true;
-            }
 
             if (!_startedBefore && inGameSession && !shouldBlockForLoading)
             {
-                if (allowSurvivalStartChecks &&
-                    hasDamageEffects &&
-                    damageEffectsShowing)
+                if (allowSurvivalStartChecks && introEnded)
+                {
+                    runStarted = true;
+                    runStartReason = "IntroCinematicEnded";
+                }
+                else if (allowSurvivalStartChecks && animationEnded)
+                {
+                    runStarted = true;
+                    runStartReason = "PlayerAnimationEnded";
+                }
+                else if (allowSurvivalStartChecks && skipProgressHigh)
+                {
+                    runStarted = true;
+                    runStartReason = "CutsceneSkipped";
+                }
+                else if (allowSurvivalStartChecks &&
+                         hasDamageEffects &&
+                         damageEffectsShowing)
                 {
                     runStarted = true;
                     runStartReason = "LifepodRadioDamaged";
                 }
                 else if (allowCreativeStartChecks &&
-                         _creativeStartArmed &&
-                         !creativeJustArmed &&
+                         !isMainMenuNow &&
                          !inStartCutscene &&
-                         hasPlayer &&
-                         hasCreativeBiome &&
+                         !survivalContextObserved &&
                          !(hasDamageEffects && damageEffectsShowing))
                 {
                     if (movedTriggered)
@@ -1149,7 +1147,6 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativeJumping = false;
             _previousCreativePdaOpen = false;
             _previousCreativeFabricatorActive = false;
-            _creativeStartArmed = false;
             _creativeModeStableSamples = 0;
             _notInGameStableSamples = 0;
             _startedBefore = false;
