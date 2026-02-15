@@ -24,14 +24,14 @@ namespace SubnauticaLauncher.UI
             switch (size)
             {
                 case Subnautica100TrackerOverlaySize.Small:
-                    StepText.FontSize = 13;
-                    ProgressText.FontSize = 11;
-                    BreakdownText.FontSize = 10;
+                    StepText.FontSize = 12;
+                    ProgressText.FontSize = 10;
+                    BreakdownText.FontSize = 9;
                     break;
                 case Subnautica100TrackerOverlaySize.Large:
-                    StepText.FontSize = 17;
-                    ProgressText.FontSize = 14;
-                    BreakdownText.FontSize = 13;
+                    StepText.FontSize = 18;
+                    ProgressText.FontSize = 15;
+                    BreakdownText.FontSize = 14;
                     break;
                 default:
                     StepText.FontSize = 15;

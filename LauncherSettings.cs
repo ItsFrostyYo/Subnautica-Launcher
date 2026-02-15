@@ -41,6 +41,11 @@ namespace SubnauticaLauncher
         public Subnautica100TrackerOverlaySize Subnautica100TrackerSize { get; set; } =
             Subnautica100TrackerOverlaySize.Medium;
         public bool Subnautica100TrackerUnlockPopupEnabled { get; set; } = true;
+        public bool SubnauticaBiomeTrackerEnabled { get; set; } = false;
+        public SubnauticaBiomeTrackerCycleMode SubnauticaBiomeTrackerCycleMode { get; set; } =
+            SubnauticaBiomeTrackerCycleMode.Databanks;
+        public SubnauticaBiomeTrackerScrollSpeed SubnauticaBiomeTrackerScrollSpeed { get; set; } =
+            SubnauticaBiomeTrackerScrollSpeed.Medium;
 
         // Explosion reset settings
         public bool ExplosionResetEnabled { get; set; } = false;

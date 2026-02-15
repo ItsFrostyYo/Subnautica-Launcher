@@ -46,9 +46,13 @@ namespace SubnauticaLauncher.Gameplay
 
         private static readonly HashSet<string> RunBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> RunDatabankEntries = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, List<string>> BiomeBlueprintRequirementsByCanonical = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, List<string>> BiomeDatabankRequirementsByCanonical = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, string> BiomeCanonicalByDisplay = new(StringComparer.OrdinalIgnoreCase);
 
         private static readonly HashSet<string> LoggedUnmatchedBlueprintAliases = new(StringComparer.Ordinal);
         private static readonly HashSet<string> LoggedUnmatchedDatabankAliases = new(StringComparer.Ordinal);
+        private static readonly HashSet<string> LoggedUnmatchedBiomePairingEntries = new(StringComparer.OrdinalIgnoreCase);
 
         // Common internal-name to checklist-name mismatches and shorthand aliases.
         private static readonly Dictionary<string, string[]> SpecialBlueprintAliasMap = new(StringComparer.Ordinal)
@@ -168,6 +172,7 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly IReadOnlyDictionary<int, string> TechTypeDatabase = TechTypeNames.GetAll();
 
         private static Subnautica100TrackerOverlay? _window;
+        private static SubnauticaBiomeTrackerOverlay? _biomeWindow;
         private static Subnautica100UnlockToastOverlay? _toastWindow;
         private static CancellationTokenSource? _cts;
         private static CancellationTokenSource? _toastDisplayCts;
@@ -177,10 +182,15 @@ namespace SubnauticaLauncher.Gameplay
         private static bool _toastVisible;
         private static double _overlayLeft;
         private static double _overlayTop;
+        private static string _currentBiomeCanonical = string.Empty;
+        private static int _biomeScrollIndex;
+        private static DateTime _nextBiomeScrollUtc = DateTime.MinValue;
         private static readonly SemaphoreSlim ToastSemaphore = new(1, 1);
         private static int RequiredBlueprintTotal => RequiredBlueprints.Count;
         private static int RequiredDatabankTotal => RequiredDatabankEntries.Count;
         private static int RequiredCombinedTotal => RequiredBlueprintTotal + RequiredDatabankTotal;
+
+        private readonly record struct BiomeCycleItem(bool IsBlueprint, string Requirement);
 
         public static void Start()
         {
@@ -214,6 +224,9 @@ namespace SubnauticaLauncher.Gameplay
                 _loopTask = null;
                 _runActive = false;
                 _toastVisible = false;
+                _currentBiomeCanonical = string.Empty;
+                _biomeScrollIndex = 0;
+                _nextBiomeScrollUtc = DateTime.MinValue;
                 RunBlueprints.Clear();
                 RunDatabankEntries.Clear();
             }
@@ -257,6 +270,8 @@ namespace SubnauticaLauncher.Gameplay
             {
                 _window?.Close();
                 _window = null;
+                _biomeWindow?.Close();
+                _biomeWindow = null;
                 _toastWindow?.Close();
                 _toastWindow = null;
             });
@@ -270,11 +285,13 @@ namespace SubnauticaLauncher.Gameplay
             SubnauticaChecklistCatalog checklistCatalog = SubnauticaChecklistCatalog.GetOrLoad();
             ApplyChecklistCatalog(checklistCatalog);
             BuildBlueprintTechTypeRequirementIndex();
-            _rulesLoaded = true;
 
             SubnauticaUnlockPairingCatalog pairingCatalog = SubnauticaUnlockPairingCatalog.GetOrLoad();
             if (pairingCatalog.Groups.Count == 0)
                 Logger.Warn("[100Tracker] Biome unlock pairing database is empty.");
+            BuildBiomeRequirementIndex(pairingCatalog);
+
+            _rulesLoaded = true;
 
             Logger.Log(
                 $"[100Tracker] Database loaded. " +
@@ -376,6 +393,62 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (matches.Count > 0)
                     BlueprintRequirementsByTechType[techTypeId] = matches;
+            }
+        }
+
+        private static void BuildBiomeRequirementIndex(SubnauticaUnlockPairingCatalog pairingCatalog)
+        {
+            BiomeBlueprintRequirementsByCanonical.Clear();
+            BiomeDatabankRequirementsByCanonical.Clear();
+            BiomeCanonicalByDisplay.Clear();
+
+            foreach (SubnauticaUnlockPairingCatalog.BiomeUnlockGroup group in pairingCatalog.Groups)
+            {
+                if (string.IsNullOrWhiteSpace(group.CanonicalBiomeKey))
+                    continue;
+
+                if (!BiomeCanonicalByDisplay.ContainsKey(group.DisplayName))
+                    BiomeCanonicalByDisplay[group.DisplayName] = group.CanonicalBiomeKey;
+
+                var mappedBlueprints = new List<string>();
+                var mappedDatabanks = new List<string>();
+                var blueprintSeen = new HashSet<string>(StringComparer.Ordinal);
+                var databankSeen = new HashSet<string>(StringComparer.Ordinal);
+
+                foreach (string pairingEntry in group.BlueprintEntries)
+                {
+                    HashSet<string> matches = ResolveBlueprintMatches(pairingEntry);
+                    if (matches.Count == 0)
+                    {
+                        LogUnmatchedBiomePairing(group.DisplayName, "Blueprint", pairingEntry);
+                        continue;
+                    }
+
+                    foreach (string requirement in matches)
+                    {
+                        if (blueprintSeen.Add(requirement))
+                            mappedBlueprints.Add(requirement);
+                    }
+                }
+
+                foreach (string pairingEntry in group.DatabankEntries)
+                {
+                    HashSet<string> matches = ResolveDatabankMatches(pairingEntry);
+                    if (matches.Count == 0)
+                    {
+                        LogUnmatchedBiomePairing(group.DisplayName, "Databank", pairingEntry);
+                        continue;
+                    }
+
+                    foreach (string requirement in matches)
+                    {
+                        if (databankSeen.Add(requirement))
+                            mappedDatabanks.Add(requirement);
+                    }
+                }
+
+                BiomeBlueprintRequirementsByCanonical[group.CanonicalBiomeKey] = mappedBlueprints;
+                BiomeDatabankRequirementsByCanonical[group.CanonicalBiomeKey] = mappedDatabanks;
             }
         }
 
@@ -487,6 +560,12 @@ namespace SubnauticaLauncher.Gameplay
                         UpdateOverlayText();
                     }
 
+                    return;
+                }
+
+                if (evt.Type == GameplayEventType.BiomeChanged)
+                {
+                    SetCurrentBiome(evt.Key);
                     return;
                 }
 
@@ -799,6 +878,15 @@ namespace SubnauticaLauncher.Gameplay
             Logger.Log($"[100Tracker] Unmatched databank unlock: key={eventKey}");
         }
 
+        private static void LogUnmatchedBiomePairing(string biomeDisplayName, string category, string entryName)
+        {
+            string key = $"{biomeDisplayName}|{category}|{entryName}";
+            if (!LoggedUnmatchedBiomePairingEntries.Add(key))
+                return;
+
+            Logger.Log($"[100Tracker] Unmatched biome pairing {category}: biome={biomeDisplayName}, entry={entryName}");
+        }
+
         private static void QueueUnlockToast(GameplayEventType type, string requirement, string fallbackEventKey)
         {
             if (!IsUnlockPopupEnabled())
@@ -1085,6 +1173,9 @@ namespace SubnauticaLauncher.Gameplay
 
             _runActive = false;
             _toastVisible = false;
+            _currentBiomeCanonical = string.Empty;
+            _biomeScrollIndex = 0;
+            _nextBiomeScrollUtc = DateTime.MinValue;
             RunBlueprints.Clear();
             RunDatabankEntries.Clear();
             LoggedUnmatchedBlueprintAliases.Clear();
@@ -1092,6 +1183,7 @@ namespace SubnauticaLauncher.Gameplay
 
             Application.Current.Dispatcher.Invoke(() =>
             {
+                _biomeWindow?.Hide();
                 _toastWindow?.Hide();
             });
         }
@@ -1099,6 +1191,8 @@ namespace SubnauticaLauncher.Gameplay
         private static void StartRunState()
         {
             _runActive = true;
+            _biomeScrollIndex = 0;
+            _nextBiomeScrollUtc = DateTime.MinValue;
 
             RunBlueprints.Clear();
             RunDatabankEntries.Clear();
@@ -1108,6 +1202,27 @@ namespace SubnauticaLauncher.Gameplay
 
             foreach (string name in PreInstalledDatabankEntries)
                 RunDatabankEntries.Add(name);
+        }
+
+        private static void SetCurrentBiome(string displayName)
+        {
+            string canonical = string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                if (!BiomeCanonicalByDisplay.TryGetValue(displayName.Trim(), out string? mappedCanonical) ||
+                    string.IsNullOrWhiteSpace(mappedCanonical))
+                    canonical = SubnauticaBiomeCatalog.Resolve(displayName).CanonicalKey;
+                else
+                    canonical = mappedCanonical;
+            }
+
+            if (string.Equals(_currentBiomeCanonical, canonical, StringComparison.Ordinal))
+                return;
+
+            _currentBiomeCanonical = canonical;
+            _biomeScrollIndex = 0;
+            _nextBiomeScrollUtc = DateTime.MinValue;
         }
 
         private static void UpdateOverlayText()
@@ -1129,15 +1244,22 @@ namespace SubnauticaLauncher.Gameplay
         }
 
         private static bool IsUnlockPopupEnabled() => LauncherSettings.Current.Subnautica100TrackerUnlockPopupEnabled;
+        private static bool IsBiomeTrackerEnabled() => LauncherSettings.Current.SubnauticaBiomeTrackerEnabled;
 
         private static (double Width, double Height) GetOverlayDimensions()
         {
             return LauncherSettings.Current.Subnautica100TrackerSize switch
             {
-                Subnautica100TrackerOverlaySize.Small => (180, 72),
-                Subnautica100TrackerOverlaySize.Large => (232, 96),
+                Subnautica100TrackerOverlaySize.Small => (160, 64),
+                Subnautica100TrackerOverlaySize.Large => (260, 104),
                 _ => (200, 80)
             };
+        }
+
+        private static (double Width, double Height) GetBiomeOverlayDimensions()
+        {
+            (double trackerWidth, double trackerHeight) = GetOverlayDimensions();
+            return (trackerWidth + 90, trackerHeight);
         }
 
         private static void ApplyOverlaySizePreset()
@@ -1149,6 +1271,102 @@ namespace SubnauticaLauncher.Gameplay
             _window.Width = width;
             _window.Height = height;
             _window.ApplySizePreset(LauncherSettings.Current.Subnautica100TrackerSize);
+        }
+
+        private static void ApplyBiomeOverlaySizePreset()
+        {
+            if (_biomeWindow == null)
+                return;
+
+            (double width, double height) = GetBiomeOverlayDimensions();
+            _biomeWindow.Width = width;
+            _biomeWindow.Height = height;
+            _biomeWindow.ApplySizePreset(LauncherSettings.Current.Subnautica100TrackerSize);
+        }
+
+        private static int GetBiomeScrollIntervalMs()
+        {
+            return LauncherSettings.Current.SubnauticaBiomeTrackerScrollSpeed switch
+            {
+                SubnauticaBiomeTrackerScrollSpeed.Slow => 2200,
+                SubnauticaBiomeTrackerScrollSpeed.Fast => 700,
+                _ => 1300
+            };
+        }
+
+        private static List<BiomeCycleItem> BuildCurrentBiomeMissingItems()
+        {
+            var items = new List<BiomeCycleItem>();
+
+            if (!_runActive || string.IsNullOrWhiteSpace(_currentBiomeCanonical))
+                return items;
+
+            bool includeDatabanks = LauncherSettings.Current.SubnauticaBiomeTrackerCycleMode != SubnauticaBiomeTrackerCycleMode.Blueprints;
+            bool includeBlueprints = LauncherSettings.Current.SubnauticaBiomeTrackerCycleMode != SubnauticaBiomeTrackerCycleMode.Databanks;
+
+            if (includeDatabanks &&
+                BiomeDatabankRequirementsByCanonical.TryGetValue(_currentBiomeCanonical, out List<string>? databankRequirements))
+            {
+                foreach (string requirement in databankRequirements)
+                {
+                    if (!RunDatabankEntries.Contains(requirement))
+                        items.Add(new BiomeCycleItem(false, requirement));
+                }
+            }
+
+            if (includeBlueprints &&
+                BiomeBlueprintRequirementsByCanonical.TryGetValue(_currentBiomeCanonical, out List<string>? blueprintRequirements))
+            {
+                foreach (string requirement in blueprintRequirements)
+                {
+                    if (!RunBlueprints.Contains(requirement))
+                        items.Add(new BiomeCycleItem(true, requirement));
+                }
+            }
+
+            return items;
+        }
+
+        private static List<(string Type, string Name)> BuildBiomeDisplayRows()
+        {
+            var rows = new List<(string Type, string Name)>(4);
+            List<BiomeCycleItem> missingItems = BuildCurrentBiomeMissingItems();
+
+            if (missingItems.Count == 0)
+            {
+                if (string.IsNullOrWhiteSpace(_currentBiomeCanonical))
+                    rows.Add(("Biome", "Waiting for biome data"));
+                else
+                    rows.Add(("Biome", "No remaining unlocks"));
+
+                return rows;
+            }
+
+            if (_biomeScrollIndex >= missingItems.Count)
+                _biomeScrollIndex = 0;
+
+            DateTime utcNow = DateTime.UtcNow;
+            if (_nextBiomeScrollUtc == DateTime.MinValue)
+                _nextBiomeScrollUtc = utcNow.AddMilliseconds(GetBiomeScrollIntervalMs());
+
+            if (missingItems.Count > 1 && utcNow >= _nextBiomeScrollUtc)
+            {
+                _biomeScrollIndex = (_biomeScrollIndex + 1) % missingItems.Count;
+                _nextBiomeScrollUtc = utcNow.AddMilliseconds(GetBiomeScrollIntervalMs());
+            }
+
+            int maxRows = Math.Min(4, missingItems.Count);
+            for (int i = 0; i < maxRows; i++)
+            {
+                BiomeCycleItem item = missingItems[(_biomeScrollIndex + i) % missingItems.Count];
+                string type = item.IsBlueprint ? "Blueprint" : "Databank";
+                string name = item.IsBlueprint
+                    ? ResolveRequirementDisplayName(GameplayEventType.BlueprintUnlocked, item.Requirement, item.Requirement)
+                    : ResolveRequirementDisplayName(GameplayEventType.DatabankEntryUnlocked, item.Requirement, item.Requirement);
+                rows.Add((type, name));
+            }
+
+            return rows;
         }
 
         private static double GetToastTop()
@@ -1167,8 +1385,14 @@ namespace SubnauticaLauncher.Gameplay
                 try
                 {
                     bool runActive;
+                    bool biomeTrackerEnabled;
+                    List<(string Type, string Name)> biomeRows;
                     lock (Sync)
+                    {
                         runActive = _runActive;
+                        biomeTrackerEnabled = IsBiomeTrackerEnabled();
+                        biomeRows = biomeTrackerEnabled ? BuildBiomeDisplayRows() : new List<(string Type, string Name)>();
+                    }
 
                     RECT rect = default;
                     bool shouldShow = runActive
@@ -1205,6 +1429,24 @@ namespace SubnauticaLauncher.Gameplay
                             if (!_window.IsVisible)
                                 _window.Show();
 
+                            if (biomeTrackerEnabled)
+                            {
+                                _biomeWindow ??= new SubnauticaBiomeTrackerOverlay();
+                                ApplyBiomeOverlaySizePreset();
+
+                                double trackerWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
+                                _biomeWindow.Left = _overlayLeft + trackerWidth + 8;
+                                _biomeWindow.Top = _overlayTop;
+                                _biomeWindow.SetEntries(biomeRows);
+
+                                if (!_biomeWindow.IsVisible)
+                                    _biomeWindow.Show();
+                            }
+                            else
+                            {
+                                _biomeWindow?.Hide();
+                            }
+
                             if (IsUnlockPopupEnabled() && _toastWindow != null && _toastWindow.IsVisible)
                             {
                                 double overlayWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
@@ -1223,6 +1465,7 @@ namespace SubnauticaLauncher.Gameplay
                         else
                         {
                             _window?.Hide();
+                            _biomeWindow?.Hide();
                             _toastWindow?.Hide();
                             _toastVisible = false;
                         }
@@ -1234,6 +1477,7 @@ namespace SubnauticaLauncher.Gameplay
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         _window?.Hide();
+                        _biomeWindow?.Hide();
                         _toastWindow?.Hide();
                     });
                 }

@@ -1010,7 +1010,10 @@ namespace SubnauticaLauncher.UI
             var settings = LauncherSettings.Current;
             var window = new Subnautica100TrackerCustomizeWindow(
                 settings.Subnautica100TrackerSize,
-                settings.Subnautica100TrackerUnlockPopupEnabled)
+                settings.Subnautica100TrackerUnlockPopupEnabled,
+                settings.SubnauticaBiomeTrackerEnabled,
+                settings.SubnauticaBiomeTrackerCycleMode,
+                settings.SubnauticaBiomeTrackerScrollSpeed)
             {
                 Owner = this
             };
@@ -1020,6 +1023,9 @@ namespace SubnauticaLauncher.UI
 
             settings.Subnautica100TrackerSize = window.SelectedSize;
             settings.Subnautica100TrackerUnlockPopupEnabled = window.UnlockPopupEnabled;
+            settings.SubnauticaBiomeTrackerEnabled = window.BiomeTrackerEnabled;
+            settings.SubnauticaBiomeTrackerCycleMode = window.BiomeCycleMode;
+            settings.SubnauticaBiomeTrackerScrollSpeed = window.BiomeScrollSpeed;
             LauncherSettings.Save();
         }
 

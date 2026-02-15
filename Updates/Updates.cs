@@ -30,6 +30,18 @@ public static class Updates
 
     public static readonly UpdateEntry[] History =
     {
+          new UpdateEntry
+    {
+        Version = "2.2.0",
+        Title = "100% Tracker Additions",
+        Date = "Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
+        Changes = new[]
+        {
+            "Tracks Unlocked Blueprints Per Biome",
+            "Full Customization for the 100% Tracker"
+        }
+    },
+
          new UpdateEntry
     {
         Version = "2.1.1",
