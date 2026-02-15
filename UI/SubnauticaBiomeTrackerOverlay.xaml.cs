@@ -18,8 +18,8 @@ namespace SubnauticaLauncher.UI
 
         private int _rowCount = 1;
         private int _columnsPerRow = 2;
-        private double _typeFontSize = 8.5;
-        private double _nameFontSize = 10;
+        private double _typeFontSize = 8;
+        private double _nameFontSize = 9.25;
         private string _topSignature = string.Empty;
         private string _bottomSignature = string.Empty;
         private bool _isTwoRowLayout;
@@ -42,13 +42,13 @@ namespace SubnauticaLauncher.UI
             switch (size)
             {
                 case Subnautica100TrackerOverlaySize.Small:
-                    SetEntryFonts(typeSize: 8, nameSize: 9);
+                    SetEntryFonts(typeSize: 7.5, nameSize: 8.5);
                     break;
                 case Subnautica100TrackerOverlaySize.Large:
-                    SetEntryFonts(typeSize: 9.5, nameSize: 11);
+                    SetEntryFonts(typeSize: 9, nameSize: 10.25);
                     break;
                 default:
-                    SetEntryFonts(typeSize: 8.5, nameSize: 10);
+                    SetEntryFonts(typeSize: 8, nameSize: 9.25);
                     break;
             }
         }
@@ -78,9 +78,9 @@ namespace SubnauticaLauncher.UI
                 ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
                 : viewportHeight;
 
-            double slotWidth = Math.Max(
-                MinimumSlotWidth,
-                (viewportWidth - ((_columnsPerRow - 1) * CardGap)) / Math.Max(1, _columnsPerRow));
+            double peekWidth = GetPeekWidth();
+            double stride = Math.Max(1, (viewportWidth - peekWidth) / Math.Max(1, _columnsPerRow));
+            double slotWidth = Math.Max(MinimumSlotWidth, stride - CardGap);
 
             double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
             int rowItemCount = _columnsPerRow + 1;
@@ -186,22 +186,30 @@ namespace SubnauticaLauncher.UI
             double size = _nameFontSize;
             int length = string.IsNullOrWhiteSpace(name) ? 0 : name.Length;
 
-            if (slotWidth < 86)
-                size -= 1.0;
-            else if (slotWidth < 106)
+            if (slotWidth < 90)
+                size -= 0.9;
+            else if (slotWidth < 112)
                 size -= 0.5;
 
             if (slotHeight < 54)
                 size -= 0.5;
 
-            if (length > 24)
+            if (length > 22)
                 size -= 0.3;
-            if (length > 38)
+            if (length > 34)
                 size -= 0.5;
-            if (length > 54)
+            if (length > 48)
                 size -= 0.75;
 
-            return Math.Max(7.5, Math.Min(_nameFontSize, size));
+            return Math.Max(7, Math.Min(_nameFontSize, size));
+        }
+
+        private double GetPeekWidth()
+        {
+            if (_columnsPerRow >= 3)
+                return 24;
+
+            return _rowCount > 1 ? 20 : 18;
         }
 
         private void SetEntryFonts(double typeSize, double nameSize)

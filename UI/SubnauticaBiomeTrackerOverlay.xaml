@@ -55,6 +55,8 @@
                                                Foreground="#BDE3FF"
                                                Text="{Binding Type}"
                                                FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
                                                TextTrimming="CharacterEllipsis"
                                                Margin="0,0,0,2"/>
 
@@ -63,6 +65,8 @@
                                                Foreground="White"
                                                FontWeight="SemiBold"
                                                Text="{Binding Name}"
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
                                                TextWrapping="Wrap"
                                                TextTrimming="None"/>
                                 </Grid>
@@ -103,6 +107,8 @@
                                                Foreground="#BDE3FF"
                                                Text="{Binding Type}"
                                                FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
                                                TextTrimming="CharacterEllipsis"
                                                Margin="0,0,0,2"/>
 
@@ -111,6 +117,8 @@
                                                Foreground="White"
                                                FontWeight="SemiBold"
                                                Text="{Binding Name}"
+                                               HorizontalAlignment="Center"
+                                               TextAlignment="Center"
                                                TextWrapping="Wrap"
                                                TextTrimming="None"/>
                                 </Grid>
