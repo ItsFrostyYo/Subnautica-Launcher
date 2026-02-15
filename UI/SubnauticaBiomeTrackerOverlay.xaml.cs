@@ -78,8 +78,11 @@ namespace SubnauticaLauncher.UI
                 ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
                 : viewportHeight;
 
-            // Fixed lane model: fit the configured columns plus one full "next" card.
-            double laneCount = _columnsPerRow + 1.0;
+            // Fixed lane model: keep the requested full cards plus a persistent preview lane.
+            // Example:
+            // - 2 columns => 2 full cards + half of the next card
+            // - 3 columns => 3 full cards + half of the next card
+            double laneCount = _columnsPerRow + 0.5;
             double availableWidth = Math.Max(1, viewportWidth - (laneCount * CardGap));
             double slotWidth = availableWidth / laneCount;
             slotWidth = Math.Max(MinimumSlotWidth, Math.Min(slotWidth, viewportWidth));

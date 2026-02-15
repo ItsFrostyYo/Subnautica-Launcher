@@ -194,6 +194,7 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousCreativeJumping;
         private bool _previousCreativePdaOpen;
         private bool _previousCreativeFabricatorActive;
+        private bool _creativeStartArmed;
         private bool _startedBefore;
 
         public DynamicMonoGameplayEventTracker(string gameName)
@@ -603,6 +604,7 @@ namespace SubnauticaLauncher.Gameplay
                     _hasRunStartBaseline = false;
                     _hasKnownGameMode = false;
                     _lastKnownGameMode = -1;
+                    _creativeStartArmed = false;
                     return false;
                 }
             }
@@ -625,6 +627,7 @@ namespace SubnauticaLauncher.Gameplay
                 _previousCreativeJumping = hasCreativeJump && creativeJumping;
                 _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
                 _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
+                _creativeStartArmed = gameModePlausible && !IsCreativeGameMode(gameMode);
                 return false;
             }
 
@@ -653,6 +656,15 @@ namespace SubnauticaLauncher.Gameplay
                 (hasIntro && introActive) ||
                 (hasAnimation && animationActive) ||
                 (hasSkipProgress && skipProgress > 0.02f);
+
+            if (!_creativeStartArmed &&
+                (skipJustCompleted ||
+                 introEnded ||
+                 animationEnded ||
+                 (hasDamageEffects && damageEffectsShowing)))
+            {
+                _creativeStartArmed = true;
+            }
 
             if (!_startedBefore && inGameSession && !shouldBlockForLoading)
             {
@@ -684,39 +696,42 @@ namespace SubnauticaLauncher.Gameplay
                         runStartReason = "CutsceneSkipped";
                     }
                     else if (!gameModePlausible &&
+                             _hasKnownGameMode &&
+                             !IsCreativeGameMode(_lastKnownGameMode) &&
+                             _creativeStartArmed &&
                              !inStartCutscene &&
-                             (creativeInteractionTriggered || creativeInteractionActive))
+                             creativeInteractionTriggered)
                     {
                         runStarted = true;
-                        runStartReason = movedTriggered || movedActive
+                        runStartReason = movedTriggered
                             ? "FallbackHorizontalMove"
-                            : jumpTriggered || jumpActive
+                            : jumpTriggered
                                 ? "FallbackJump"
-                                : pdaTriggered || pdaActive
+                                : pdaTriggered
                                     ? "FallbackPdaOpen"
                                     : "FallbackFabricatorInteraction";
                     }
                 }
                 else
                 {
-                    if (!inStartCutscene)
+                    if (_creativeStartArmed && !inStartCutscene)
                     {
-                        if (movedTriggered || movedActive)
+                        if (movedTriggered)
                         {
                             runStarted = true;
                             runStartReason = "CreativeHorizontalMove";
                         }
-                        else if (jumpTriggered || jumpActive)
+                        else if (jumpTriggered)
                         {
                             runStarted = true;
                             runStartReason = "CreativeJump";
                         }
-                        else if (pdaTriggered || pdaActive)
+                        else if (pdaTriggered)
                         {
                             runStarted = true;
                             runStartReason = "CreativePdaOpen";
                         }
-                        else if (fabricatorTriggered || fabricatorActive)
+                        else if (fabricatorTriggered)
                         {
                             runStarted = true;
                             runStartReason = "CreativeFabricatorInteraction";
@@ -1158,6 +1173,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativeJumping = false;
             _previousCreativePdaOpen = false;
             _previousCreativeFabricatorActive = false;
+            _creativeStartArmed = false;
             _startedBefore = false;
         }
 
