@@ -93,6 +93,9 @@ namespace SubnauticaLauncher.Gameplay
         private StaticFieldRef _playerMainField;
         private StaticFieldRef _uGuiMainField;
         private StaticFieldRef _uGuiMainMenuField;
+        private StaticFieldRef _uGuiPdaMainField;
+        private StaticFieldRef _uGuiCraftingMenuMainField;
+        private StaticFieldRef _gameModeCurrentField;
         private StaticFieldRef _escapePodMainField;
 
         private bool _hasInventoryContainerOffset;
@@ -131,10 +134,18 @@ namespace SubnauticaLauncher.Gameplay
         private int _pickupableTechTypeOffset;
         private bool _hasEscapePodIntroCinematicOffset;
         private int _escapePodIntroCinematicOffset;
-        private bool _hasPlayerCinematicModeOffset;
-        private int _playerCinematicModeOffset;
+        private bool _hasEscapePodDamageEffectsOffset;
+        private int _escapePodDamageEffectsOffset;
+        private bool _hasPlayerGroundMotorOffset;
+        private int _playerGroundMotorOffset;
+        private bool _hasGroundMotorJumpingOffset;
+        private int _groundMotorJumpingOffset;
         private bool _hasCinematicModeActiveOffset;
         private int _cinematicModeActiveOffset;
+        private bool _hasPdaTabOpenOffset;
+        private int _pdaTabOpenOffset;
+        private bool _hasCraftingMenuClientOffset;
+        private int _craftingMenuClientOffset;
 
         private readonly Dictionary<long, int?> _directTechTypeOffsetByClass = new();
         private readonly Dictionary<long, int?> _nestedObjectOffsetByClass = new();
@@ -162,20 +173,19 @@ namespace SubnauticaLauncher.Gameplay
         private readonly DeepPointer? _modernPosX;
         private readonly DeepPointer? _modernPosY;
         private readonly DeepPointer? _modernPosZ;
-        private readonly DeepPointer? _legacySkipProgress;
-        private readonly DeepPointer? _modernSkipProgress;
+        private readonly DeepPointer? _legacyWalkDir;
+        private readonly DeepPointer? _legacyStrafeDir;
+        private readonly DeepPointer? _modernWalkDir;
+        private readonly DeepPointer? _modernStrafeDir;
         private readonly DeepPointer? _legacyBiome;
         private readonly DeepPointer? _modernBiome;
         private bool _hasRunStartBaseline;
-        private bool _previousIntroCinematicActive;
-        private bool _previousPlayerCinematicActive;
-        private bool _skipProgressWasHigh;
+        private bool _previousDamageEffectsShowing;
+        private bool _previousCreativeMoveActive;
+        private bool _previousCreativeJumping;
+        private bool _previousCreativePdaOpen;
+        private bool _previousCreativeFabricatorActive;
         private bool _startedBefore;
-        private bool _pendingRunStartAfterCinematic;
-        private string _pendingRunStartReason = string.Empty;
-        private bool _hasPreviousRunStartPosition;
-        private float _previousRunStartPosX;
-        private float _previousRunStartPosZ;
 
         public DynamicMonoGameplayEventTracker(string gameName)
         {
@@ -192,8 +202,11 @@ namespace SubnauticaLauncher.Gameplay
                 _modernPosY = new DeepPointer("UnityPlayer.dll", 0x1839CE0, 0x28, 0x10, 0x150, 0xA5C);
                 _modernPosZ = new DeepPointer("UnityPlayer.dll", 0x1839CE0, 0x28, 0x10, 0x150, 0xA60);
 
-                _legacySkipProgress = new DeepPointer("mono.dll", 0x17FBC48, 0x1F0, 0x1E8, 0x4E0, 0xB10, 0xD0, 0x8, 0x68, 0x30, 0x40, 0x30, 0xF4);
-                _modernSkipProgress = new DeepPointer("UnityPlayer.dll", 0x17FBC48, 0x1F0, 0x1E8, 0x4E0, 0xB10, 0xD0, 0x8, 0x68, 0x30, 0x40, 0x30, 0xF4);
+                _legacyWalkDir = new DeepPointer("Subnautica.exe", 0x142B8C8, 0x158, 0x40, 0xA0);
+                _legacyStrafeDir = new DeepPointer("Subnautica.exe", 0x142B8C8, 0x158, 0x40, 0x160);
+                _modernWalkDir = new DeepPointer("UnityPlayer.dll", 0x17FBC28, 0x30, 0x98);
+                _modernStrafeDir = new DeepPointer("UnityPlayer.dll", 0x17FBC28, 0x30, 0x150);
+
                 _legacyBiome = new DeepPointer("Subnautica.exe", 0x142B908, 0x180, 0x128, 0x80, 0x1D0, 0x8, 0x248, 0x1D0, 0x14);
                 _modernBiome = new DeepPointer("UnityPlayer.dll", 0x17FBE70, 0x8, 0x10, 0x30, 0x58, 0x28, 0x1F0, 0x14);
             }
@@ -441,34 +454,6 @@ namespace SubnauticaLauncher.Gameplay
             return TryReadBool(proc, IntPtr.Add(sceneLoading, _sceneLoadingIsLoadingOffset), out isLoading);
         }
 
-        private bool TryReadPlayerCinematicActive(Process proc, IntPtr playerMain, out bool active)
-        {
-            active = false;
-
-            if (playerMain == IntPtr.Zero || !_hasPlayerCinematicModeOffset)
-                return false;
-
-            return TryReadBool(proc, IntPtr.Add(playerMain, _playerCinematicModeOffset), out active);
-        }
-
-        private bool TryReadSkipProgress(Process proc, out float value)
-        {
-            value = 0f;
-
-            return TryReadSkipProgressFrom(proc, _modernSkipProgress, out value)
-                || TryReadSkipProgressFrom(proc, _legacySkipProgress, out value);
-        }
-
-        private static bool TryReadSkipProgressFrom(Process proc, DeepPointer? ptr, out float value)
-        {
-            value = 0f;
-
-            if (ptr == null || !ptr.TryReadFloat(proc, out value))
-                return false;
-
-            return !float.IsNaN(value) && !float.IsInfinity(value) && value >= -0.1f && value <= 1.2f;
-        }
-
         private bool TryReadBiome(Process proc, out string biome)
         {
             biome = string.Empty;
@@ -535,146 +520,271 @@ namespace SubnauticaLauncher.Gameplay
             bool hasPlayerMain = TryReadStaticObject(proc, _playerMainField, out var playerMain);
             bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
             bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
-            bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
-            bool animationActive = false;
-            bool hasAnimation = hasPlayer && TryReadPlayerCinematicActive(proc, playerMain, out animationActive);
-            bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
-            bool hasPosition =
-                TryReadPlayerPosition(proc, _modernPosX, _modernPosY, _modernPosZ, out float posX, out _, out float posZ) ||
-                TryReadPlayerPosition(proc, _legacyPosX, _legacyPosY, _legacyPosZ, out posX, out _, out posZ);
+            bool hasGameMode = TryReadGameMode(proc, out int gameMode);
+            bool isCreativeMode = hasGameMode && IsCreativeGameMode(gameMode);
+
+            bool hasDamageEffects = TryReadEscapePodDamageEffects(proc, out bool damageEffectsShowing);
+            bool hasCreativeMove = TryReadCreativeHorizontalMove(proc, out bool creativeMoveActive);
+            bool creativeJumping = false;
+            bool hasCreativeJump = hasPlayer && TryReadCreativeJumping(proc, playerMain, out creativeJumping);
+            bool hasPdaOpen = TryReadCreativePdaOpen(proc, out bool creativePdaOpen);
+            bool hasFabricator = TryReadCreativeFabricatorInteraction(proc, out bool creativeFabricatorActive);
 
             if (hasMainMenuSignal)
             {
                 if (isMainMenuNow)
                 {
                     _startedBefore = false;
-                    _pendingRunStartAfterCinematic = false;
-                    _pendingRunStartReason = string.Empty;
-                    _skipProgressWasHigh = false;
+                    _hasRunStartBaseline = false;
+                    return false;
                 }
             }
             else if (hasPlayer)
             {
-                // If player exists we can safely treat this as not-main-menu.
                 isMainMenuNow = false;
             }
+
+            bool shouldBlockForLoading = hasLoading && isLoading;
+            bool inGameSession = (hasPlayer || hasMainMenuSignal) && !isMainMenuNow;
 
             if (!_hasRunStartBaseline)
             {
                 _hasRunStartBaseline = true;
-                _previousIntroCinematicActive = hasIntro && introActive;
-                _previousPlayerCinematicActive = hasAnimation && animationActive;
-                _skipProgressWasHigh = hasSkipProgress && skipProgress > 0.02f;
-                _pendingRunStartAfterCinematic = false;
-                _pendingRunStartReason = string.Empty;
-
-                if (hasPosition)
-                {
-                    _hasPreviousRunStartPosition = true;
-                    _previousRunStartPosX = posX;
-                    _previousRunStartPosZ = posZ;
-                }
-                else
-                {
-                    _hasPreviousRunStartPosition = false;
-                }
-
+                _previousDamageEffectsShowing = hasDamageEffects && damageEffectsShowing;
+                _previousCreativeMoveActive = hasCreativeMove && creativeMoveActive;
+                _previousCreativeJumping = hasCreativeJump && creativeJumping;
+                _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
+                _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
                 return false;
             }
 
-            bool movedSinceLastSample =
-                hasPosition &&
-                _hasPreviousRunStartPosition &&
-                (Math.Abs(posX - _previousRunStartPosX) > 0.01f || Math.Abs(posZ - _previousRunStartPosZ) > 0.01f);
-
             bool runStarted = false;
-            bool canStart = !_startedBefore && (hasPlayer || hasMainMenuSignal) && !isMainMenuNow;
-            const float skipProgressActiveThreshold = 0.02f;
-            const float skipProgressFinishedThreshold = 0.01f;
-            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
-            bool animationEnded = hasAnimation && _previousPlayerCinematicActive && !animationActive;
-            bool loadingInactive = !hasLoading || !isLoading;
-            bool cinematicInactive = (!hasIntro || !introActive) && (!hasAnimation || !animationActive);
-            bool skipProgressActive = hasSkipProgress && skipProgress > skipProgressActiveThreshold;
-            bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
-            bool skipProgressFinished = !hasSkipProgress || !_skipProgressWasHigh || skipProgress <= skipProgressFinishedThreshold;
+            string runStartReason = string.Empty;
 
-            if (canStart)
+            bool movedTriggered = hasCreativeMove && creativeMoveActive && !_previousCreativeMoveActive;
+            bool jumpTriggered = hasCreativeJump && creativeJumping && !_previousCreativeJumping;
+            bool pdaTriggered = hasPdaOpen && creativePdaOpen && !_previousCreativePdaOpen;
+            bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
+
+            if (!_startedBefore && inGameSession && !shouldBlockForLoading)
             {
-                if (skipProgressActive)
-                    _skipProgressWasHigh = true;
-
-                if (introEnded)
+                if (!isCreativeMode)
                 {
-                    _pendingRunStartAfterCinematic = true;
-                    _pendingRunStartReason = "IntroCinematicEnded";
+                    if (hasDamageEffects && damageEffectsShowing && !_previousDamageEffectsShowing)
+                    {
+                        runStarted = true;
+                        runStartReason = "LifepodRadioDamaged";
+                    }
+                    else if (!hasGameMode && (movedTriggered || jumpTriggered || pdaTriggered || fabricatorTriggered))
+                    {
+                        runStarted = true;
+                        runStartReason = movedTriggered
+                            ? "CreativeHorizontalMove"
+                            : jumpTriggered
+                                ? "CreativeJump"
+                                : pdaTriggered
+                                    ? "CreativePdaOpen"
+                                    : "CreativeFabricatorInteraction";
+                    }
                 }
-
-                if (animationEnded)
+                else
                 {
-                    _pendingRunStartAfterCinematic = true;
-                    _pendingRunStartReason = "PlayerAnimationEnded";
-                }
-
-                if (skipProgressHigh)
-                {
-                    _skipProgressWasHigh = true;
-                    _pendingRunStartAfterCinematic = true;
-                    _pendingRunStartReason = "CutsceneSkipped";
-                }
-
-                if (_pendingRunStartAfterCinematic &&
-                    loadingInactive &&
-                    cinematicInactive &&
-                    (skipProgressFinished || movedSinceLastSample))
-                {
-                    runStarted = true;
-                    reason = string.IsNullOrWhiteSpace(_pendingRunStartReason)
-                        ? "PlayerAnimationEnded"
-                        : _pendingRunStartReason;
-                }
-                else if (!_pendingRunStartAfterCinematic &&
-                    movedSinceLastSample &&
-                    loadingInactive &&
-                    cinematicInactive)
-                {
-                    runStarted = true;
-                    reason = "PlayerMoved";
+                    if (movedTriggered)
+                    {
+                        runStarted = true;
+                        runStartReason = "CreativeHorizontalMove";
+                    }
+                    else if (jumpTriggered)
+                    {
+                        runStarted = true;
+                        runStartReason = "CreativeJump";
+                    }
+                    else if (pdaTriggered)
+                    {
+                        runStarted = true;
+                        runStartReason = "CreativePdaOpen";
+                    }
+                    else if (fabricatorTriggered)
+                    {
+                        runStarted = true;
+                        runStartReason = "CreativeFabricatorInteraction";
+                    }
                 }
             }
 
-            if (hasSkipProgress)
+            _previousDamageEffectsShowing = hasDamageEffects && damageEffectsShowing;
+            _previousCreativeMoveActive = hasCreativeMove && creativeMoveActive;
+            _previousCreativeJumping = hasCreativeJump && creativeJumping;
+            _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
+            _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
+
+            if (!runStarted)
+                return false;
+
+            _startedBefore = true;
+            reason = runStartReason;
+            return true;
+        }
+
+        private bool TryReadEscapePodDamageEffects(Process proc, out bool showing)
+        {
+            showing = false;
+
+            if (!_escapePodMainField.IsValid || !_hasEscapePodDamageEffectsOffset)
+                return false;
+
+            if (!TryReadStaticObject(proc, _escapePodMainField, out var escapePodMain) || escapePodMain == IntPtr.Zero)
+                return false;
+
+            return TryReadBool(proc, IntPtr.Add(escapePodMain, _escapePodDamageEffectsOffset), out showing);
+        }
+
+        private bool TryReadCreativeHorizontalMove(Process proc, out bool active)
+        {
+            active = false;
+
+            bool hasWalk = TryReadMoveAxis(proc, _modernWalkDir, _legacyWalkDir, out float walkAxis);
+            bool hasStrafe = TryReadMoveAxis(proc, _modernStrafeDir, _legacyStrafeDir, out float strafeAxis);
+
+            if (!hasWalk && !hasStrafe)
+                return false;
+
+            const float threshold = 0.001f;
+            active = (hasWalk && Math.Abs(walkAxis) > threshold)
+                || (hasStrafe && Math.Abs(strafeAxis) > threshold);
+            return true;
+        }
+
+        private static bool TryReadMoveAxis(Process proc, DeepPointer? primary, DeepPointer? fallback, out float value)
+        {
+            value = 0f;
+
+            if (primary != null &&
+                primary.TryReadFloat(proc, out float primaryValue) &&
+                !float.IsNaN(primaryValue) &&
+                !float.IsInfinity(primaryValue))
             {
-                if (skipProgressActive)
-                    _skipProgressWasHigh = true;
-                else if (skipProgress <= skipProgressFinishedThreshold && cinematicInactive)
-                    _skipProgressWasHigh = false;
+                value = primaryValue;
+                return true;
             }
 
-            _previousIntroCinematicActive = hasIntro && introActive;
-            _previousPlayerCinematicActive = hasAnimation && animationActive;
-
-            if (hasPosition)
+            if (fallback != null &&
+                fallback.TryReadFloat(proc, out float fallbackValue) &&
+                !float.IsNaN(fallbackValue) &&
+                !float.IsInfinity(fallbackValue))
             {
-                _hasPreviousRunStartPosition = true;
-                _previousRunStartPosX = posX;
-                _previousRunStartPosZ = posZ;
-            }
-            else
-            {
-                _hasPreviousRunStartPosition = false;
-            }
-
-            if (runStarted)
-            {
-                _startedBefore = true;
-                _pendingRunStartAfterCinematic = false;
-                _pendingRunStartReason = string.Empty;
-                _skipProgressWasHigh = false;
+                value = fallbackValue;
                 return true;
             }
 
             return false;
+        }
+
+        private bool TryReadCreativeJumping(Process proc, IntPtr playerMain, out bool jumping)
+        {
+            jumping = false;
+
+            if (playerMain == IntPtr.Zero || !_hasPlayerGroundMotorOffset || !_hasGroundMotorJumpingOffset)
+                return false;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(playerMain, _playerGroundMotorOffset), out var groundMotor) ||
+                groundMotor == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            IntPtr jumpingAddress = IntPtr.Add(groundMotor, _groundMotorJumpingOffset);
+
+            if (MemoryReader.ReadIntPtr(proc, jumpingAddress, out var jumpingObject) && jumpingObject != IntPtr.Zero)
+            {
+                if (TryReadBool(proc, IntPtr.Add(jumpingObject, 0x24), out bool nestedJumping))
+                {
+                    jumping = nestedJumping;
+                    return true;
+                }
+            }
+
+            return TryReadBool(proc, jumpingAddress, out jumping);
+        }
+
+        private bool TryReadCreativePdaOpen(Process proc, out bool pdaOpen)
+        {
+            pdaOpen = false;
+
+            if (!_uGuiPdaMainField.IsValid || !_hasPdaTabOpenOffset)
+                return false;
+
+            if (!TryReadStaticObject(proc, _uGuiPdaMainField, out var pdaMain) || pdaMain == IntPtr.Zero)
+                return false;
+
+            IntPtr fieldAddress = IntPtr.Add(pdaMain, _pdaTabOpenOffset);
+            if (MemoryReader.ReadInt32(proc, fieldAddress, out int tabOpenValue))
+            {
+                pdaOpen = tabOpenValue != 0;
+                return true;
+            }
+
+            return TryReadBool(proc, fieldAddress, out pdaOpen);
+        }
+
+        private bool TryReadCreativeFabricatorInteraction(Process proc, out bool interacting)
+        {
+            interacting = false;
+
+            if (!_uGuiCraftingMenuMainField.IsValid || !_hasCraftingMenuClientOffset)
+                return false;
+
+            if (!TryReadStaticObject(proc, _uGuiCraftingMenuMainField, out var craftingMenuMain) || craftingMenuMain == IntPtr.Zero)
+                return false;
+
+            IntPtr fieldAddress = IntPtr.Add(craftingMenuMain, _craftingMenuClientOffset);
+            if (MemoryReader.ReadInt32(proc, fieldAddress, out int intValue))
+            {
+                interacting = intValue != 0;
+                return true;
+            }
+
+            if (TryReadBool(proc, fieldAddress, out bool boolValue))
+            {
+                interacting = boolValue;
+                return true;
+            }
+
+            if (MemoryReader.ReadIntPtr(proc, fieldAddress, out var ptrValue))
+            {
+                interacting = ptrValue != IntPtr.Zero;
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool TryReadGameMode(Process proc, out int gameMode)
+        {
+            gameMode = -1;
+
+            if (!_gameModeCurrentField.IsValid)
+                return false;
+
+            IntPtr fieldAddress = IntPtr.Add(_gameModeCurrentField.StaticBase, _gameModeCurrentField.FieldOffset);
+            if (MemoryReader.ReadInt32(proc, fieldAddress, out int modeValue))
+            {
+                gameMode = modeValue;
+                return true;
+            }
+
+            if (MemoryReader.ReadByte(proc, fieldAddress, out byte modeByte))
+            {
+                gameMode = modeByte;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsCreativeGameMode(int gameMode)
+        {
+            return gameMode == 3;
         }
 
         private bool TryReadIsMainMenuPosition(Process proc, out bool isMainMenuPosition)
@@ -836,6 +946,9 @@ namespace SubnauticaLauncher.Gameplay
             _playerMainField = default;
             _uGuiMainField = default;
             _uGuiMainMenuField = default;
+            _uGuiPdaMainField = default;
+            _uGuiCraftingMenuMainField = default;
+            _gameModeCurrentField = default;
             _escapePodMainField = default;
 
             _hasInventoryContainerOffset = false;
@@ -874,10 +987,18 @@ namespace SubnauticaLauncher.Gameplay
             _pickupableTechTypeOffset = 0;
             _hasEscapePodIntroCinematicOffset = false;
             _escapePodIntroCinematicOffset = 0;
-            _hasPlayerCinematicModeOffset = false;
-            _playerCinematicModeOffset = 0;
+            _hasEscapePodDamageEffectsOffset = false;
+            _escapePodDamageEffectsOffset = 0;
+            _hasPlayerGroundMotorOffset = false;
+            _playerGroundMotorOffset = 0;
+            _hasGroundMotorJumpingOffset = false;
+            _groundMotorJumpingOffset = 0;
             _hasCinematicModeActiveOffset = false;
             _cinematicModeActiveOffset = 0;
+            _hasPdaTabOpenOffset = false;
+            _pdaTabOpenOffset = 0;
+            _hasCraftingMenuClientOffset = false;
+            _craftingMenuClientOffset = 0;
 
             _directTechTypeOffsetByClass.Clear();
             _nestedObjectOffsetByClass.Clear();
@@ -899,15 +1020,12 @@ namespace SubnauticaLauncher.Gameplay
             _recentCraftEndedUtc = DateTime.MinValue;
             _recentCraftTechType = -1;
             _hasRunStartBaseline = false;
-            _previousIntroCinematicActive = false;
-            _previousPlayerCinematicActive = false;
-            _skipProgressWasHigh = false;
+            _previousDamageEffectsShowing = false;
+            _previousCreativeMoveActive = false;
+            _previousCreativeJumping = false;
+            _previousCreativePdaOpen = false;
+            _previousCreativeFabricatorActive = false;
             _startedBefore = false;
-            _pendingRunStartAfterCinematic = false;
-            _pendingRunStartReason = string.Empty;
-            _hasPreviousRunStartPosition = false;
-            _previousRunStartPosX = 0f;
-            _previousRunStartPosZ = 0f;
         }
 
         private bool TryInitialize(Process proc)
@@ -938,13 +1056,16 @@ namespace SubnauticaLauncher.Gameplay
             IntPtr inventoryItemClass = FindClass(proc, mainImage, "InventoryItem");
             IntPtr pickupableClass = FindClass(proc, mainImage, "Pickupable");
             IntPtr playerClass = FindClass(proc, mainImage, "Player");
+            IntPtr groundMotorClass = FindClass(proc, mainImage, "GroundMotor");
             IntPtr playerCinematicControllerClass = FindClass(proc, mainImage, "PlayerCinematicController");
             IntPtr escapePodClass = FindClass(proc, mainImage, "EscapePod");
             IntPtr uGuiClass = FindClass(proc, mainImage, "uGUI");
+            IntPtr uGuiPdaClass = FindClass(proc, mainImage, "uGUI_PDA");
             IntPtr uGuiMainMenuClass = FindClass(proc, mainImage, "uGUI_MainMenu");
             IntPtr uGuiSceneLoadingClass = FindClass(proc, mainImage, "uGUI_SceneLoading");
             IntPtr crafterClass = FindClass(proc, mainImage, "CrafterLogic");
             IntPtr craftingMenuClass = FindClass(proc, mainImage, "uGUI_CraftingMenu");
+            IntPtr gameModeUtilsClass = FindClass(proc, mainImage, "GameModeUtils");
             IntPtr coreImage = FindFirstAssemblyImage(proc, assembliesList,
                 "mscorlib",
                 "mscorlib.dll",
@@ -1042,9 +1163,9 @@ namespace SubnauticaLauncher.Gameplay
                 TryResolveStaticFieldRef(proc, playerClass,
                     new[] { "main", "_main", "s_main", "<main>k__BackingField" }, out _playerMainField);
 
-                _hasPlayerCinematicModeOffset = TryFindFieldOffsetAny(proc, playerClass,
-                    new[] { "_cinematicModeActive", "cinematicModeActive", "m_cinematicModeActive" },
-                    out _playerCinematicModeOffset);
+                _hasPlayerGroundMotorOffset = TryFindFieldOffsetAny(proc, playerClass,
+                    new[] { "groundMotor", "_groundMotor", "m_groundMotor" },
+                    out _playerGroundMotorOffset);
             }
 
             if (escapePodClass != IntPtr.Zero)
@@ -1055,6 +1176,17 @@ namespace SubnauticaLauncher.Gameplay
                 _hasEscapePodIntroCinematicOffset = TryFindFieldOffsetAny(proc, escapePodClass,
                     new[] { "introCinematic", "_introCinematic", "m_introCinematic" },
                     out _escapePodIntroCinematicOffset);
+
+                _hasEscapePodDamageEffectsOffset = TryFindFieldOffsetAny(proc, escapePodClass,
+                    new[] { "damageEffectsShowing", "_damageEffectsShowing", "m_damageEffectsShowing" },
+                    out _escapePodDamageEffectsOffset);
+            }
+
+            if (groundMotorClass != IntPtr.Zero)
+            {
+                _hasGroundMotorJumpingOffset = TryFindFieldOffsetAny(proc, groundMotorClass,
+                    new[] { "jumping", "_jumping", "m_jumping" },
+                    out _groundMotorJumpingOffset);
             }
 
             if (playerCinematicControllerClass != IntPtr.Zero)
@@ -1083,6 +1215,16 @@ namespace SubnauticaLauncher.Gameplay
             {
                 TryResolveStaticFieldRef(proc, uGuiMainMenuClass,
                     new[] { "main", "_main", "s_main", "<main>k__BackingField" }, out _uGuiMainMenuField);
+            }
+
+            if (uGuiPdaClass != IntPtr.Zero)
+            {
+                TryResolveStaticFieldRef(proc, uGuiPdaClass,
+                    new[] { "<main>k__BackingField", "main", "_main", "s_main" }, out _uGuiPdaMainField);
+
+                _hasPdaTabOpenOffset = TryFindFieldOffsetAny(proc, uGuiPdaClass,
+                    new[] { "tabOpen", "_tabOpen", "m_tabOpen", "isOpen", "_isOpen", "m_isOpen" },
+                    out _pdaTabOpenOffset);
             }
 
             if (uGuiSceneLoadingClass != IntPtr.Zero)
@@ -1122,13 +1264,29 @@ namespace SubnauticaLauncher.Gameplay
                 anyReadableSource = true;
             }
             else if (craftingMenuClass != IntPtr.Zero && TryResolveStaticFieldRef(proc, craftingMenuClass,
-                new[] { "main" }, out _crafterMainField))
+                new[] { "main", "_main", "s_main", "<main>k__BackingField" }, out _crafterMainField))
             {
                 _hasCrafterIsCraftingOffset = TryFindFieldOffsetAny(proc, craftingMenuClass,
                     new[] { "isCrafting", "crafting" }, out _crafterIsCraftingOffset);
                 _hasCrafterTechTypeOffset = TryFindFieldOffsetAny(proc, craftingMenuClass,
                     new[] { "craftingTechType", "techType", "currentTechType" }, out _crafterTechTypeOffset);
                 anyReadableSource = true;
+            }
+
+            if (craftingMenuClass != IntPtr.Zero)
+            {
+                TryResolveStaticFieldRef(proc, craftingMenuClass,
+                    new[] { "main", "_main", "s_main", "<main>k__BackingField" }, out _uGuiCraftingMenuMainField);
+
+                _hasCraftingMenuClientOffset = TryFindFieldOffsetAny(proc, craftingMenuClass,
+                    new[] { "_client", "client", "m_client" }, out _craftingMenuClientOffset);
+            }
+
+            if (gameModeUtilsClass != IntPtr.Zero)
+            {
+                TryResolveStaticFieldRef(proc, gameModeUtilsClass,
+                    new[] { "currentGameMode", "_currentGameMode", "gameMode", "_gameMode", "mode" },
+                    out _gameModeCurrentField);
             }
 
             bool hasStateSource = _playerMainField.IsValid

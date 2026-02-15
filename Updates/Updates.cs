@@ -32,6 +32,18 @@ public static class Updates
     {
           new UpdateEntry
     {
+        Version = "2.2.1",
+        Title = "Biome Tracker Hotfix",
+        Date = "Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
+        Changes = new[]
+        {
+            "Fixed All Biomes Databanks and Blueprints",
+            "Updated Biome Tracker UI"
+        }
+    },
+          
+          new UpdateEntry
+    {
         Version = "2.2.0",
         Title = "100% Tracker Additions",
         Date = "Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",

@@ -18,32 +18,49 @@
             BorderBrush="#40FFFFFF"
             BorderThickness="0.25"
             Padding="6,4">
+        <Grid x:Name="EntryViewport" ClipToBounds="True">
+            <ItemsControl x:Name="EntryItemsControl">
+                <ItemsControl.RenderTransform>
+                    <TranslateTransform x:Name="EntriesTranslateTransform"/>
+                </ItemsControl.RenderTransform>
 
-        <UniformGrid Columns="2" Rows="2">
-                <Border Margin="0,0,2,2" Background="#22000000" CornerRadius="6" Padding="4,2">
-                    <StackPanel>
-                        <TextBlock x:Name="Type1Text" FontSize="8" Foreground="#BDE3FF" Text="-"/>
-                        <TextBlock x:Name="Name1Text" FontSize="9" Foreground="White" TextWrapping="Wrap" LineStackingStrategy="BlockLineHeight" LineHeight="9.5" Text="-"/>
-                    </StackPanel>
-                </Border>
-                <Border Margin="2,0,0,2" Background="#22000000" CornerRadius="6" Padding="4,2">
-                    <StackPanel>
-                        <TextBlock x:Name="Type2Text" FontSize="8" Foreground="#BDE3FF" Text="-"/>
-                        <TextBlock x:Name="Name2Text" FontSize="9" Foreground="White" TextWrapping="Wrap" LineStackingStrategy="BlockLineHeight" LineHeight="9.5" Text="-"/>
-                    </StackPanel>
-                </Border>
-                <Border Margin="0,2,2,0" Background="#22000000" CornerRadius="6" Padding="4,2">
-                    <StackPanel>
-                        <TextBlock x:Name="Type3Text" FontSize="8" Foreground="#BDE3FF" Text="-"/>
-                        <TextBlock x:Name="Name3Text" FontSize="9" Foreground="White" TextWrapping="Wrap" LineStackingStrategy="BlockLineHeight" LineHeight="9.5" Text="-"/>
-                    </StackPanel>
-                </Border>
-                <Border Margin="2,2,0,0" Background="#22000000" CornerRadius="6" Padding="4,2">
-                    <StackPanel>
-                        <TextBlock x:Name="Type4Text" FontSize="8" Foreground="#BDE3FF" Text="-"/>
-                        <TextBlock x:Name="Name4Text" FontSize="9" Foreground="White" TextWrapping="Wrap" LineStackingStrategy="BlockLineHeight" LineHeight="9.5" Text="-"/>
-                    </StackPanel>
-                </Border>
-            </UniformGrid>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Vertical"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Height="{Binding SlotHeight}"
+                                Margin="0,1,0,1"
+                                Background="#22000000"
+                                CornerRadius="6"
+                                Padding="4,2">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0"
+                                           FontSize="{Binding TypeFontSize}"
+                                           Foreground="#BDE3FF"
+                                           Text="{Binding Type}"
+                                           TextTrimming="CharacterEllipsis"/>
+
+                                <TextBlock Grid.Row="1"
+                                           FontSize="{Binding NameFontSize}"
+                                           Foreground="White"
+                                           LineStackingStrategy="BlockLineHeight"
+                                           LineHeight="{Binding LineHeight}"
+                                           Text="{Binding Name}"
+                                           TextWrapping="Wrap"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
     </Border>
 </Window>

@@ -1,24 +1,27 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
 using System.Windows;
-using System.Windows.Controls;
 using SubnauticaLauncher.Gameplay;
 
 namespace SubnauticaLauncher.UI
 {
     public partial class SubnauticaBiomeTrackerOverlay : Window
     {
-        private readonly TextBlock[] _typeBlocks;
-        private readonly TextBlock[] _nameBlocks;
+        private const double MinimumSlotHeight = 10;
+        private int _visibleSlots = 4;
+        private double _typeFontSize = 8;
+        private double _nameFontSize = 9;
+        private double _lineHeight = 9.5;
+        private string _lastSignature = string.Empty;
 
         public SubnauticaBiomeTrackerOverlay()
         {
             InitializeComponent();
             Left = 220;
             Top = 10;
-
-            _typeBlocks = new[] { Type1Text, Type2Text, Type3Text, Type4Text };
-            _nameBlocks = new[] { Name1Text, Name2Text, Name3Text, Name4Text };
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -43,37 +46,73 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        public void SetEntries(IReadOnlyList<(string Type, string Name)> entries)
+        public void SetEntries(
+            IReadOnlyList<(string Type, string Name)> entries,
+            int visibleSlots,
+            double scrollProgress)
         {
-            for (int i = 0; i < _typeBlocks.Length; i++)
+            _visibleSlots = Math.Max(1, visibleSlots);
+            double clampedProgress = Math.Max(0, Math.Min(1, scrollProgress));
+
+            double viewportHeight = EntryViewport.ActualHeight;
+            if (viewportHeight <= 1)
+                viewportHeight = Math.Max(1, Height - 8);
+
+            double slotPitch = viewportHeight / _visibleSlots;
+            double slotHeight = Math.Max(MinimumSlotHeight, slotPitch - 2);
+
+            string signature = BuildSignature(entries, slotHeight);
+            if (!string.Equals(signature, _lastSignature, StringComparison.Ordinal))
             {
-                if (i < entries.Count)
+                var models = entries.Select(entry => new BiomeEntryModel
                 {
-                    _typeBlocks[i].Text = entries[i].Type;
-                    _nameBlocks[i].Text = entries[i].Name;
-                    _typeBlocks[i].Visibility = Visibility.Visible;
-                    _nameBlocks[i].Visibility = Visibility.Visible;
-                }
-                else
-                {
-                    _typeBlocks[i].Text = string.Empty;
-                    _nameBlocks[i].Text = string.Empty;
-                    _typeBlocks[i].Visibility = Visibility.Collapsed;
-                    _nameBlocks[i].Visibility = Visibility.Collapsed;
-                }
+                    Type = entry.Type,
+                    Name = entry.Name,
+                    SlotHeight = slotHeight,
+                    TypeFontSize = _typeFontSize,
+                    NameFontSize = _nameFontSize,
+                    LineHeight = _lineHeight
+                }).ToList();
+
+                EntryItemsControl.ItemsSource = models;
+                _lastSignature = signature;
             }
+
+            EntriesTranslateTransform.Y = -clampedProgress * slotPitch;
         }
 
         private void SetEntryFonts(double typeSize, double nameSize, double lineHeight)
         {
-            foreach (TextBlock block in _typeBlocks)
-                block.FontSize = typeSize;
+            _typeFontSize = typeSize;
+            _nameFontSize = nameSize;
+            _lineHeight = lineHeight;
+            _lastSignature = string.Empty;
+        }
 
-            foreach (TextBlock block in _nameBlocks)
+        private static string BuildSignature(IReadOnlyList<(string Type, string Name)> entries, double slotHeight)
+        {
+            var sb = new StringBuilder(256);
+            sb.Append(slotHeight.ToString("F3", CultureInfo.InvariantCulture));
+
+            for (int i = 0; i < entries.Count; i++)
             {
-                block.FontSize = nameSize;
-                block.LineHeight = lineHeight;
+                sb.Append('|');
+                sb.Append(entries[i].Type);
+                sb.Append(':');
+                sb.Append(entries[i].Name);
             }
+
+            return sb.ToString();
+        }
+
+        private sealed class BiomeEntryModel
+        {
+            public string Type { get; set; } = string.Empty;
+            public string Name { get; set; } = string.Empty;
+            public double SlotHeight { get; set; }
+            public double TypeFontSize { get; set; }
+            public double NameFontSize { get; set; }
+            public double LineHeight { get; set; }
         }
     }
 }
