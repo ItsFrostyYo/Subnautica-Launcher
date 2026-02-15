@@ -207,13 +207,18 @@ namespace SubnauticaLauncher.UI
 
         private double GetPeekWidth(double viewportWidth)
         {
-            if (_columnsPerRow >= 3)
-                return Math.Clamp(viewportWidth * 0.22, 72, 140);
+            double desired = _columnsPerRow >= 3
+                ? viewportWidth * 0.18
+                : _rowCount > 1
+                    ? viewportWidth * 0.24
+                    : viewportWidth * 0.22;
 
-            if (_rowCount > 1)
-                return Math.Clamp(viewportWidth * 0.33, 100, 190);
+            double minPeek = _columnsPerRow >= 3 ? 40 : 32;
+            double maxPeekWithoutGap = (viewportWidth / (_columnsPerRow + 1.0)) - CardGap - 2;
+            double hardCap = _columnsPerRow >= 3 ? 120 : 96;
+            double maxPeek = Math.Max(minPeek, Math.Min(hardCap, maxPeekWithoutGap));
 
-            return Math.Clamp(viewportWidth * 0.35, 96, 180);
+            return Math.Clamp(desired, minPeek, maxPeek);
         }
 
         private void SetEntryFonts(double typeSize, double nameSize)
