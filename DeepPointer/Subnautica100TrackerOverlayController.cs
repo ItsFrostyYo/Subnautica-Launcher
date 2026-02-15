@@ -228,8 +228,10 @@ namespace SubnauticaLauncher.Gameplay
 
         private readonly record struct BiomeCycleItem(bool IsBlueprint, string Requirement);
         private readonly record struct BiomeDisplayFrame(
-            IReadOnlyList<(string Type, string Name)> Rows,
-            int VisibleSlots,
+            IReadOnlyList<(string Type, string Name)> TopRow,
+            IReadOnlyList<(string Type, string Name)> BottomRow,
+            int RowCount,
+            int ColumnsPerRow,
             double ScrollProgress);
 
         public static void Start()
@@ -1453,13 +1455,13 @@ namespace SubnauticaLauncher.Gameplay
             };
         }
 
-        private static int GetBiomeVisibleSlots()
+        private static (int RowCount, int ColumnsPerRow) GetBiomeGridLayout()
         {
             return LauncherSettings.Current.Subnautica100TrackerSize switch
             {
-                Subnautica100TrackerOverlaySize.Small => 2,
-                Subnautica100TrackerOverlaySize.Large => 6,
-                _ => 4
+                Subnautica100TrackerOverlaySize.Small => (1, 2),
+                Subnautica100TrackerOverlaySize.Large => (2, 3),
+                _ => (2, 2)
             };
         }
 
@@ -1498,25 +1500,22 @@ namespace SubnauticaLauncher.Gameplay
 
         private static BiomeDisplayFrame BuildBiomeDisplayRows()
         {
-            int visibleSlots = GetBiomeVisibleSlots();
-            var rows = new List<(string Type, string Name)>(visibleSlots + 1);
+            (int rowCount, int columnsPerRow) = GetBiomeGridLayout();
+            int rowItemCount = columnsPerRow + 2;
             List<BiomeCycleItem> missingItems = BuildCurrentBiomeMissingItems();
 
             if (missingItems.Count == 0)
             {
-                rows.Add(string.IsNullOrWhiteSpace(_currentBiomeCanonical)
-                    ? ("Biome", "Waiting for biome data")
-                    : ("Biome", "No remaining unlocks"));
-                return new BiomeDisplayFrame(rows, visibleSlots, 0);
-            }
-
-            if (missingItems.Count == 1)
-            {
-                BiomeCycleItem single = missingItems[0];
-                rows.Add(FormatBiomeCycleItem(single));
-                _biomeScrollOffset = 0;
-                _lastBiomeScrollUtc = DateTime.UtcNow;
-                return new BiomeDisplayFrame(rows, visibleSlots, 0);
+                string message = string.IsNullOrWhiteSpace(_currentBiomeCanonical)
+                    ? "Waiting for biome data"
+                    : "No remaining unlocks";
+                var topFallback = new List<(string Type, string Name)>(rowItemCount);
+                for (int i = 0; i < rowItemCount; i++)
+                    topFallback.Add(("Biome", message));
+                IReadOnlyList<(string Type, string Name)> bottomFallback = rowCount > 1
+                    ? new List<(string Type, string Name)>(topFallback)
+                    : Array.Empty<(string Type, string Name)>();
+                return new BiomeDisplayFrame(topFallback, bottomFallback, rowCount, columnsPerRow, 0);
             }
 
             DateTime utcNow = DateTime.UtcNow;
@@ -1532,15 +1531,31 @@ namespace SubnauticaLauncher.Gameplay
 
             int startIndex = (int)Math.Floor(_biomeScrollOffset);
             double smoothProgress = _biomeScrollOffset - startIndex;
-            int rowCount = visibleSlots + 1;
 
-            for (int i = 0; i < rowCount; i++)
+            List<(string Type, string Name)> BuildRow(int rowOffset)
             {
-                BiomeCycleItem item = missingItems[(startIndex + i) % missingItems.Count];
-                rows.Add(FormatBiomeCycleItem(item));
+                var row = new List<(string Type, string Name)>(rowItemCount);
+                int baseIndex = startIndex + (rowOffset * columnsPerRow);
+                for (int i = 0; i < rowItemCount; i++)
+                {
+                    int index = PositiveModulo(baseIndex - 1 + i, missingItems.Count);
+                    row.Add(FormatBiomeCycleItem(missingItems[index]));
+                }
+
+                return row;
             }
 
-            return new BiomeDisplayFrame(rows, visibleSlots, smoothProgress);
+            List<(string Type, string Name)> topRow = BuildRow(0);
+            IReadOnlyList<(string Type, string Name)> bottomRow = rowCount > 1
+                ? BuildRow(1)
+                : Array.Empty<(string Type, string Name)>();
+            return new BiomeDisplayFrame(topRow, bottomRow, rowCount, columnsPerRow, smoothProgress);
+        }
+
+        private static int PositiveModulo(int value, int modulo)
+        {
+            int result = value % modulo;
+            return result < 0 ? result + modulo : result;
         }
 
         private static (string Type, string Name) FormatBiomeCycleItem(BiomeCycleItem item)
@@ -1575,9 +1590,15 @@ namespace SubnauticaLauncher.Gameplay
                     {
                         runActive = _runActive;
                         biomeTrackerEnabled = IsBiomeTrackerEnabled();
+                        (int rowCount, int columnsPerRow) = GetBiomeGridLayout();
                         biomeFrame = biomeTrackerEnabled
                             ? BuildBiomeDisplayRows()
-                            : new BiomeDisplayFrame(Array.Empty<(string Type, string Name)>(), GetBiomeVisibleSlots(), 0);
+                            : new BiomeDisplayFrame(
+                                Array.Empty<(string Type, string Name)>(),
+                                Array.Empty<(string Type, string Name)>(),
+                                rowCount,
+                                columnsPerRow,
+                                0);
                     }
 
                     RECT rect = default;
@@ -1623,7 +1644,12 @@ namespace SubnauticaLauncher.Gameplay
                                 double trackerWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
                                 _biomeWindow.Left = _overlayLeft + trackerWidth + 8;
                                 _biomeWindow.Top = _overlayTop;
-                                _biomeWindow.SetEntries(biomeFrame.Rows, biomeFrame.VisibleSlots, biomeFrame.ScrollProgress);
+                                _biomeWindow.SetEntries(
+                                    biomeFrame.TopRow,
+                                    biomeFrame.BottomRow,
+                                    biomeFrame.RowCount,
+                                    biomeFrame.ColumnsPerRow,
+                                    biomeFrame.ScrollProgress);
 
                                 if (!_biomeWindow.IsVisible)
                                     _biomeWindow.Show();

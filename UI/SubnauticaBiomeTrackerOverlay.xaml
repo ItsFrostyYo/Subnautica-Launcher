@@ -18,52 +18,107 @@
             BorderBrush="#40FFFFFF"
             BorderThickness="0.25"
             Padding="4">
-        <Grid x:Name="EntryViewport" ClipToBounds="True">
-            <ItemsControl x:Name="EntryItemsControl">
-                <ItemsControl.RenderTransform>
-                    <TranslateTransform x:Name="EntriesTranslateTransform"/>
-                </ItemsControl.RenderTransform>
+        <Grid x:Name="RootGrid">
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="TopRowDefinition" Height="*"/>
+                <RowDefinition x:Name="BottomRowDefinition" Height="0"/>
+            </Grid.RowDefinitions>
 
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
+            <Grid x:Name="TopViewport" ClipToBounds="True">
+                <ItemsControl x:Name="TopItemsControl">
+                    <ItemsControl.RenderTransform>
+                        <TranslateTransform x:Name="TopEntriesTranslateTransform"/>
+                    </ItemsControl.RenderTransform>
 
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Width="{Binding SlotWidth}"
-                                Height="{Binding SlotHeight}"
-                                Margin="0,0,4,0"
-                                Background="#22000000"
-                                CornerRadius="6"
-                                Padding="5,4">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                </Grid.RowDefinitions>
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
 
-                                <TextBlock Grid.Row="0"
-                                           FontSize="{Binding TypeFontSize}"
-                                           Foreground="#BDE3FF"
-                                           Text="{Binding Type}"
-                                           FontWeight="SemiBold"
-                                           TextTrimming="CharacterEllipsis"
-                                           Margin="0,0,0,2"/>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="{Binding SlotWidth}"
+                                    Height="{Binding SlotHeight}"
+                                    Margin="0,0,4,0"
+                                    Background="#22000000"
+                                    CornerRadius="6"
+                                    Padding="5,4">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="1"
-                                           FontSize="{Binding NameFontSize}"
-                                           Foreground="White"
-                                           FontWeight="SemiBold"
-                                           Text="{Binding Name}"
-                                           TextWrapping="Wrap"
-                                           TextTrimming="None"/>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                                    <TextBlock Grid.Row="0"
+                                               FontSize="{Binding TypeFontSize}"
+                                               Foreground="#BDE3FF"
+                                               Text="{Binding Type}"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,0,0,2"/>
+
+                                    <TextBlock Grid.Row="1"
+                                               FontSize="{Binding NameFontSize}"
+                                               Foreground="White"
+                                               FontWeight="SemiBold"
+                                               Text="{Binding Name}"
+                                               TextWrapping="Wrap"
+                                               TextTrimming="None"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+
+            <Grid x:Name="BottomViewport" Grid.Row="1" ClipToBounds="True" Visibility="Collapsed">
+                <ItemsControl x:Name="BottomItemsControl">
+                    <ItemsControl.RenderTransform>
+                        <TranslateTransform x:Name="BottomEntriesTranslateTransform"/>
+                    </ItemsControl.RenderTransform>
+
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Width="{Binding SlotWidth}"
+                                    Height="{Binding SlotHeight}"
+                                    Margin="0,0,4,0"
+                                    Background="#22000000"
+                                    CornerRadius="6"
+                                    Padding="5,4">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <TextBlock Grid.Row="0"
+                                               FontSize="{Binding TypeFontSize}"
+                                               Foreground="#BDE3FF"
+                                               Text="{Binding Type}"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="0,0,0,2"/>
+
+                                    <TextBlock Grid.Row="1"
+                                               FontSize="{Binding NameFontSize}"
+                                               Foreground="White"
+                                               FontWeight="SemiBold"
+                                               Text="{Binding Name}"
+                                               TextWrapping="Wrap"
+                                               TextTrimming="None"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
         </Grid>
     </Border>
 </Window>

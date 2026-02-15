@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Windows;
+using System.Windows.Controls;
 using SubnauticaLauncher.Gameplay;
 
 namespace SubnauticaLauncher.UI
@@ -12,10 +13,16 @@ namespace SubnauticaLauncher.UI
     {
         private const double MinimumSlotHeight = 24;
         private const double MinimumSlotWidth = 56;
-        private int _visibleSlots = 4;
-        private double _typeFontSize = 8;
+        private const double CardGap = 4;
+        private const double RowGap = 4;
+
+        private int _rowCount = 1;
+        private int _columnsPerRow = 2;
+        private double _typeFontSize = 7.5;
         private double _nameFontSize = 9;
-        private string _lastSignature = string.Empty;
+        private string _topSignature = string.Empty;
+        private string _bottomSignature = string.Empty;
+        private bool _isTwoRowLayout;
 
         public SubnauticaBiomeTrackerOverlay()
         {
@@ -35,7 +42,7 @@ namespace SubnauticaLauncher.UI
             switch (size)
             {
                 case Subnautica100TrackerOverlaySize.Small:
-                    SetEntryFonts(typeSize: 7, nameSize: 8.5);
+                    SetEntryFonts(typeSize: 7, nameSize: 8.25);
                     break;
                 case Subnautica100TrackerOverlaySize.Large:
                     SetEntryFonts(typeSize: 8.5, nameSize: 10);
@@ -47,43 +54,131 @@ namespace SubnauticaLauncher.UI
         }
 
         public void SetEntries(
-            IReadOnlyList<(string Type, string Name)> entries,
-            int visibleSlots,
+            IReadOnlyList<(string Type, string Name)> topEntries,
+            IReadOnlyList<(string Type, string Name)> bottomEntries,
+            int rowCount,
+            int columnsPerRow,
             double scrollProgress)
         {
-            _visibleSlots = Math.Max(1, visibleSlots);
+            _rowCount = Math.Max(1, rowCount);
+            _columnsPerRow = Math.Max(1, columnsPerRow);
             double clampedProgress = Math.Max(0, Math.Min(1, scrollProgress));
 
-            double viewportHeight = EntryViewport.ActualHeight;
-            if (viewportHeight <= 1)
-                viewportHeight = Math.Max(1, Height - 8);
+            ConfigureRowLayout();
 
-            double viewportWidth = EntryViewport.ActualWidth;
+            double viewportWidth = TopViewport.ActualWidth;
             if (viewportWidth <= 1)
                 viewportWidth = Math.Max(1, Width - 8);
 
-            double slotPitch = viewportWidth / _visibleSlots;
-            double slotWidth = Math.Max(MinimumSlotWidth, slotPitch - 4);
-            double slotHeight = Math.Max(MinimumSlotHeight, viewportHeight - 2);
+            double viewportHeight = RootGrid.ActualHeight;
+            if (viewportHeight <= 1)
+                viewportHeight = Math.Max(1, Height - 8);
 
-            string signature = BuildSignature(entries, slotWidth, slotHeight);
-            if (!string.Equals(signature, _lastSignature, StringComparison.Ordinal))
+            double rowHeight = _rowCount > 1
+                ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
+                : viewportHeight;
+
+            double slotWidth = Math.Max(
+                MinimumSlotWidth,
+                (viewportWidth - ((_columnsPerRow - 1) * CardGap)) / Math.Max(1, _columnsPerRow));
+
+            double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
+            int rowItemCount = _columnsPerRow + 2;
+
+            IReadOnlyList<(string Type, string Name)> normalizedTop = NormalizeRow(topEntries, rowItemCount);
+            IReadOnlyList<(string Type, string Name)> normalizedBottom = _rowCount > 1
+                ? NormalizeRow(bottomEntries, rowItemCount)
+                : Array.Empty<(string Type, string Name)>();
+
+            SetRowItems(TopItemsControl, normalizedTop, ref _topSignature, slotWidth, slotHeight);
+
+            if (_rowCount > 1)
             {
-                var models = entries.Select(entry => new BiomeEntryModel
-                {
-                    Type = entry.Type,
-                    Name = entry.Name,
-                    SlotWidth = slotWidth,
-                    SlotHeight = slotHeight,
-                    TypeFontSize = _typeFontSize,
-                    NameFontSize = FitNameFontSize(entry.Name, slotWidth, slotHeight)
-                }).ToList();
-
-                EntryItemsControl.ItemsSource = models;
-                _lastSignature = signature;
+                SetRowItems(BottomItemsControl, normalizedBottom, ref _bottomSignature, slotWidth, slotHeight);
+            }
+            else
+            {
+                BottomItemsControl.ItemsSource = null;
+                _bottomSignature = string.Empty;
             }
 
-            EntriesTranslateTransform.X = -clampedProgress * slotPitch;
+            double pitch = slotWidth + CardGap;
+            double offsetX = -(1 + clampedProgress) * pitch;
+            TopEntriesTranslateTransform.X = offsetX;
+            BottomEntriesTranslateTransform.X = offsetX;
+        }
+
+        private static IReadOnlyList<(string Type, string Name)> NormalizeRow(
+            IReadOnlyList<(string Type, string Name)> source,
+            int count)
+        {
+            count = Math.Max(1, count);
+            if (source == null || source.Count == 0)
+                return BuildRepeatedFallback("Waiting for biome data", count);
+
+            if (source.Count >= count)
+                return source.Take(count).ToArray();
+
+            var rows = new List<(string Type, string Name)>(count);
+            rows.AddRange(source);
+            while (rows.Count < count)
+                rows.Add(source[rows.Count % source.Count]);
+            return rows;
+        }
+
+        private static IReadOnlyList<(string Type, string Name)> BuildRepeatedFallback(string message, int count)
+        {
+            var rows = new (string Type, string Name)[count];
+            for (int i = 0; i < count; i++)
+                rows[i] = ("Biome", message);
+            return rows;
+        }
+
+        private void ConfigureRowLayout()
+        {
+            bool twoRows = _rowCount > 1;
+            if (_isTwoRowLayout == twoRows)
+                return;
+
+            _isTwoRowLayout = twoRows;
+            BottomViewport.Visibility = twoRows ? Visibility.Visible : Visibility.Collapsed;
+            TopRowDefinition.Height = new GridLength(1, GridUnitType.Star);
+            BottomRowDefinition.Height = twoRows
+                ? new GridLength(1, GridUnitType.Star)
+                : new GridLength(0, GridUnitType.Pixel);
+            TopViewport.Margin = twoRows
+                ? new Thickness(0, 0, 0, RowGap / 2.0)
+                : new Thickness(0);
+            BottomViewport.Margin = twoRows
+                ? new Thickness(0, RowGap / 2.0, 0, 0)
+                : new Thickness(0);
+
+            _topSignature = string.Empty;
+            _bottomSignature = string.Empty;
+        }
+
+        private void SetRowItems(
+            ItemsControl target,
+            IReadOnlyList<(string Type, string Name)> entries,
+            ref string signature,
+            double slotWidth,
+            double slotHeight)
+        {
+            string nextSignature = BuildSignature(entries, slotWidth, slotHeight);
+            if (string.Equals(signature, nextSignature, StringComparison.Ordinal))
+                return;
+
+            target.ItemsSource = entries.Select(entry => new BiomeEntryModel
+            {
+                Type = entry.Type,
+                Name = entry.Name,
+                SlotWidth = slotWidth,
+                SlotHeight = slotHeight,
+                TypeFontSize = _typeFontSize,
+                NameFontSize = FitNameFontSize(entry.Name, slotWidth, slotHeight)
+            }).ToList();
+
+            signature = nextSignature;
         }
 
         private double FitNameFontSize(string name, double slotWidth, double slotHeight)
@@ -91,19 +186,19 @@ namespace SubnauticaLauncher.UI
             double size = _nameFontSize;
             int length = string.IsNullOrWhiteSpace(name) ? 0 : name.Length;
 
-            if (slotWidth < 88)
-                size -= 0.8;
-            else if (slotWidth < 100)
-                size -= 0.4;
+            if (slotWidth < 92)
+                size -= 0.9;
+            else if (slotWidth < 110)
+                size -= 0.45;
 
-            if (slotHeight < 68)
-                size -= 0.6;
+            if (slotHeight < 60)
+                size -= 0.45;
 
-            if (length > 24)
+            if (length > 28)
                 size -= 0.35;
-            if (length > 36)
+            if (length > 42)
                 size -= 0.55;
-            if (length > 52)
+            if (length > 58)
                 size -= 0.7;
 
             return Math.Max(7, Math.Min(_nameFontSize, size));
@@ -113,10 +208,14 @@ namespace SubnauticaLauncher.UI
         {
             _typeFontSize = typeSize;
             _nameFontSize = nameSize;
-            _lastSignature = string.Empty;
+            _topSignature = string.Empty;
+            _bottomSignature = string.Empty;
         }
 
-        private static string BuildSignature(IReadOnlyList<(string Type, string Name)> entries, double slotWidth, double slotHeight)
+        private static string BuildSignature(
+            IReadOnlyList<(string Type, string Name)> entries,
+            double slotWidth,
+            double slotHeight)
         {
             var sb = new StringBuilder(256);
             sb.Append(slotWidth.ToString("F3", CultureInfo.InvariantCulture));
