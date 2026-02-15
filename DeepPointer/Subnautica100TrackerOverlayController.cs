@@ -1351,6 +1351,10 @@ namespace SubnauticaLauncher.Gameplay
             _lastBiomeScrollUtc = DateTime.MinValue;
             _collectPreRunUnlocks = false;
 
+            // Creative starts can happen before a BiomeChanged event arrives; default to lifepod biome.
+            if (string.IsNullOrWhiteSpace(_currentBiomeCanonical))
+                _currentBiomeCanonical = "safe_shallows";
+
             RunBlueprints.Clear();
             RunDatabankEntries.Clear();
 
