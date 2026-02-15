@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Windows.Input;
 using SubnauticaLauncher.Explosion;
+using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Macros;
 
 namespace SubnauticaLauncher
@@ -37,6 +38,9 @@ namespace SubnauticaLauncher
         // Tools
         public bool HardcoreSaveDeleterEnabled { get; set; } = false;
         public bool Subnautica100TrackerEnabled { get; set; } = false;
+        public Subnautica100TrackerOverlaySize Subnautica100TrackerSize { get; set; } =
+            Subnautica100TrackerOverlaySize.Medium;
+        public bool Subnautica100TrackerUnlockPopupEnabled { get; set; } = true;
 
         // Explosion reset settings
         public bool ExplosionResetEnabled { get; set; } = false;

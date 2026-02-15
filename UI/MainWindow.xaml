@@ -733,7 +733,7 @@ Click="ExplosionTrackToggle_Click"/>
                                             Background="#55FFFFFF"
                                             Margin="0,12,0,10"/>
 
-                                    <TextBlock Text="100% Tracker"
+                                    <TextBlock Text="100% Progress Tracker"
                                                FontSize="20"
                                                FontWeight="Bold"
                                                Margin="0,0,0,12"/>
@@ -751,7 +751,7 @@ Click="ExplosionTrackToggle_Click"/>
                                             Height="32"
                                             Margin="0,8,0,0"
                                             Background="#154966"
-                                            Content="Customize Overlay"
+                                            Content="Customize"
                                             Style="{StaticResource RoundedButton}"
                                             Click="Subnautica100TrackerCustomize_Click"/>
 

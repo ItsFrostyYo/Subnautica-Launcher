@@ -3,7 +3,6 @@ using SubnauticaLauncher.UI;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -19,11 +18,9 @@ namespace SubnauticaLauncher.Gameplay
     public static class Subnautica100TrackerOverlayController
     {
         private const int OverlayPadding = 12;
-        private const double FallbackOverlayHeight = 88;
         private const int MaxAliasLength = 96;
 
         private static readonly object Sync = new();
-        private static readonly Regex ChecklistLineRegex = new(@"^(TRUE|FALSE)\s+(.+?)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex CookedCuredChecklistRegex = new(@"^Cooked\s*\+\s*Cured\s+(.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private static readonly Regex TrailingCountRegex = new(@"\s*\(\d+\)\s*$", RegexOptions.Compiled);
         private static readonly Regex TrailingIdRegex = new(@"\s*\((\d+)\)\s*$", RegexOptions.Compiled);
@@ -270,16 +267,14 @@ namespace SubnauticaLauncher.Gameplay
             if (_rulesLoaded)
                 return;
 
-            string text = ReadEmbeddedChecklistText();
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                Logger.Warn("[100Tracker] Embedded checklist database is missing. Tracker will stay idle.");
-                return;
-            }
-
-            ParseChecklistText(text);
+            SubnauticaChecklistCatalog checklistCatalog = SubnauticaChecklistCatalog.GetOrLoad();
+            ApplyChecklistCatalog(checklistCatalog);
             BuildBlueprintTechTypeRequirementIndex();
             _rulesLoaded = true;
+
+            SubnauticaUnlockPairingCatalog pairingCatalog = SubnauticaUnlockPairingCatalog.GetOrLoad();
+            if (pairingCatalog.Groups.Count == 0)
+                Logger.Warn("[100Tracker] Biome unlock pairing database is empty.");
 
             Logger.Log(
                 $"[100Tracker] Database loaded. " +
@@ -292,31 +287,7 @@ namespace SubnauticaLauncher.Gameplay
                 $"targetTotal={RequiredCombinedTotal}");
         }
 
-        private static string ReadEmbeddedChecklistText()
-        {
-            try
-            {
-                var asm = typeof(Subnautica100TrackerOverlayController).Assembly;
-                string? resourceName = asm.GetManifestResourceNames()
-                    .FirstOrDefault(n => n.EndsWith("Subnautica100Checklist.txt", StringComparison.OrdinalIgnoreCase));
-
-                if (resourceName == null)
-                    return string.Empty;
-
-                using Stream? stream = asm.GetManifestResourceStream(resourceName);
-                if (stream == null)
-                    return string.Empty;
-
-                using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-                return reader.ReadToEnd();
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-
-        private static void ParseChecklistText(string text)
+        private static void ApplyChecklistCatalog(SubnauticaChecklistCatalog catalog)
         {
             RequiredBlueprints.Clear();
             RequiredDatabankEntries.Clear();
@@ -328,53 +299,25 @@ namespace SubnauticaLauncher.Gameplay
             BlueprintDisplayNames.Clear();
             DatabankDisplayNames.Clear();
 
-            ParseMode mode = ParseMode.None;
-            foreach (string rawLine in text.Split('\n'))
+            foreach (SubnauticaChecklistCatalog.ChecklistEntry entry in catalog.BlueprintEntries)
             {
-                string line = rawLine.Trim();
-                if (line.Length == 0)
-                    continue;
-
-                if (line.StartsWith("!ALL BLUEPRINTS!", StringComparison.OrdinalIgnoreCase))
-                {
-                    mode = ParseMode.Blueprint;
-                    continue;
-                }
-
-                if (line.StartsWith("!ALL DATABANK ENTRIES!", StringComparison.OrdinalIgnoreCase))
-                {
-                    mode = ParseMode.Databank;
-                    continue;
-                }
-
-                if (mode == ParseMode.None)
-                    continue;
-
-                Match match = ChecklistLineRegex.Match(line);
-                bool preInstalled;
-                string candidateName;
-                if (match.Success)
-                {
-                    preInstalled = match.Groups[1].Value.Equals("TRUE", StringComparison.OrdinalIgnoreCase);
-                    candidateName = match.Groups[2].Value;
-                }
-                else
-                {
-                    if (LooksLikeSectionHeader(line))
-                        continue;
-
-                    preInstalled = false;
-                    candidateName = line;
-                }
-
-                string normalizedName = NormalizeChecklistName(candidateName);
+                string normalizedName = NormalizeChecklistName(entry.Name);
                 if (normalizedName.Length == 0)
                     continue;
 
-                if (mode == ParseMode.Blueprint && TryExpandCookedCuredRequirement(candidateName, preInstalled))
+                if (TryExpandCookedCuredRequirement(entry.Name, entry.IsPreInstalled))
                     continue;
 
-                AddRequirement(mode, normalizedName, candidateName, preInstalled);
+                AddRequirement(ParseMode.Blueprint, normalizedName, entry.Name, entry.IsPreInstalled);
+            }
+
+            foreach (SubnauticaChecklistCatalog.ChecklistEntry entry in catalog.DatabankEntries)
+            {
+                string normalizedName = NormalizeChecklistName(entry.Name);
+                if (normalizedName.Length == 0)
+                    continue;
+
+                AddRequirement(ParseMode.Databank, normalizedName, entry.Name, entry.IsPreInstalled);
             }
 
             AddDerivedRequirementAliases();
@@ -858,6 +801,9 @@ namespace SubnauticaLauncher.Gameplay
 
         private static void QueueUnlockToast(GameplayEventType type, string requirement, string fallbackEventKey)
         {
+            if (!IsUnlockPopupEnabled())
+                return;
+
             string displayName = ResolveRequirementDisplayName(type, requirement, fallbackEventKey);
             string prefix = type == GameplayEventType.BlueprintUnlocked ? "Blueprint" : "Databank";
             string message = $"{prefix} \"{displayName}\"";
@@ -941,6 +887,13 @@ namespace SubnauticaLauncher.Gameplay
                 if (token.IsCancellationRequested || !_runActive)
                     return;
 
+                if (!IsUnlockPopupEnabled())
+                {
+                    _toastWindow?.Hide();
+                    _toastVisible = false;
+                    return;
+                }
+
                 if (ExplosionResetDisplayController.IsActive)
                     return;
 
@@ -974,7 +927,7 @@ namespace SubnauticaLauncher.Gameplay
                     _overlayLeft = rect.Left + OverlayPadding;
                     _overlayTop = rect.Top + OverlayPadding;
                     targetLeft = _overlayLeft;
-                    targetTop = _overlayTop + FallbackOverlayHeight + 8;
+                    targetTop = _overlayTop + GetOverlayDimensions().Height + 8;
                 }
 
                 if (_toastVisible)
@@ -1012,6 +965,13 @@ namespace SubnauticaLauncher.Gameplay
                 catch (OperationCanceledException)
                 {
                     await AnimateToastOutQuickAsync();
+                    return;
+                }
+
+                if (!IsUnlockPopupEnabled())
+                {
+                    _toastWindow?.Hide();
+                    _toastVisible = false;
                     return;
                 }
 
@@ -1168,11 +1128,34 @@ namespace SubnauticaLauncher.Gameplay
             });
         }
 
+        private static bool IsUnlockPopupEnabled() => LauncherSettings.Current.Subnautica100TrackerUnlockPopupEnabled;
+
+        private static (double Width, double Height) GetOverlayDimensions()
+        {
+            return LauncherSettings.Current.Subnautica100TrackerSize switch
+            {
+                Subnautica100TrackerOverlaySize.Small => (180, 72),
+                Subnautica100TrackerOverlaySize.Large => (232, 96),
+                _ => (200, 80)
+            };
+        }
+
+        private static void ApplyOverlaySizePreset()
+        {
+            if (_window == null)
+                return;
+
+            (double width, double height) = GetOverlayDimensions();
+            _window.Width = width;
+            _window.Height = height;
+            _window.ApplySizePreset(LauncherSettings.Current.Subnautica100TrackerSize);
+        }
+
         private static double GetToastTop()
         {
             double overlayHeight = _window?.ActualHeight ?? 0;
             if (overlayHeight <= 1)
-                overlayHeight = _window?.Height ?? 88;
+                overlayHeight = _window?.Height ?? GetOverlayDimensions().Height;
 
             return _overlayTop + overlayHeight + 8;
         }
@@ -1199,6 +1182,7 @@ namespace SubnauticaLauncher.Gameplay
                             if (_window == null)
                             {
                                 _window = new Subnautica100TrackerOverlay();
+                                ApplyOverlaySizePreset();
                                 _window.SetProgress(
                                     RunBlueprints.Count + RunDatabankEntries.Count,
                                     RequiredCombinedTotal,
@@ -1206,6 +1190,10 @@ namespace SubnauticaLauncher.Gameplay
                                     RequiredBlueprintTotal,
                                     RunDatabankEntries.Count,
                                     RequiredDatabankTotal);
+                            }
+                            else
+                            {
+                                ApplyOverlaySizePreset();
                             }
 
                             _overlayLeft = rect.Left + OverlayPadding;
@@ -1217,7 +1205,7 @@ namespace SubnauticaLauncher.Gameplay
                             if (!_window.IsVisible)
                                 _window.Show();
 
-                            if (_toastWindow != null && _toastWindow.IsVisible)
+                            if (IsUnlockPopupEnabled() && _toastWindow != null && _toastWindow.IsVisible)
                             {
                                 double overlayWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
                                 if (overlayWidth > 1)
@@ -1225,6 +1213,11 @@ namespace SubnauticaLauncher.Gameplay
 
                                 _toastWindow.Left = _overlayLeft;
                                 _toastWindow.Top = GetToastTop();
+                            }
+                            else if (!IsUnlockPopupEnabled())
+                            {
+                                _toastWindow?.Hide();
+                                _toastVisible = false;
                             }
                         }
                         else
@@ -1303,20 +1296,6 @@ namespace SubnauticaLauncher.Gameplay
                 return stripped;
 
             return HumanizeIdentifier(normalizedFallback);
-        }
-
-        private static bool LooksLikeSectionHeader(string line)
-        {
-            if (string.IsNullOrWhiteSpace(line))
-                return true;
-
-            if (line.StartsWith("!", StringComparison.Ordinal))
-                return true;
-
-            if (Regex.IsMatch(line, @"^[A-Z0-9\s&+\-':]+(?:\(\d+\))?\s*$"))
-                return true;
-
-            return false;
         }
 
         private static string NormalizeEventName(string key)
@@ -1430,7 +1409,6 @@ namespace SubnauticaLauncher.Gameplay
 
         private enum ParseMode
         {
-            None,
             Blueprint,
             Databank
         }

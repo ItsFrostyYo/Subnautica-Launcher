@@ -1007,11 +1007,20 @@ namespace SubnauticaLauncher.UI
 
         private void Subnautica100TrackerCustomize_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "Overlay customization UI is added next.\n\nThis button is now wired and ready.",
-                "100% Tracker Overlay",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            var settings = LauncherSettings.Current;
+            var window = new Subnautica100TrackerCustomizeWindow(
+                settings.Subnautica100TrackerSize,
+                settings.Subnautica100TrackerUnlockPopupEnabled)
+            {
+                Owner = this
+            };
+
+            if (window.ShowDialog() != true)
+                return;
+
+            settings.Subnautica100TrackerSize = window.SelectedSize;
+            settings.Subnautica100TrackerUnlockPopupEnabled = window.UnlockPopupEnabled;
+            LauncherSettings.Save();
         }
 
         private void HardcoreSaveDeleterPurge_Click(object sender, RoutedEventArgs e)

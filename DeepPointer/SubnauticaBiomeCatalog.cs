@@ -21,6 +21,7 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly Dictionary<string, BiomeGroup> ExactAliasMap = new(StringComparer.Ordinal);
         private static readonly List<(string Prefix, BiomeGroup Group)> PrefixAliasMap = new();
         private static readonly Dictionary<string, string> DisplayByCanonical = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, string> CanonicalByDisplayName = new(StringComparer.OrdinalIgnoreCase);
         private static readonly HashSet<string> LoggedUnknownBiome = new(StringComparer.Ordinal);
         private static readonly HashSet<string> ObservedBiomeRaw = new(StringComparer.Ordinal);
         private static bool _catalogWritten;
@@ -724,6 +725,10 @@ namespace SubnauticaLauncher.Gameplay
             foreach (BiomeGroup group in Groups)
             {
                 DisplayByCanonical[group.CanonicalKey] = group.DisplayName;
+                if (!CanonicalByDisplayName.ContainsKey(group.DisplayName))
+                    CanonicalByDisplayName[group.DisplayName] = group.CanonicalKey;
+                else
+                    Logger.Warn($"[BiomeMap] Duplicate display name mapping: '{group.DisplayName}'.");
 
                 // Dedupe within group (case-sensitive, ordinal)
                 var exactUnique = new HashSet<string>(StringComparer.Ordinal);
@@ -858,6 +863,24 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return Humanize(canonicalKey);
+        }
+
+        public static bool TryGetCanonicalByDisplayName(string displayName, out string canonicalKey)
+        {
+            canonicalKey = string.Empty;
+            if (string.IsNullOrWhiteSpace(displayName))
+                return false;
+
+            lock (Sync)
+            {
+                if (CanonicalByDisplayName.TryGetValue(displayName.Trim(), out string? mapped))
+                {
+                    canonicalKey = mapped;
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public static void RegisterObserved(string rawBiome, BiomeMatch match)

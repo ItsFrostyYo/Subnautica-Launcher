@@ -36,6 +36,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 EnsureOutputFileExists();
                 SubnauticaBiomeCatalog.EnsureCatalogWritten();
+                SubnauticaUnlockPairingCatalog.EnsureCatalogWritten();
                 WriteLifecycleEvent("DocumenterStarted");
 
                 _cts = new CancellationTokenSource();
