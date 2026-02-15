@@ -78,15 +78,15 @@ namespace SubnauticaLauncher.UI
                 ? Math.Max(1, (viewportHeight - RowGap) / 2.0)
                 : viewportHeight;
 
-            double availableWidth = Math.Max(1, viewportWidth - (_columnsPerRow * CardGap));
-            double slotWidth = availableWidth / Math.Max(1, _columnsPerRow + 1.0);
-            if (slotWidth < MinimumSlotWidth)
-                slotWidth = MinimumSlotWidth;
+            double previewCards = _columnsPerRow >= 3 ? 1.15 : 1.35;
+            double availableWidth = Math.Max(1, viewportWidth - ((_columnsPerRow + 1) * CardGap));
+            double slotWidth = availableWidth / Math.Max(1, _columnsPerRow + previewCards);
+            slotWidth = Math.Max(MinimumSlotWidth, slotWidth);
 
             double stride = slotWidth + CardGap;
 
             double slotHeight = Math.Max(MinimumSlotHeight, rowHeight - 2);
-            int rowItemCount = _columnsPerRow + 2;
+            int rowItemCount = _columnsPerRow + 3;
 
             IReadOnlyList<(string Type, string Name)> normalizedTop = NormalizeRow(topEntries, rowItemCount);
             IReadOnlyList<(string Type, string Name)> normalizedBottom = _rowCount > 1

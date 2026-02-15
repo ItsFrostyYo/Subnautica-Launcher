@@ -649,6 +649,10 @@ namespace SubnauticaLauncher.Gameplay
             bool fabricatorActive = hasFabricator && creativeFabricatorActive;
             bool creativeInteractionTriggered = movedTriggered || jumpTriggered || pdaTriggered || fabricatorTriggered;
             bool creativeInteractionActive = movedActive || jumpActive || pdaActive || fabricatorActive;
+            bool inStartCutscene =
+                (hasIntro && introActive) ||
+                (hasAnimation && animationActive) ||
+                (hasSkipProgress && skipProgress > 0.02f);
 
             if (!_startedBefore && inGameSession && !shouldBlockForLoading)
             {
@@ -679,7 +683,9 @@ namespace SubnauticaLauncher.Gameplay
                         runStarted = true;
                         runStartReason = "CutsceneSkipped";
                     }
-                    else if (!gameModePlausible && (creativeInteractionTriggered || creativeInteractionActive))
+                    else if (!gameModePlausible &&
+                             !inStartCutscene &&
+                             (creativeInteractionTriggered || creativeInteractionActive))
                     {
                         runStarted = true;
                         runStartReason = movedTriggered || movedActive
