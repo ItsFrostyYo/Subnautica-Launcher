@@ -761,8 +761,7 @@ namespace SubnauticaLauncher.Gameplay
         {
             string normalized = NormalizeEventName(runStartKey);
             return normalized == "cutsceneskipped"
-                || normalized == "lifepodradiodamaged"
-                || normalized == "cutscenedetectedaftercreativestart";
+                || normalized == "lifepodradiodamaged";
         }
 
         private static void ApplyCreativeDatabankExclusions()
