@@ -201,6 +201,7 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousCreativeJumping;
         private bool _previousCreativePdaOpen;
         private bool _previousCreativeFabricatorActive;
+        private bool _previousRunStartMainMenu;
         private int _notInGameStableSamples;
         private bool _startedFromCreative;
         private DateTime _startedFromCreativeUtc;
@@ -391,9 +392,6 @@ namespace SubnauticaLauncher.Gameplay
             state = GameState.Unknown;
             if (TryReadMainMenuSignal(proc, out bool isMainMenu))
             {
-                if (isMainMenu && IsCreativeFallbackWindowActive())
-                    isMainMenu = false;
-
                 state = isMainMenu ? GameState.MainMenu : GameState.InGame;
                 return true;
             }
@@ -606,6 +604,8 @@ namespace SubnauticaLauncher.Gameplay
             bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
             bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
             bool creativeFallbackWindowActive = IsCreativeFallbackWindowActive();
+            bool isMainMenuSample = hasMainMenuSignal && isMainMenuNow;
+            bool mainMenuExited = _previousRunStartMainMenu && !isMainMenuSample;
 
             bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
             bool animationActive = false;
@@ -622,9 +622,10 @@ namespace SubnauticaLauncher.Gameplay
             {
                 if (isMainMenuNow)
                 {
-                    if (_startedFromCreative && creativeFallbackWindowActive)
+                    if (_startedFromCreative &&
+                        _awaitingSurvivalAfterCreativeCutscene &&
+                        creativeFallbackWindowActive)
                     {
-                        _awaitingSurvivalAfterCreativeCutscene = true;
                         isMainMenuNow = false;
                     }
                     else
@@ -633,6 +634,7 @@ namespace SubnauticaLauncher.Gameplay
                         _startedFromCreative = false;
                         _startedFromCreativeUtc = DateTime.MinValue;
                         _awaitingSurvivalAfterCreativeCutscene = false;
+                        _previousRunStartMainMenu = false;
                         _hasRunStartBaseline = false;
                         return false;
                     }
@@ -649,7 +651,9 @@ namespace SubnauticaLauncher.Gameplay
             {
                 _notInGameStableSamples = 0;
             }
-            else if (_startedFromCreative && creativeFallbackWindowActive)
+            else if (_startedFromCreative &&
+                     _awaitingSurvivalAfterCreativeCutscene &&
+                     creativeFallbackWindowActive)
             {
                 // Keep provisional creative state alive briefly even if in-game/main-menu pointers are unstable.
                 _notInGameStableSamples = 0;
@@ -663,6 +667,7 @@ namespace SubnauticaLauncher.Gameplay
                     _startedFromCreative = false;
                     _startedFromCreativeUtc = DateTime.MinValue;
                     _awaitingSurvivalAfterCreativeCutscene = false;
+                    _previousRunStartMainMenu = false;
                     _hasRunStartBaseline = false;
                 }
             }
@@ -677,6 +682,7 @@ namespace SubnauticaLauncher.Gameplay
                 _previousCreativeJumping = hasCreativeJump && creativeJumping;
                 _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
                 _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
+                _previousRunStartMainMenu = isMainMenuSample;
                 return false;
             }
 
@@ -702,12 +708,15 @@ namespace SubnauticaLauncher.Gameplay
             {
                 if (_startedFromCreative)
                 {
-                    if (inStartCutscene || introEnded || skipProgressHigh || (hasDamageEffects && damageEffectsShowing))
+                    if (!_awaitingSurvivalAfterCreativeCutscene &&
+                        (isMainMenuSample || inStartCutscene || skipProgressHigh || (hasDamageEffects && damageEffectsShowing)))
+                    {
                         _awaitingSurvivalAfterCreativeCutscene = true;
+                    }
 
                     if (_awaitingSurvivalAfterCreativeCutscene)
                     {
-                        if (skipProgressHigh || introEnded)
+                        if (skipProgressHigh || introEnded || mainMenuExited)
                         {
                             runStarted = true;
                             runStartReason = "CutsceneSkipped";
@@ -764,6 +773,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativeJumping = hasCreativeJump && creativeJumping;
             _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
             _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
+            _previousRunStartMainMenu = isMainMenuSample;
 
             if (!runStarted)
                 return false;
@@ -771,7 +781,7 @@ namespace SubnauticaLauncher.Gameplay
             _startedBefore = true;
             _startedFromCreative = runStartReason.StartsWith("Creative", StringComparison.Ordinal);
             _startedFromCreativeUtc = _startedFromCreative ? DateTime.UtcNow : DateTime.MinValue;
-            _awaitingSurvivalAfterCreativeCutscene = _startedFromCreative;
+            _awaitingSurvivalAfterCreativeCutscene = false;
             reason = runStartReason;
             return true;
         }
@@ -1259,6 +1269,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativeJumping = false;
             _previousCreativePdaOpen = false;
             _previousCreativeFabricatorActive = false;
+            _previousRunStartMainMenu = false;
             _notInGameStableSamples = 0;
             _startedFromCreative = false;
             _startedFromCreativeUtc = DateTime.MinValue;
