@@ -616,11 +616,20 @@ namespace SubnauticaLauncher.Gameplay
             {
                 if (isMainMenuNow)
                 {
-                    _startedBefore = false;
-                    _startedFromCreative = false;
-                    _awaitingSurvivalAfterCreativeCutscene = false;
-                    _hasRunStartBaseline = false;
-                    return false;
+                    if (_startedFromCreative)
+                    {
+                        // Position-based main-menu detection can briefly report menu during early load/cutscene.
+                        // Keep the creative provisional state alive so survival fallback can still trigger.
+                        isMainMenuNow = false;
+                    }
+                    else
+                    {
+                        _startedBefore = false;
+                        _startedFromCreative = false;
+                        _awaitingSurvivalAfterCreativeCutscene = false;
+                        _hasRunStartBaseline = false;
+                        return false;
+                    }
                 }
             }
             else if (hasPlayer)
