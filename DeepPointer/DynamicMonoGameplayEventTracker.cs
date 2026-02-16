@@ -390,16 +390,11 @@ namespace SubnauticaLauncher.Gameplay
             state = GameState.Unknown;
             if (TryReadMainMenuSignal(proc, out bool isMainMenu))
             {
-                bool hasPlayerMain = TryReadStaticObject(proc, _playerMainField, out var playerMainObject);
-                bool hasPlayer = hasPlayerMain && playerMainObject != IntPtr.Zero;
-                bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
                 bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
                 bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
 
                 if (isMainMenu &&
                     ShouldSuppressMainMenuDuringCreativeFallback(
-                        hasPlayer,
-                        hasLoading && isLoading,
                         hasIntro && introActive,
                         hasSkipProgress && skipProgress > 0.02f))
                 {
@@ -442,14 +437,14 @@ namespace SubnauticaLauncher.Gameplay
         {
             isMainMenu = false;
 
-            if (TryReadIsMainMenuPosition(proc, out isMainMenu))
-                return true;
-
             if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu))
             {
                 isMainMenu = mainMenu != IntPtr.Zero;
                 return true;
             }
+
+            if (TryReadIsMainMenuPosition(proc, out isMainMenu))
+                return true;
 
             return false;
         }
@@ -618,6 +613,7 @@ namespace SubnauticaLauncher.Gameplay
             bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
             bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
             bool isMainMenuSample = hasMainMenuSignal && isMainMenuNow;
+            bool mainMenuExited = _previousRunStartMainMenu && !isMainMenuSample;
 
             bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
             bool animationActive = false;
@@ -635,8 +631,6 @@ namespace SubnauticaLauncher.Gameplay
                 if (isMainMenuNow)
                 {
                     if (ShouldSuppressMainMenuDuringCreativeFallback(
-                        hasPlayer,
-                        hasLoading && isLoading,
                         hasIntro && introActive,
                         hasSkipProgress && skipProgress > 0.02f))
                     {
@@ -721,7 +715,7 @@ namespace SubnauticaLauncher.Gameplay
 
                     if (_awaitingSurvivalAfterCreativeCutscene)
                     {
-                        if (skipProgressHigh || introEnded)
+                        if (skipProgressHigh || introEnded || mainMenuExited)
                         {
                             runStarted = true;
                             runStartReason = "CutsceneSkipped";
@@ -1024,8 +1018,6 @@ namespace SubnauticaLauncher.Gameplay
         }
 
         private bool ShouldSuppressMainMenuDuringCreativeFallback(
-            bool hasPlayer,
-            bool isLoading,
             bool introActive,
             bool skipInProgress)
         {
@@ -1033,8 +1025,8 @@ namespace SubnauticaLauncher.Gameplay
                 return false;
 
             // During survival intro/cutscene, menu-position pointers can briefly look like Main Menu.
-            // Keep creative provisional state alive only while gameplay/cutscene signals are still active.
-            return hasPlayer || isLoading || introActive || skipInProgress;
+            // Only suppress when intro/skip cutscene evidence is present.
+            return introActive || skipInProgress;
         }
 
         private bool TryReadIsMainMenuPosition(Process proc, out bool isMainMenuPosition)
