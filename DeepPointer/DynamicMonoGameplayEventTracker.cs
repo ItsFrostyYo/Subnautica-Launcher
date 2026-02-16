@@ -606,7 +606,6 @@ namespace SubnauticaLauncher.Gameplay
             bool hasGameMode = TryReadGameMode(proc, out int gameMode);
             bool isCreativeMode = hasGameMode && IsCreativeGameMode(gameMode);
             bool isMainMenuSample = hasMainMenuSignal && isMainMenuNow;
-            bool mainMenuExited = _previousRunStartMainMenu && !isMainMenuSample;
 
             bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
             bool animationActive = false;
@@ -624,12 +623,11 @@ namespace SubnauticaLauncher.Gameplay
                 (hasSkipProgress && skipProgress > 0.02f);
             bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
             bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
-            bool playerAnimationEnded = hasAnimation && _previousPlayerCinematicActive && !animationActive;
             bool damageEffectsActive = hasDamageEffects && damageEffectsShowing;
 
             if (_startedFromCreative &&
                 !_awaitingSurvivalAfterCreativeCutscene &&
-                (isMainMenuSample || inStartCutscene || skipProgressHigh || damageEffectsActive))
+                (inStartCutscene || skipProgressHigh || damageEffectsActive))
             {
                 _awaitingSurvivalAfterCreativeCutscene = true;
             }
@@ -640,12 +638,25 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     if (_startedFromCreative && _awaitingSurvivalAfterCreativeCutscene)
                     {
-                        _creativeFallbackMainMenuSamples =
-                            Math.Min(_creativeFallbackMainMenuSamples + 1, CreativeFallbackMenuGraceSamples + 1);
-
-                        if (_creativeFallbackMainMenuSamples <= CreativeFallbackMenuGraceSamples)
+                        if (inStartCutscene || skipProgressHigh || damageEffectsActive)
                         {
-                            isMainMenuNow = false;
+                            _creativeFallbackMainMenuSamples =
+                                Math.Min(_creativeFallbackMainMenuSamples + 1, CreativeFallbackMenuGraceSamples + 1);
+
+                            if (_creativeFallbackMainMenuSamples <= CreativeFallbackMenuGraceSamples)
+                            {
+                                isMainMenuNow = false;
+                            }
+                            else
+                            {
+                                _startedBefore = false;
+                                _startedFromCreative = false;
+                                _awaitingSurvivalAfterCreativeCutscene = false;
+                                _previousRunStartMainMenu = false;
+                                _creativeFallbackMainMenuSamples = 0;
+                                _hasRunStartBaseline = false;
+                                return false;
+                            }
                         }
                         else
                         {
@@ -732,7 +743,7 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     if (_awaitingSurvivalAfterCreativeCutscene)
                     {
-                        if (skipProgressHigh || introEnded || mainMenuExited)
+                        if (skipProgressHigh || introEnded)
                         {
                             runStarted = true;
                             runStartReason = "CutsceneSkipped";
@@ -745,11 +756,6 @@ namespace SubnauticaLauncher.Gameplay
                     }
                 }
                 else if (skipProgressHigh || introEnded)
-                {
-                    runStarted = true;
-                    runStartReason = "CutsceneSkipped";
-                }
-                else if (!isCreativeMode && playerAnimationEnded)
                 {
                     runStarted = true;
                     runStartReason = "CutsceneSkipped";
