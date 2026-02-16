@@ -1,21 +1,41 @@
 [
   {
+    "key": "f1",
+    "command": "workbench.action.tasks.runTask",
+    "args": "clean"
+  },
+  {
+    "key": "f2",
+    "command": "workbench.action.tasks.runTask",
+    "args": "build-debug-telemetry-on"
+  },
+  {
+    "key": "f3",
+    "command": "workbench.action.tasks.runTask",
+    "args": "build-debug-telemetry-off"
+  },
+  {
+    "key": "f4",
+    "command": "workbench.action.debug.start",
+    "when": "debuggersAvailable && !inDebugMode"
+  },
+  {
     "key": "f5",
     "command": "workbench.action.tasks.runTask",
     "args": "launch-app"
   },
   {
-    "key": "ctrl+f5",
-    "command": "workbench.action.debug.start",
-    "when": "debuggersAvailable && !inDebugMode"
+    "key": "f6",
+    "command": "-workbench.action.focusPart",
+    "args": "workbench.parts.activitybar"
   },
   {
-    "key": "f4",
-    "command": "workbench.action.tasks.build"
+    "key": "f6",
+    "command": "-workbench.action.focusNextPart"
   },
   {
-    "key": "f3",
+    "key": "f6",
     "command": "workbench.action.tasks.runTask",
-    "args": "clean"
+    "args": "open-project-folder"
   }
 ]

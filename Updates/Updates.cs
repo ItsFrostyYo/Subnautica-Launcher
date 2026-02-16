@@ -32,6 +32,19 @@ public static class Updates
     {
           new UpdateEntry
     {
+        Version = "2.2.3",
+        Title = "Updater and Release Pipeline Overhaul",
+        Date = "Feb 16, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Rebuilt updater flow and improved update reliability checks",
+            "Added a new update progress UI with clearer update status handling",
+            "Improved setup and packaging to ship a cleaner ready-to-upload release"
+        }
+    },
+
+          new UpdateEntry
+    {
         Version = "2.2.2",
         Title = "Code Update",
         Date = "Feb 16, 2026 | Contributors (1) - ItsFrosti.",

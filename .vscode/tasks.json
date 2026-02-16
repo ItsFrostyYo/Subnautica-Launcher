@@ -30,6 +30,32 @@
             "problemMatcher": "$msCompile"
         },
         {
+            "label": "build-debug-telemetry-on",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/SubnauticaLauncher.sln",
+                "/property:EnableDebugTelemetry=true",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-debug-telemetry-off",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/SubnauticaLauncher.sln",
+                "/property:EnableDebugTelemetry=false",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary;ForceNoAlign"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
             "label": "launch-app",
             "type": "process",
             "command": "${workspaceFolder}/bin/Debug/net8.0-windows/SubnauticaLauncher.exe",
@@ -61,6 +87,33 @@
                 "${workspaceFolder}/SubnauticaLauncher.sln"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "package-release-win-x64",
+            "type": "process",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/Build-ReleasePackage.ps1",
+                "-Configuration",
+                "Release",
+                "-RuntimeIdentifier",
+                "win-x64",
+                "-Clean"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "open-project-folder",
+            "type": "process",
+            "command": "explorer.exe",
+            "args": [
+                "${workspaceFolder}"
+            ],
+            "problemMatcher": []
         }
     ]
 }

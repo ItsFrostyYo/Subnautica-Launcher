@@ -1,4 +1,5 @@
 using SubnauticaLauncher.Core;
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -27,20 +28,35 @@ public static class DepotDownloaderInstaller
         }
     }
 
+    public static bool IsInstalled()
+    {
+        return File.Exists(DepotDownloaderExe);
+    }
+
     public static async Task EnsureInstalledAsync()
     {
-        if (File.Exists(DepotDownloaderExe))
+        if (IsInstalled())
             return;
 
         Directory.CreateDirectory(ToolsPath);
 
         string zipPath = Path.Combine(ToolsPath, "DepotDownloader.zip");
+        if (File.Exists(zipPath))
+            File.Delete(zipPath);
 
-        using var client = new HttpClient();
+        using var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(90)
+        };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
+
         var data = await client.GetByteArrayAsync(DepotDownloaderZipUrl);
         await File.WriteAllBytesAsync(zipPath, data);
 
         ZipFile.ExtractToDirectory(zipPath, ToolsPath, true);
         File.Delete(zipPath);
+
+        if (!IsInstalled())
+            throw new FileNotFoundException("DepotDownloader.exe was not found after extraction.", DepotDownloaderExe);
     }
 }

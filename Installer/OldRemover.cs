@@ -20,6 +20,7 @@ namespace SubnauticaLauncher.Installer
         {
             MigrateSettings();
             RemoveOldBackgroundsFolder();
+            RemoveUpdaterResidue();
         }
 
         // =========================
@@ -164,6 +165,22 @@ namespace SubnauticaLauncher.Installer
             catch
             {
                 // ignore
+            }
+        }
+
+        private static void RemoveUpdaterResidue()
+        {
+            try
+            {
+                string baseDir = AppPaths.BasePath;
+                TryDelete(Path.Combine(baseDir, "SubnauticaLauncher.staged.exe"));
+                TryDelete(Path.Combine(baseDir, "SubnauticaLauncher.previous.exe"));
+                TryDelete(Path.Combine(baseDir, "SubnauticaLauncher.new.exe"));
+                TryDelete(Path.Combine(baseDir, "SNLUpdater.new.exe"));
+            }
+            catch
+            {
+                // Never block launcher startup
             }
         }
     }

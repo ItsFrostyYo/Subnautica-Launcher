@@ -6,13 +6,19 @@
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 
-		<Version>2.2.2</Version>
+		<Version>2.3.0</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<ApplicationIcon>Assets\Icons\SNL.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<EnableDebugTelemetry Condition="'$(EnableDebugTelemetry)' == '' and '$(Configuration)' == 'Debug'">true</EnableDebugTelemetry>
+		<EnableDebugTelemetry Condition="'$(EnableDebugTelemetry)' == '' and '$(Configuration)' != 'Debug'">false</EnableDebugTelemetry>
+		<DefineConstants Condition="'$(EnableDebugTelemetry)' == 'true'">$(DefineConstants);ENABLE_DEBUG_TELEMETRY</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -26,6 +32,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="tools\SNLUpdater\**\*.cs" />
+	  <EmbeddedResource Remove="tools\SNLUpdater\**\*" />
+	  <None Remove="tools\SNLUpdater\**\*" />
 	  <None Remove="Assets\Backgrounds\Aurora Borealis.png" />
 	  <None Remove="Assets\Backgrounds\Cove Tree.png" />
 	  <None Remove="Assets\Backgrounds\Floating Island.png" />
@@ -52,9 +61,13 @@
 	<ItemGroup>
 	  <Content Include="tools\ExplosionResetHelper2018.exe">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+	    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
 	  </Content>
 	  <Content Include="tools\ExplosionResetHelper2022.exe">
 	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+	    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
 	  </Content>
 	</ItemGroup>
 
@@ -172,5 +185,38 @@
 	    <LastGenOutput>Settings.Designer.cs</LastGenOutput>
 	  </None>
 	</ItemGroup>
+
+	<Target Name="BuildUpdaterProject" BeforeTargets="Build;Publish" Condition="'$(SkipUpdaterBuild)' != 'true'">
+	  <MSBuild
+		Projects="$(MSBuildProjectDirectory)\tools\SNLUpdater\SNLUpdater.csproj"
+		Targets="Restore;Build"
+		Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained)" />
+	</Target>
+
+	<Target Name="CopyUpdaterToBuildOutput" AfterTargets="Build" Condition="'$(SkipUpdaterBuild)' != 'true'">
+	  <Copy
+		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe"
+		DestinationFolder="$(OutDir)"
+		SkipUnchangedFiles="true"
+		Condition="'$(RuntimeIdentifier)' != '' and Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe')" />
+	  <Copy
+		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe"
+		DestinationFolder="$(OutDir)"
+		SkipUnchangedFiles="true"
+		Condition="Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe')" />
+	</Target>
+
+	<Target Name="CopyUpdaterToPublishOutput" AfterTargets="Publish" Condition="'$(SkipUpdaterBuild)' != 'true'">
+	  <Copy
+		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe"
+		DestinationFolder="$(PublishDir)"
+		SkipUnchangedFiles="true"
+		Condition="'$(RuntimeIdentifier)' != '' and Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe')" />
+	  <Copy
+		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe"
+		DestinationFolder="$(PublishDir)"
+		SkipUnchangedFiles="true"
+		Condition="Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe')" />
+	</Target>
 
 </Project>

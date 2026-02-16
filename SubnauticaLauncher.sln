@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.36717.8 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SubnauticaLauncher", "SubnauticaLauncher.csproj", "{93DAE5F6-F380-4E46-8A72-FF17DEA8A8B6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SNLUpdater", "tools\SNLUpdater\SNLUpdater.csproj", "{D9E516B6-3D98-4E9A-9A40-BF40E67A0C31}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{93DAE5F6-F380-4E46-8A72-FF17DEA8A8B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{93DAE5F6-F380-4E46-8A72-FF17DEA8A8B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{93DAE5F6-F380-4E46-8A72-FF17DEA8A8B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9E516B6-3D98-4E9A-9A40-BF40E67A0C31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9E516B6-3D98-4E9A-9A40-BF40E67A0C31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9E516B6-3D98-4E9A-9A40-BF40E67A0C31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9E516B6-3D98-4E9A-9A40-BF40E67A0C31}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

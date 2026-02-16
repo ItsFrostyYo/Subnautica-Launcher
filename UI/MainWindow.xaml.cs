@@ -116,10 +116,9 @@ namespace SubnauticaLauncher.UI
         {
             Logger.Log("Launcher UI loaded");
 
-            if (!Directory.Exists(AppPaths.ToolsPath) ||
-                !File.Exists(DepotDownloaderInstaller.DepotDownloaderExe))
+            if (NewInstaller.IsBootstrapRequired())
             {
-                Logger.Warn("Required tools missing, opening setup window");
+                Logger.Warn("Runtime bootstrap required, opening setup window");
 
                 var setup = new SetupWindow { Owner = this };
                 bool? result = setup.ShowDialog();
@@ -310,31 +309,63 @@ namespace SubnauticaLauncher.UI
 
         private async Task CheckForUpdatesOnStartup()
         {
+            UpdateProgressWindow? progressWindow = null;
+
             try
             {
                 var update = await UpdateChecker.CheckForUpdateAsync();
                 if (update == null)
                     return;
 
-                ShowUpdatingUI();
-                await UpdaterChecker.EnsureUpdaterAsync();
+                progressWindow = new UpdateProgressWindow
+                {
+                    Owner = this
+                };
 
-                var newExe = await UpdateDownloader.DownloadAsync(update.DownloadUrl);
-                UpdateHelper.ApplyUpdate(newExe);
-            }
-            catch
-            {
-                // silent fail by design
-            }
-        }
+                progressWindow.SetDetectedUpdate(update);
+                progressWindow.SetStatus("Preparing update...");
+                progressWindow.SetIndeterminate("Starting...");
+                progressWindow.Show();
 
-        private void ShowUpdatingUI()
-        {
-            Dispatcher.Invoke(() =>
-            {
-                Title = "Subnautica Launcher – Updating…";
                 IsEnabled = false;
-            });
+
+                IProgress<string> statusProgress = new Progress<string>(progressWindow.SetStatus);
+                statusProgress.Report("Verifying latest updater...");
+
+                string updaterPath = await UpdaterChecker.EnsureUpdaterAsync(update, statusProgress);
+
+                statusProgress.Report($"Downloading launcher v{update.Version}...");
+
+                var downloadProgress = new Progress<double>(progressWindow.SetProgress);
+                string newExe = await UpdateDownloader.DownloadAsync(
+                    update.LauncherDownloadUrl,
+                    "SubnauticaLauncher.new.exe",
+                    downloadProgress);
+
+                statusProgress.Report("Launching updater...");
+                progressWindow.SetIndeterminate("Finalizing...");
+
+                await Task.Delay(200);
+                UpdateHelper.ApplyUpdate(newExe, updaterPath);
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Automatic update flow failed");
+
+                if (progressWindow != null)
+                {
+                    progressWindow.SetStatus("Update failed. Continuing startup...");
+                    progressWindow.SetIndeterminate("Using current launcher version.");
+                    await Task.Delay(1400);
+                }
+            }
+            finally
+            {
+                if (progressWindow != null)
+                    progressWindow.Close();
+
+                IsEnabled = true;
+            }
         }
 
         private void BuildUpdatesView()
@@ -1305,3 +1336,6 @@ namespace SubnauticaLauncher.UI
         }
     }
 }
+
+
+

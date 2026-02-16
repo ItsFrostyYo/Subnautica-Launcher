@@ -14,6 +14,18 @@ namespace SubnauticaLauncher.Gameplay
 {
     public static class DebugTelemetryController
     {
+        public static bool IsEnabled
+        {
+            get
+            {
+#if ENABLE_DEBUG_TELEMETRY
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
+
         private static readonly object Sync = new();
         private static DebugTelemetryWindow? _window;
         private static CancellationTokenSource? _cts;
@@ -25,6 +37,9 @@ namespace SubnauticaLauncher.Gameplay
 
         public static void Start()
         {
+            if (!IsEnabled)
+                return;
+
             lock (Sync)
             {
                 if (_window != null)
@@ -45,6 +60,9 @@ namespace SubnauticaLauncher.Gameplay
 
         public static void Stop()
         {
+            if (!IsEnabled)
+                return;
+
             CancellationTokenSource? cts;
             Task? pollTask;
 
