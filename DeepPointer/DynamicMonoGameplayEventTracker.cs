@@ -603,6 +603,8 @@ namespace SubnauticaLauncher.Gameplay
             bool hasPlayerMain = TryReadStaticObject(proc, _playerMainField, out var playerMain);
             bool hasPlayer = hasPlayerMain && playerMain != IntPtr.Zero;
             bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
+            bool hasGameMode = TryReadGameMode(proc, out int gameMode);
+            bool isCreativeMode = hasGameMode && IsCreativeGameMode(gameMode);
             bool isMainMenuSample = hasMainMenuSignal && isMainMenuNow;
             bool mainMenuExited = _previousRunStartMainMenu && !isMainMenuSample;
 
@@ -622,6 +624,7 @@ namespace SubnauticaLauncher.Gameplay
                 (hasSkipProgress && skipProgress > 0.02f);
             bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
             bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
+            bool playerAnimationEnded = hasAnimation && _previousPlayerCinematicActive && !animationActive;
             bool damageEffectsActive = hasDamageEffects && damageEffectsShowing;
 
             if (_startedFromCreative &&
@@ -746,6 +749,11 @@ namespace SubnauticaLauncher.Gameplay
                     runStarted = true;
                     runStartReason = "CutsceneSkipped";
                 }
+                else if (!isCreativeMode && playerAnimationEnded)
+                {
+                    runStarted = true;
+                    runStartReason = "CutsceneSkipped";
+                }
                 else if (hasDamageEffects &&
                          damageEffectsShowing)
                 {
@@ -754,6 +762,7 @@ namespace SubnauticaLauncher.Gameplay
                 }
                 else if (!_startedBefore &&
                          !isMainMenuNow &&
+                         (!hasGameMode || isCreativeMode) &&
                          !inStartCutscene)
                 {
                     if (movedTriggered)
@@ -793,7 +802,7 @@ namespace SubnauticaLauncher.Gameplay
 
             _startedBefore = true;
             _startedFromCreative = runStartReason.StartsWith("Creative", StringComparison.Ordinal);
-            _awaitingSurvivalAfterCreativeCutscene = false;
+            _awaitingSurvivalAfterCreativeCutscene = _startedFromCreative;
             _creativeFallbackMainMenuSamples = 0;
             reason = runStartReason;
             return true;
