@@ -760,10 +760,9 @@ namespace SubnauticaLauncher.Gameplay
         private static bool IsSurvivalRunStart(string runStartKey)
         {
             string normalized = NormalizeEventName(runStartKey);
-            return normalized == "introcinematicended"
-                || normalized == "playeranimationended"
-                || normalized == "cutsceneskipped"
-                || normalized == "lifepodradiodamaged";
+            return normalized == "cutsceneskipped"
+                || normalized == "lifepodradiodamaged"
+                || normalized == "cutscenedetectedaftercreativestart";
         }
 
         private static void ApplyCreativeDatabankExclusions()

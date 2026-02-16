@@ -644,8 +644,6 @@ namespace SubnauticaLauncher.Gameplay
             bool runStarted = false;
             string runStartReason = string.Empty;
 
-            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
-            bool animationEnded = hasAnimation && _previousPlayerCinematicActive && !animationActive;
             bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
             bool movedTriggered = hasCreativeMove && creativeMoveActive && !_previousCreativeMoveActive;
             bool jumpTriggered = hasCreativeJump && creativeJumping && !_previousCreativeJumping;
@@ -663,15 +661,10 @@ namespace SubnauticaLauncher.Gameplay
 
             if (allowNewStartOrFallbackRestart)
             {
-                if (introEnded)
+                if (_startedFromCreative && inStartCutscene)
                 {
                     runStarted = true;
-                    runStartReason = "IntroCinematicEnded";
-                }
-                else if (animationEnded)
-                {
-                    runStarted = true;
-                    runStartReason = "PlayerAnimationEnded";
+                    runStartReason = "CutsceneDetectedAfterCreativeStart";
                 }
                 else if (skipProgressHigh)
                 {
