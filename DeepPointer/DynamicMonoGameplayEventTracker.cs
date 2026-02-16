@@ -389,6 +389,23 @@ namespace SubnauticaLauncher.Gameplay
             state = GameState.Unknown;
             if (TryReadMainMenuSignal(proc, out bool isMainMenu))
             {
+                if (isMainMenu && _startedFromCreative)
+                {
+                    bool hasLoading = TryReadLoadingState(proc, out bool isLoading);
+                    bool hasIntro = TryReadIntroCinematicActive(proc, out bool introActive);
+                    bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
+                    bool hasDamageEffects = TryReadEscapePodDamageEffects(proc, out bool damageEffectsShowing);
+
+                    bool likelyInCutsceneOrRunStart =
+                        (hasLoading && isLoading) ||
+                        (hasIntro && introActive) ||
+                        (hasSkipProgress && skipProgress > 0.02f) ||
+                        (hasDamageEffects && damageEffectsShowing);
+
+                    if (likelyInCutsceneOrRunStart)
+                        isMainMenu = false;
+                }
+
                 state = isMainMenu ? GameState.MainMenu : GameState.InGame;
                 return true;
             }
@@ -680,6 +697,7 @@ namespace SubnauticaLauncher.Gameplay
                 (hasIntro && introActive) ||
                 (hasAnimation && animationActive) ||
                 (hasSkipProgress && skipProgress > 0.02f);
+            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
 
             bool allowNewStartOrFallbackRestart =
                 (!_startedBefore || _startedFromCreative) &&
@@ -688,19 +706,26 @@ namespace SubnauticaLauncher.Gameplay
 
             if (allowNewStartOrFallbackRestart)
             {
-                if (_startedFromCreative && inStartCutscene)
+                if (_startedFromCreative)
                 {
-                    _awaitingSurvivalAfterCreativeCutscene = true;
-                }
-                if (_startedFromCreative && _awaitingSurvivalAfterCreativeCutscene)
-                {
-                    if (hasDamageEffects && damageEffectsShowing)
+                    if (inStartCutscene || introEnded || skipProgressHigh || (hasDamageEffects && damageEffectsShowing))
+                        _awaitingSurvivalAfterCreativeCutscene = true;
+
+                    if (_awaitingSurvivalAfterCreativeCutscene)
                     {
-                        runStarted = true;
-                        runStartReason = "LifepodRadioDamaged";
+                        if (skipProgressHigh || introEnded)
+                        {
+                            runStarted = true;
+                            runStartReason = "CutsceneSkipped";
+                        }
+                        else if (hasDamageEffects && damageEffectsShowing)
+                        {
+                            runStarted = true;
+                            runStartReason = "LifepodRadioDamaged";
+                        }
                     }
                 }
-                else if (skipProgressHigh)
+                else if (skipProgressHigh || introEnded)
                 {
                     runStarted = true;
                     runStartReason = "CutsceneSkipped";
