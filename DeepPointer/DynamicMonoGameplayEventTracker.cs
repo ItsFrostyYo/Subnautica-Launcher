@@ -622,10 +622,11 @@ namespace SubnauticaLauncher.Gameplay
             {
                 if (isMainMenuNow)
                 {
-                    if (_startedFromCreative &&
-                        _awaitingSurvivalAfterCreativeCutscene &&
-                        creativeFallbackWindowActive)
+                    if (_startedFromCreative && creativeFallbackWindowActive)
                     {
+                        // A creative trigger on cutscene can happen while main-menu position still reads as true.
+                        // Keep the provisional start alive and wait for survival confirmation.
+                        _awaitingSurvivalAfterCreativeCutscene = true;
                         isMainMenuNow = false;
                     }
                     else
