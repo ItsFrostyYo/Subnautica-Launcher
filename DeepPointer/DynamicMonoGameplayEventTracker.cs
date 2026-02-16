@@ -437,14 +437,14 @@ namespace SubnauticaLauncher.Gameplay
         {
             isMainMenu = false;
 
+            if (TryReadIsMainMenuPosition(proc, out isMainMenu))
+                return true;
+
             if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu))
             {
                 isMainMenu = mainMenu != IntPtr.Zero;
                 return true;
             }
-
-            if (TryReadIsMainMenuPosition(proc, out isMainMenu))
-                return true;
 
             return false;
         }
