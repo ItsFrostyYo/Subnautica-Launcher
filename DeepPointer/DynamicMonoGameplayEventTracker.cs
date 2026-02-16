@@ -1,3 +1,4 @@
+using SubnauticaLauncher;
 using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.Memory;
 using System;
@@ -192,15 +193,17 @@ namespace SubnauticaLauncher.Gameplay
         private readonly DeepPointer? _modernSkipProgress;
         private readonly DeepPointer? _legacyBiome;
         private readonly DeepPointer? _modernBiome;
+        private readonly DeepPointer? _sept2018Oxygen;
         private bool _hasRunStartBaseline;
         private bool _previousIntroCinematicActive;
         private bool _previousPlayerCinematicActive;
-        private bool _previousDamageEffectsShowing;
         private bool _previousCreativeMoveActive;
         private bool _previousCreativeJumping;
         private bool _previousCreativePdaOpen;
         private bool _previousCreativeFabricatorActive;
         private bool _previousRunStartMainMenu;
+        private int _previousOxygen;
+        private bool _hasPreviousOxygen;
         private int _notInGameStableSamples;
         private bool _startedFromCreative;
         private bool _awaitingSurvivalAfterCreativeCutscene;
@@ -238,6 +241,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 _legacyBiome = new DeepPointer("Subnautica.exe", 0x142B908, 0x180, 0x128, 0x80, 0x1D0, 0x8, 0x248, 0x1D0, 0x14);
                 _modernBiome = new DeepPointer("UnityPlayer.dll", 0x17FBE70, 0x8, 0x10, 0x30, 0x58, 0x28, 0x1F0, 0x14);
+                _sept2018Oxygen = new DeepPointer("Subnautica.exe", 0x142ADA8, 0x8, 0x10, 0x30, 0x30, 0x18, 0x28, 0x70);
             }
         }
 
@@ -426,12 +430,6 @@ namespace SubnauticaLauncher.Gameplay
         {
             isMainMenu = false;
 
-            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu))
-            {
-                isMainMenu = mainMenu != IntPtr.Zero;
-                return true;
-            }
-
             if (TryReadIsMainMenuPosition(proc, out isMainMenu))
                 return true;
 
@@ -511,6 +509,19 @@ namespace SubnauticaLauncher.Gameplay
 
             return TryReadSkipProgressFrom(proc, _modernSkipProgress, out value)
                 || TryReadSkipProgressFrom(proc, _legacySkipProgress, out value);
+        }
+
+        private bool TryReadSept2018Oxygen(Process proc, out int oxygen)
+        {
+            oxygen = 0;
+
+            if (_sept2018Oxygen == null)
+                return false;
+
+            if (!_sept2018Oxygen.Deref(proc, out var address))
+                return false;
+
+            return MemoryReader.ReadInt32(proc, address, out oxygen);
         }
 
         private static bool TryReadSkipProgressFrom(Process proc, DeepPointer? ptr, out float value)
@@ -607,14 +618,18 @@ namespace SubnauticaLauncher.Gameplay
             bool animationActive = false;
             bool hasAnimation = hasPlayer && TryReadPlayerCinematicActive(proc, playerMain, out animationActive);
             bool hasSkipProgress = TryReadSkipProgress(proc, out float skipProgress);
-            bool hasDamageEffects = TryReadEscapePodDamageEffects(proc, out bool damageEffectsShowing);
             bool hasCreativeMove = TryReadCreativeHorizontalMove(proc, out bool creativeMoveActive);
             bool creativeJumping = false;
             bool hasCreativeJump = hasPlayer && TryReadCreativeJumping(proc, playerMain, out creativeJumping);
             bool hasPdaOpen = TryReadCreativePdaOpen(proc, out bool creativePdaOpen);
             bool hasFabricator = TryReadCreativeFabricatorInteraction(proc, out bool creativeFabricatorActive);
+            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
+            bool hasOxygen = TryReadSept2018Oxygen(proc, out int oxygenValue);
+            bool oxygenTriggered = hasOxygen &&
+                _hasPreviousOxygen &&
+                oxygenValue > 35 &&
+                _previousOxygen < 35;
             bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
-            bool damageEffectsActive = hasDamageEffects && damageEffectsShowing;
             bool blockRunStart = isMainMenuSample;
 
             if (isMainMenuSample)
@@ -639,10 +654,7 @@ namespace SubnauticaLauncher.Gameplay
                 _notInGameStableSamples = Math.Min(_notInGameStableSamples + 1, RunStartFallbackMenuResetSamples);
                 if (_notInGameStableSamples >= RunStartFallbackMenuResetSamples)
                 {
-                    _startedBefore = false;
-                    _startedFromCreative = false;
-                    _awaitingSurvivalAfterCreativeCutscene = false;
-                    _previousRunStartMainMenu = false;
+                    _notInGameStableSamples = RunStartFallbackMenuResetSamples;
                 }
             }
 
@@ -651,12 +663,14 @@ namespace SubnauticaLauncher.Gameplay
                 _hasRunStartBaseline = true;
                 _previousIntroCinematicActive = hasIntro && introActive;
                 _previousPlayerCinematicActive = hasAnimation && animationActive;
-                _previousDamageEffectsShowing = hasDamageEffects && damageEffectsShowing;
                 _previousCreativeMoveActive = hasCreativeMove && creativeMoveActive;
                 _previousCreativeJumping = hasCreativeJump && creativeJumping;
                 _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
                 _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
                 _previousRunStartMainMenu = isMainMenuSample;
+                _hasPreviousOxygen = hasOxygen;
+                if (hasOxygen)
+                    _previousOxygen = oxygenValue;
                 return false;
             }
 
@@ -664,42 +678,22 @@ namespace SubnauticaLauncher.Gameplay
             string runStartReason = string.Empty;
 
             bool movedTriggered = hasCreativeMove && creativeMoveActive && !_previousCreativeMoveActive;
-            bool jumpTriggered = hasCreativeJump && creativeJumping && !_previousCreativeJumping;
             bool pdaTriggered = hasPdaOpen && creativePdaOpen && !_previousCreativePdaOpen;
             bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
 
-            bool allowNewStartOrFallbackRestart =
-                !_startedBefore || _startedFromCreative;
+            bool allowNewStart = !_startedBefore;
+            bool enableSurvivalStarts = LauncherSettings.Current.Subnautica100TrackerSurvivalStartsEnabled;
+            bool enableCreativeStarts = LauncherSettings.Current.Subnautica100TrackerCreativeStartsEnabled;
 
-            if (allowNewStartOrFallbackRestart && !blockRunStart)
+            if (allowNewStart && !blockRunStart)
             {
-                if (_startedFromCreative)
-                {
-                    if (_awaitingSurvivalAfterCreativeCutscene)
-                    {
-                        if (skipProgressHigh)
-                        {
-                            runStarted = true;
-                            runStartReason = "CutsceneSkipped";
-                        }
-                        else if (damageEffectsActive)
-                        {
-                            runStarted = true;
-                            runStartReason = "LifepodRadioDamaged";
-                        }
-                    }
-                }
-                else if (skipProgressHigh)
+                if (enableSurvivalStarts &&
+                    (oxygenTriggered || introEnded || skipProgressHigh))
                 {
                     runStarted = true;
                     runStartReason = "CutsceneSkipped";
                 }
-                else if (damageEffectsActive)
-                {
-                    runStarted = true;
-                    runStartReason = "LifepodRadioDamaged";
-                }
-                else if (!_startedBefore &&
+                else if (enableCreativeStarts &&
                          !isMainMenuNow &&
                          !shouldBlockForLoading)
                 {
@@ -707,11 +701,6 @@ namespace SubnauticaLauncher.Gameplay
                     {
                         runStarted = true;
                         runStartReason = "CreativeHorizontalMove";
-                    }
-                    else if (jumpTriggered)
-                    {
-                        runStarted = true;
-                        runStartReason = "CreativeJump";
                     }
                     else if (pdaTriggered)
                     {
@@ -728,12 +717,14 @@ namespace SubnauticaLauncher.Gameplay
 
             _previousIntroCinematicActive = hasIntro && introActive;
             _previousPlayerCinematicActive = hasAnimation && animationActive;
-            _previousDamageEffectsShowing = hasDamageEffects && damageEffectsShowing;
             _previousCreativeMoveActive = hasCreativeMove && creativeMoveActive;
             _previousCreativeJumping = hasCreativeJump && creativeJumping;
             _previousCreativePdaOpen = hasPdaOpen && creativePdaOpen;
             _previousCreativeFabricatorActive = hasFabricator && creativeFabricatorActive;
             _previousRunStartMainMenu = isMainMenuSample;
+            _hasPreviousOxygen = hasOxygen;
+            if (hasOxygen)
+                _previousOxygen = oxygenValue;
 
             if (!runStarted)
                 return false;
@@ -1215,12 +1206,13 @@ namespace SubnauticaLauncher.Gameplay
             _hasRunStartBaseline = false;
             _previousIntroCinematicActive = false;
             _previousPlayerCinematicActive = false;
-            _previousDamageEffectsShowing = false;
             _previousCreativeMoveActive = false;
             _previousCreativeJumping = false;
             _previousCreativePdaOpen = false;
             _previousCreativeFabricatorActive = false;
             _previousRunStartMainMenu = false;
+            _previousOxygen = 0;
+            _hasPreviousOxygen = false;
             _notInGameStableSamples = 0;
             _startedFromCreative = false;
             _awaitingSurvivalAfterCreativeCutscene = false;

@@ -197,10 +197,20 @@
                         <ComboBoxItem Content="Large" Tag="Large"/>
                     </ComboBox>
 
-                    <CheckBox x:Name="UnlockPopupCheckBox"
-                              Content="Unlock Popup"
-                              Foreground="White"
-                              Margin="0,10,0,0"/>
+                    <WrapPanel Margin="0,10,0,0">
+                        <CheckBox x:Name="UnlockPopupCheckBox"
+                                  Content="Unlock Popup"
+                                  Foreground="White"
+                                  Margin="0,0,14,6"/>
+                        <CheckBox x:Name="SurvivalStartCheckBox"
+                                  Content="Survival/Hardcore Tracker Starts"
+                                  Foreground="White"
+                                  Margin="0,0,14,6"/>
+                        <CheckBox x:Name="CreativeStartCheckBox"
+                                  Content="Creative Tracker Starts"
+                                  Foreground="White"
+                                  Margin="0,0,14,6"/>
+                    </WrapPanel>
 
                     <Border Height="1" Background="#55FFFFFF" Margin="0,12,0,10"/>
 

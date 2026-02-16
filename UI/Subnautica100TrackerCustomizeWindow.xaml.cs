@@ -18,6 +18,8 @@ namespace SubnauticaLauncher.UI
         public Subnautica100TrackerCustomizeWindow(
             Subnautica100TrackerOverlaySize currentSize,
             bool unlockPopupEnabled,
+            bool survivalStartsEnabled,
+            bool creativeStartsEnabled,
             bool biomeTrackerEnabled,
             SubnauticaBiomeTrackerCycleMode biomeCycleMode,
             SubnauticaBiomeTrackerScrollSpeed biomeScrollSpeed)
@@ -30,11 +32,15 @@ namespace SubnauticaLauncher.UI
             SelectComboByTag(BiomeSpeedComboBox, biomeScrollSpeed.ToString(), fallbackIndex: 1);
 
             UnlockPopupCheckBox.IsChecked = unlockPopupEnabled;
+            SurvivalStartCheckBox.IsChecked = survivalStartsEnabled;
+            CreativeStartCheckBox.IsChecked = creativeStartsEnabled;
             BiomeTrackerEnabledCheckBox.IsChecked = biomeTrackerEnabled;
         }
 
         public Subnautica100TrackerOverlaySize SelectedSize { get; private set; } = Subnautica100TrackerOverlaySize.Medium;
         public bool UnlockPopupEnabled { get; private set; } = true;
+        public bool SurvivalStartsEnabled { get; private set; } = true;
+        public bool CreativeStartsEnabled { get; private set; } = true;
         public bool BiomeTrackerEnabled { get; private set; }
         public SubnauticaBiomeTrackerCycleMode BiomeCycleMode { get; private set; } = SubnauticaBiomeTrackerCycleMode.Databanks;
         public SubnauticaBiomeTrackerScrollSpeed BiomeScrollSpeed { get; private set; } = SubnauticaBiomeTrackerScrollSpeed.Medium;
@@ -43,6 +49,8 @@ namespace SubnauticaLauncher.UI
         {
             SelectedSize = ReadEnumSelection(SizeComboBox, Subnautica100TrackerOverlaySize.Medium);
             UnlockPopupEnabled = UnlockPopupCheckBox.IsChecked == true;
+            SurvivalStartsEnabled = SurvivalStartCheckBox.IsChecked == true;
+            CreativeStartsEnabled = CreativeStartCheckBox.IsChecked == true;
             BiomeTrackerEnabled = BiomeTrackerEnabledCheckBox.IsChecked == true;
             BiomeCycleMode = ReadEnumSelection(BiomeCycleComboBox, SubnauticaBiomeTrackerCycleMode.Databanks);
             BiomeScrollSpeed = ReadEnumSelection(BiomeSpeedComboBox, SubnauticaBiomeTrackerScrollSpeed.Medium);
