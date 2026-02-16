@@ -26,119 +26,434 @@ namespace SubnauticaLauncher.Gameplay
             {
                 ["Safe Shallows"] = new(
                     new[]
-                    {               
-                        "4546B Environment Scan",
-                        "Bladderfish",
-                        "Boomerang",
-                        "Floater",
-                        "Garryfish",
-                        "Gasopod",
-                        "Holefish",
-                        "Peeper",
-                        "Rabbit Ray",
-                        "Crashfish",
-                        "Shuttlebug",
-                        "Acid Mushroom",
-                        "Blue Palm",
-                        "Veined Nettle",
-                        "Writhing Weed",
-                        "Sulfur Plant",
-                        "Brain Coral",
-                        "Coral Shell Plate",
-                        "Giant Coral Tubes",
-                        "Table Coral",
-                        "Alien Eggs",
-                        "Scattered Wreckage",
-                        "Degasi Crew Manifest: Paul Torgal",
-                        "Limestone Outcrops",
-                        "Sandstone Outcrops",
+                    {
+                "4546B Environment Scan",
+                "Bladderfish",
+                "Boomerang",
+                "Floater",
+                "Garryfish",
+                "Gasopod",
+                "Holefish",
+                "Peeper",
+                "Rabbit Ray",
+                "Crashfish",
+                "Shuttlebug",
+                "Acid Mushroom",
+                "Blue Palm",
+                "Veined Nettle",
+                "Writhing Weed",
+                "Sulfur Plant",
+                "Brain Coral",
+                "Coral Shell Plate",
+                "Giant Coral Tubes",
+                "Table Coral",
+                "Alien Eggs",
+                "Scattered Wreckage",
+                "Degasi Crew Manifest: Paul Torgal",
+                "Limestone Outcrops",
+                "Sandstone Outcrops",
                     },
                     new[]
                     {
-                        
-                        "Trash Can",                        
-                        "Grav Trap",
-                        "Beacon",
-                        "Seaglide",
-                        "Air Bladder",
-                        "Filtered Water",
-                        "Cooked + Cured Holefish",
-                        "Cooked + Cured Peeper",
-                        "Cooked + Cured Bladderfish",
-                        "Cooked + Cured Garryfish",
-                        "Cooked + Cured Boomerang",
+                "Trash Can",
+                "Grav Trap",
+                "Beacon",
+                "Mobile Vehicle Bay",
+                "Seaglide",
+                "Stasis Rifle",
+                "Air Bladder",
+                "Filtered Water",
+                "Cooked + Cured Holefish",
+                "Cooked + Cured Peeper",
+                "Cooked + Cured Bladderfish",
+                "Cooked + Cured Garryfish",
+                "Cooked + Cured Boomerang",
+                "Power Cell",
+                "Disinfected Water",
+                "High Capacity O2 Tank",
+                "Rebreather",
                     }),
                 ["Kelp Forest"] = new(
                     new[]
                     {
-                        "Bioreactor",
-                        "Alien Eggs",
-                        "Floodlight",
-                        "Brain Coral",
-                        "Giant Coral Tubes",
-                        "Creepvine",
-                        "Drooping Stinger",
-                        "Boomerang",
-                        "Hoopfish",
-                        "Hoverfish",
-                        "Peeper",
-                        "Rabbit Ray",
-                        "Stalker Tooth",
-                        "Stalker",
-                        "Mesmer",
-                        "Scattered Wreckage",
-                        "Sandstone Outcrops",
-                        "Limestone Outcrops",
-                        "Lifepod 3 Crew Log",
-                        "Degasi Crew Manifest: Bart Torgal",
-                        "Creepvine Seeds",
+                "Bioreactor",
+                "Stasis Rifle",
+                "Alien Eggs",
+                "Floodlight",
+                "Brain Coral",
+                "Creepvine",
+                "Drooping Stinger",
+                "Eye Stalk",
+                "Sulfur Plant",
+                "Crashfish",
+                "Boomerang",
+                "Eyeye",
+                "Hoopfish",
+                "Hoverfish",
+                "Peeper",
+                "Rabbit Ray",
+                "Stalker Tooth",
+                "Stalker",
+                "Mesmer",
+                "Shuttlebug",
+                "Scattered Wreckage",
+                "Sandstone Outcrops",
+                "Limestone Outcrops",
+                "Lifepod 3 Crew Log",
+                "Degasi Crew Manifest: Bart Torgal",
+                "Creepvine Seeds"
                     },
                     new[]
                     {
-                        "Swivel Chair",
-                        "Grav Trap",
-                        "Desk",
-                        "Bench",
-                        "Bioreactor",
-                        "Floodlight",
-                        "Mobile Vehicle Bay",
-                        "Seaglide",
-                        "Stasis Rifle",
-                        "Compass",
-                        "Fiber Mesh",
-                        "Lubricant",
-                        "Enameled Glass",
-                        "Cooked + Cured Peeper",
-                        "Cooked + Cured Hoverfish",
-                        "Cooked + Cured Boomerang",
-                        "Cooked + Cured Eyeye",
-                        "Cooked + Cured Hoopfish",
-                        "Pathfinder Tool",
+                "Swivel Chair",
+                "Grav Trap",
+                "Desk",
+                "Bench",
+                "Bioreactor",
+                "Floodlight",
+                "Mobile Vehicle Bay",
+                "Seaglide",
+                "Stasis Rifle",
+                "Compass",
+                "Fiber Mesh",
+                "Lubricant",
+                "Enameled Glass",
+                "Cooked + Cured Peeper",
+                "Cooked + Cured Hoverfish",
+                "Cooked + Cured Boomerang",
+                "Cooked + Cured Eyeye",
+                "Cooked + Cured Hoopfish",
+                "Pathfinder Tool",
                     }),
-                ["Grassy Plateaus"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Mushroom Forest"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Jellyshroom Caves"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Bulb Zone"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Mountains"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Floating Island"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Underwater Islands"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Crash Zone"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Aurora"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Dunes"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Crag Field"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Sparse Reef"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Sea Treader's Path"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Grand Reef"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Blood Kelp Zone"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Blood Kelp Trench"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Lost River"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Inactive Lava Zone"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Active Lava Zone"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Alien Thermal Plant"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Disease Research Facility"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Primary Containment Facility"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Aquarium"] = new(Array.Empty<string>(), Array.Empty<string>()),
-                ["Quarantine Enforcement Platform"] = new(Array.Empty<string>(), Array.Empty<string>()),
+                ["Grassy Plateaus"] = new(
+                    new[]
+                    {
+                "Bioreactor",
+                "Scanner Room",
+                "Modification Station",
+                "Alien Eggs",
+                "Floodlight",
+                "Planters & Pots",
+                "Seamoth",
+                "Brain Coral",
+                "Coral Shell Plate",
+                "Giant Coral Tubes",
+                "Table Coral",
+                "Acid Mushroom",
+                "Furled Papyrus",
+                "Drooping Stinger",
+                "Redwort",
+                "Tiger Plant",
+                "Veined Nettle",
+                "Violet Beau",
+                "Writhing Weed",
+                "Regress Shell",
+                "Rouge Cradle",
+                "Biter",
+                "Boomerang",
+                "Floater",
+                "Hoopfish",
+                "Peeper",
+                "Reefback Leviathan",
+                "Reginald",
+                "Rockgrub",
+                "Sand Shark",
+                "Shuttlebug",
+                "Spadefish",
+                "Scattered Wreckage",
+                "Sandstone Outcrops",
+                "Limestone Outcrops",
+                "Lifepod 17 Crew Log",
+                "Lifepod 6 Crew Log #1",
+                "Lifepod 6 Crew Log #2",
+                "Lifepod 6 Transmission Origin",
+                "Degasi Crew Manifest: Marguerit Maida",
+                "Propulsion Cannon",
+                "Alterra Citizen Testimonials",
+                "Trans-Gov Profile: Mongolian Independent States",
+                    },
+                    new[]
+                    {
+                "Nuclear Waste Disposal",
+                "Trash Can",
+                "Command Chair",
+                "Swivel Chair",
+                "Desk",
+                "Bench",
+                "Plant Shelf",
+                "Chic Plant Pot",
+                "Composite Plant Pot",
+                "Basic Plant Pot",
+                "Modification Station",
+                "Battery Charger",
+                "Bioreactor",
+                "Floodlight",
+                "Scanner Room",
+                "Vehicle Upgrade Console",
+                "Ultra Glide Fins",
+                "Lightweight High Capacity Tank",
+                "Seamoth",
+                "Mobile Vehicle Bay",
+                "Propulsion Cannon",
+                "Laser Cutter",
+                "Cooked + Cured Spadefish",
+                "Plasteel Ingot",
+                "Cooked + Cured Peeper",
+                "Cooked + Cured Reginald",
+                "Cooked + Cured Boomerang",
+                "Cooked + Cured Hoopfish",
+                    }),
+                ["Mushroom Forest"] = new(
+                    new[]
+                    {
+                "Planters & Pots",
+                "Modification Station",
+                "Floodlight",
+                "Light Stick",
+                "Moonpool",
+                "Cyclops",
+                "Tree Mushrooms",
+                "Brain Coral",
+                "Coral Shell Plate",
+                "Acid Mushroom",
+                "Pygmy Fan",
+                "Tree Leech",
+                "Veined Nettle",
+                "Writhing Weed",
+                "Boneshark",
+                "Holefish",
+                "Jellyray",
+                "Mesmer",
+                "Peeper",
+                "Reefback Leviathan",
+                "Shuttlebug",
+                "Spadefish",
+                "Alien Eggs",
+                "Shale Outcrops",
+                "Limestone Outcrops",
+                "Alien Arch",
+                "Alien Vent",
+                "Aurora Scanner Room Voice Log",
+                "Lifepod 13 Emissary's Voicelog",            
+                    },
+                    new[]
+                    {
+                "Command Chair",
+                "Office Chair",
+                "Desk",
+                "Bench",
+                "Cyclops Bridge",
+                "Cyclops Hull",
+                "Plant Shelf",
+                "Composite Plant Pot",
+                "Modification Station",
+                "Power Cell Charger",
+                "Floodlight",
+                "Power Transmitter",
+                "Moonpool",
+                "Cyclops",
+                "Vehicle Upgrade Console",
+                "Ultra Glide Fins",
+                "Light Stick",
+                "Cooked + Cured Peeper",
+                "Cooked + Cured Spadefish",
+                    }),
+                ["Jellyshroom Caves"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Bulb Zone"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Mountains"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Floating Island"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Underwater Islands"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Crash Zone"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Aurora"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Dunes"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Crag Field"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Sparse Reef"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Sea Treader's Path"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Grand Reef"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Blood Kelp Zone"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Blood Kelp Trench"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Lost River"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Inactive Lava Zone"] = new(new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Active Lava Zone"] = new(new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Alien Thermal Plant"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Disease Research Facility"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Primary Containment Facility"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Aquarium"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
+                ["Quarantine Enforcement Platform"] = new(
+                    new[]
+                    {
+                        "",
+                    },
+                    new[]
+                    {
+                        "",
+                    }),
                 ["Void"] = new(Array.Empty<string>(), Array.Empty<string>()),
             };
 
@@ -256,20 +571,6 @@ namespace SubnauticaLauncher.Gameplay
                 "Degasi Crew Manifest: Paul Torgal",
                 "Limestone Outcrops",
                 "Sandstone Outcrops",
-                "2-Berth Emergency Lifepod",
-                "All-Environment Protection Suit",
-                "Aurora Ship Status",
-                "Start Here",
-                "Survival Checklist",
-                "WARNING: Blueprint Database Corrupted",
-                "Air Pumps",
-                "Handheld Scanner",
-                "Fabricator",
-                "Habitat Builder",
-                "Solar Panel",
-                "Mobile Vehicle Bay",
-                "Seaglide",
-                "Repair Tool",
                 "Laser Cutter",
                 "Radiation Suit",
             }, new string[]
@@ -293,60 +594,11 @@ namespace SubnauticaLauncher.Gameplay
                 "Cooked + Cured Bladderfish",
                 "Cooked + Cured Garryfish",
                 "Cooked + Cured Boomerang",
-                "Titanium",
-                "Titanium Ingot",
-                "Silicone Rubber",
-                "Glass",
-                "Bleach",
-                "Copper Wire",
-                "Battery",
                 "Power Cell",
-                "Computer Chip",
-                "Wiring Kit",
-                "Advanced Wiring Kit",
                 "Disinfected Water",
-                "Standard O2 Tank",
                 "High Capacity O2 Tank",
-                "Fins",
-                "First Aid Kit",
-                "Fire Extinguisher",
                 "Rebreather",
-                "Pipe",
-                "Floating Air Pump",
-                "Scanner",
-                "Repair Tool",
-                "Flashlight",
-                "Survival Knife",
-                "Flare",
-                "Habitat Builder",
-                "Radio",
-                "Waterproof Locker",
-                "Locker",
-                "Wall Locker",
-                "Medical Kit Fabricator",
-                "Fabricator",
-                "Solar Panel",
-                "Foundation",
-                "I Compartment",
-                "L Compartment",
-                "T Compartment",
-                "X Compartment",
-                "I Glass Compartment",
-                "L Glass Compartment",
-                "Vertical Connector",
-                "Ladder",
-                "Hatch",
-                "Window",
-                "Reinforcement",
-                "Base-Attached Air Pump",
-                "Sign",
-                "Aquarium",
-                "Thermoblade",
-                "Radiation Suit",
-                "Neptune Gantry",
-                "Neptune Ion Boosters",
-                "Neptune Fuel Reserve",
-                "Neptune Cockpit",
+                "Radiation Suit",                
             });
 
             AddGroup(groups, "Kelp Forest", new string[]
