@@ -193,6 +193,7 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousCreativePdaOpen;
         private bool _previousCreativeFabricatorActive;
         private int _notInGameStableSamples;
+        private bool _startedFromCreative;
         private bool _startedBefore;
 
         public DynamicMonoGameplayEventTracker(string gameName)
@@ -600,6 +601,7 @@ namespace SubnauticaLauncher.Gameplay
                 if (isMainMenuNow)
                 {
                     _startedBefore = false;
+                    _startedFromCreative = false;
                     _hasRunStartBaseline = false;
                     return false;
                 }
@@ -621,6 +623,7 @@ namespace SubnauticaLauncher.Gameplay
                 if (_notInGameStableSamples >= RunStartFallbackMenuResetSamples)
                 {
                     _startedBefore = false;
+                    _startedFromCreative = false;
                     _hasRunStartBaseline = false;
                 }
             }
@@ -650,9 +653,15 @@ namespace SubnauticaLauncher.Gameplay
             bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
             bool inStartCutscene =
                 (hasIntro && introActive) ||
-                (hasAnimation && animationActive);
+                (hasAnimation && animationActive) ||
+                (hasSkipProgress && skipProgress > 0.02f);
 
-            if (!_startedBefore && inGameSession && !shouldBlockForLoading)
+            bool allowNewStartOrFallbackRestart =
+                (!_startedBefore || _startedFromCreative) &&
+                inGameSession &&
+                !shouldBlockForLoading;
+
+            if (allowNewStartOrFallbackRestart)
             {
                 if (introEnded)
                 {
@@ -675,7 +684,8 @@ namespace SubnauticaLauncher.Gameplay
                     runStarted = true;
                     runStartReason = "LifepodRadioDamaged";
                 }
-                else if (!isMainMenuNow &&
+                else if (!_startedBefore &&
+                         !isMainMenuNow &&
                          !inStartCutscene)
                 {
                     if (movedTriggered)
@@ -713,6 +723,7 @@ namespace SubnauticaLauncher.Gameplay
                 return false;
 
             _startedBefore = true;
+            _startedFromCreative = runStartReason.StartsWith("Creative", StringComparison.Ordinal);
             reason = runStartReason;
             return true;
         }
@@ -1121,6 +1132,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativePdaOpen = false;
             _previousCreativeFabricatorActive = false;
             _notInGameStableSamples = 0;
+            _startedFromCreative = false;
             _startedBefore = false;
         }
 
