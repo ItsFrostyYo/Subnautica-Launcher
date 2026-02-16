@@ -202,6 +202,7 @@ namespace SubnauticaLauncher.Gameplay
         private static bool _toastVisible;
         private static double _overlayLeft;
         private static double _overlayTop;
+        private static bool _runStartedFromCreative;
         private static string _currentBiomeCanonical = string.Empty;
         private static double _biomeScrollOffset;
         private static DateTime _lastBiomeScrollUtc = DateTime.MinValue;
@@ -608,13 +609,24 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (evt.Type == GameplayEventType.RunStarted)
                 {
+                    bool creativeStart = IsCreativeRunStart(evt.Key);
+                    bool survivalStart = IsSurvivalRunStart(evt.Key);
+
                     if (!_runActive)
                     {
-                        StartRunState();
-                        if (IsCreativeRunStart(evt.Key))
+                        StartRunState(creativeStart);
+                        if (creativeStart)
                             ApplyCreativeDatabankExclusions();
                         ApplyPendingPreRunUnlocks();
                         Logger.Log($"[100Tracker] Run started from RunStarted event. reason={evt.Key}");
+                        UpdateOverlayText();
+                    }
+                    else if (_runStartedFromCreative && survivalStart)
+                    {
+                        Logger.Log(
+                            $"[100Tracker] Run start fallback: restarting from creative provisional start to survival start. reason={evt.Key}");
+                        StartRunState(creativeStart: false);
+                        ApplyPendingPreRunUnlocks();
                         UpdateOverlayText();
                     }
 
@@ -743,6 +755,15 @@ namespace SubnauticaLauncher.Gameplay
             string normalized = NormalizeEventName(runStartKey);
             return normalized.StartsWith("creative", StringComparison.Ordinal)
                 || normalized.StartsWith("fallback", StringComparison.Ordinal);
+        }
+
+        private static bool IsSurvivalRunStart(string runStartKey)
+        {
+            string normalized = NormalizeEventName(runStartKey);
+            return normalized == "introcinematicended"
+                || normalized == "playeranimationended"
+                || normalized == "cutsceneskipped"
+                || normalized == "lifepodradiodamaged";
         }
 
         private static void ApplyCreativeDatabankExclusions()
@@ -1325,6 +1346,7 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             _runActive = false;
+            _runStartedFromCreative = false;
             _toastVisible = false;
             _currentBiomeCanonical = string.Empty;
             _biomeScrollOffset = 0;
@@ -1344,9 +1366,10 @@ namespace SubnauticaLauncher.Gameplay
             });
         }
 
-        private static void StartRunState()
+        private static void StartRunState(bool creativeStart)
         {
             _runActive = true;
+            _runStartedFromCreative = creativeStart;
             _biomeScrollOffset = 0;
             _lastBiomeScrollUtc = DateTime.MinValue;
             _collectPreRunUnlocks = false;
