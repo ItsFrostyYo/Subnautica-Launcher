@@ -1,0 +1,21 @@
+[
+  {
+    "key": "f5",
+    "command": "workbench.action.tasks.runTask",
+    "args": "launch-app"
+  },
+  {
+    "key": "ctrl+f5",
+    "command": "workbench.action.debug.start",
+    "when": "debuggersAvailable && !inDebugMode"
+  },
+  {
+    "key": "f4",
+    "command": "workbench.action.tasks.build"
+  },
+  {
+    "key": "f3",
+    "command": "workbench.action.tasks.runTask",
+    "args": "clean"
+  }
+]
