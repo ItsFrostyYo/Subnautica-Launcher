@@ -19,6 +19,9 @@ namespace SubnauticaLauncher.Gameplay
         private const int MaxPlausibleItemCount = 10000;
         private const int MaxKnownTechType = 10005;
         private const int RunStartFallbackMenuResetSamples = 6;
+        private const int FabricatorMenuInteractValue = 1;
+        private const int PdaOpenValue = 1051931443;
+        private const int PdaClosedValue = 1056964608;
         private const float MainMenuPosX = 0f;
         private const float MainMenuPosY = 1.75f;
         private const float MainMenuPosZ = 0f;
@@ -180,6 +183,11 @@ namespace SubnauticaLauncher.Gameplay
         private readonly DeepPointer? _legacyStrafeDir;
         private readonly DeepPointer? _modernWalkDir;
         private readonly DeepPointer? _modernStrafeDir;
+        private readonly DeepPointer? _legacyFabricatorMenuState;
+        private readonly DeepPointer? _modernFabricatorMenuState;
+        private readonly DeepPointer? _legacyPdaOpenState;
+        private readonly DeepPointer? _modernPdaOpenState;
+        private readonly DeepPointer? _modernPdaOpenStateAlt;
         private readonly DeepPointer? _legacySkipProgress;
         private readonly DeepPointer? _modernSkipProgress;
         private readonly DeepPointer? _legacyBiome;
@@ -194,6 +202,7 @@ namespace SubnauticaLauncher.Gameplay
         private bool _previousCreativeFabricatorActive;
         private int _notInGameStableSamples;
         private bool _startedFromCreative;
+        private bool _awaitingSurvivalAfterCreativeCutscene;
         private bool _startedBefore;
 
         public DynamicMonoGameplayEventTracker(string gameName)
@@ -215,6 +224,13 @@ namespace SubnauticaLauncher.Gameplay
                 _legacyStrafeDir = new DeepPointer("Subnautica.exe", 0x142B8C8, 0x158, 0x40, 0x160);
                 _modernWalkDir = new DeepPointer("UnityPlayer.dll", 0x17FBC28, 0x30, 0x98);
                 _modernStrafeDir = new DeepPointer("UnityPlayer.dll", 0x17FBC28, 0x30, 0x150);
+
+                _legacyFabricatorMenuState = new DeepPointer("mono.dll", 0x296BC8, 0x20, 0xA58, 0x20);
+                _modernFabricatorMenuState = new DeepPointer("UnityPlayer.dll", 0x183BF48, 0x8, 0x10, 0x30, 0x30, 0x28, 0x128);
+
+                _legacyPdaOpenState = new DeepPointer("mono.dll", 0x2655E0, 0x40, 0x18, 0xA0, 0x920, 0x64);
+                _modernPdaOpenState = new DeepPointer("mono-2.0-bdwgc.dll", 0x499C40, 0xE84);
+                _modernPdaOpenStateAlt = new DeepPointer("mono.dll", 0x499C40, 0xE84);
 
                 _legacySkipProgress = new DeepPointer("mono.dll", 0x17FBC48, 0x1F0, 0x1E8, 0x4E0, 0xB10, 0xD0, 0x8, 0x68, 0x30, 0x40, 0x30, 0xF4);
                 _modernSkipProgress = new DeepPointer("UnityPlayer.dll", 0x17FBC48, 0x1F0, 0x1E8, 0x4E0, 0xB10, 0xD0, 0x8, 0x68, 0x30, 0x40, 0x30, 0xF4);
@@ -602,6 +618,7 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _startedBefore = false;
                     _startedFromCreative = false;
+                    _awaitingSurvivalAfterCreativeCutscene = false;
                     _hasRunStartBaseline = false;
                     return false;
                 }
@@ -624,6 +641,7 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     _startedBefore = false;
                     _startedFromCreative = false;
+                    _awaitingSurvivalAfterCreativeCutscene = false;
                     _hasRunStartBaseline = false;
                 }
             }
@@ -663,8 +681,15 @@ namespace SubnauticaLauncher.Gameplay
             {
                 if (_startedFromCreative && inStartCutscene)
                 {
-                    runStarted = true;
-                    runStartReason = "CutsceneDetectedAfterCreativeStart";
+                    _awaitingSurvivalAfterCreativeCutscene = true;
+                }
+                if (_startedFromCreative && _awaitingSurvivalAfterCreativeCutscene)
+                {
+                    if (hasDamageEffects && damageEffectsShowing)
+                    {
+                        runStarted = true;
+                        runStartReason = "LifepodRadioDamaged";
+                    }
                 }
                 else if (skipProgressHigh)
                 {
@@ -717,6 +742,7 @@ namespace SubnauticaLauncher.Gameplay
 
             _startedBefore = true;
             _startedFromCreative = runStartReason.StartsWith("Creative", StringComparison.Ordinal);
+            _awaitingSurvivalAfterCreativeCutscene = false;
             reason = runStartReason;
             return true;
         }
@@ -806,6 +832,9 @@ namespace SubnauticaLauncher.Gameplay
         {
             pdaOpen = false;
 
+            if (TryReadCreativePdaOpenStatic(proc, out pdaOpen))
+                return true;
+
             if (!_uGuiPdaMainField.IsValid || !_hasPdaTabOpenOffset)
                 return false;
 
@@ -825,6 +854,9 @@ namespace SubnauticaLauncher.Gameplay
         private bool TryReadCreativeFabricatorInteraction(Process proc, out bool interacting)
         {
             interacting = false;
+
+            if (TryReadCreativeFabricatorStatic(proc, out interacting))
+                return true;
 
             if (!_uGuiCraftingMenuMainField.IsValid || !_hasCraftingMenuClientOffset)
                 return false;
@@ -852,6 +884,72 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return false;
+        }
+
+        private bool TryReadCreativePdaOpenStatic(Process proc, out bool pdaOpen)
+        {
+            pdaOpen = false;
+
+            if (TryReadPdaOpenFromPointer(proc, _modernPdaOpenState, out pdaOpen) ||
+                TryReadPdaOpenFromPointer(proc, _modernPdaOpenStateAlt, out pdaOpen) ||
+                TryReadPdaOpenFromPointer(proc, _legacyPdaOpenState, out pdaOpen))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryReadPdaOpenFromPointer(Process proc, DeepPointer? ptr, out bool pdaOpen)
+        {
+            pdaOpen = false;
+
+            if (ptr == null || !ptr.Deref(proc, out IntPtr address) || address == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadInt32(proc, address, out int value))
+                return false;
+
+            if (value == PdaOpenValue)
+            {
+                pdaOpen = true;
+                return true;
+            }
+
+            if (value == PdaClosedValue)
+                return true;
+
+            return false;
+        }
+
+        private bool TryReadCreativeFabricatorStatic(Process proc, out bool interacting)
+        {
+            interacting = false;
+
+            if (TryReadFabricatorFromPointer(proc, _modernFabricatorMenuState, out interacting) ||
+                TryReadFabricatorFromPointer(proc, _legacyFabricatorMenuState, out interacting))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryReadFabricatorFromPointer(Process proc, DeepPointer? ptr, out bool interacting)
+        {
+            interacting = false;
+
+            if (ptr == null || !ptr.Deref(proc, out IntPtr address) || address == IntPtr.Zero)
+                return false;
+
+            if (!MemoryReader.ReadInt32(proc, address, out int value))
+                return false;
+
+            if (value < 0 || value > 3)
+                return false;
+
+            interacting = value == FabricatorMenuInteractValue;
+            return true;
         }
 
         private bool TryReadGameMode(Process proc, out int gameMode)
@@ -1126,6 +1224,7 @@ namespace SubnauticaLauncher.Gameplay
             _previousCreativeFabricatorActive = false;
             _notInGameStableSamples = 0;
             _startedFromCreative = false;
+            _awaitingSurvivalAfterCreativeCutscene = false;
             _startedBefore = false;
         }
 
