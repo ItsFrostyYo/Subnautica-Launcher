@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using SubnauticaLauncher.Core;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Versioning;
 

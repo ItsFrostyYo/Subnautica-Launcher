@@ -1,5 +1,6 @@
-﻿using SubnauticaLauncher;
+using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Versions;
 using System;
 using System.IO;

@@ -1,4 +1,5 @@
-﻿using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Installer;
 using System;
 using System.IO;
 using System.Threading.Tasks;

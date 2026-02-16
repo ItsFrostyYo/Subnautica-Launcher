@@ -1,3 +1,4 @@
+using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Gameplay;
 using System;
 using System.Collections.Generic;

@@ -1,9 +1,12 @@
-﻿using System;
+using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Explosion;
+using SubnauticaLauncher.Macros;
+using SubnauticaLauncher.Settings;
+using System;
 using System.IO;
 using System.Linq;
 using System.Windows.Input;
-using SubnauticaLauncher.Explosion;
-using SubnauticaLauncher.Macros;
 
 namespace SubnauticaLauncher.Installer
 {

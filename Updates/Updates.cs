@@ -32,9 +32,22 @@ public static class Updates
     {
           new UpdateEntry
     {
+        Version = "2.2.2",
+        Title = "Code Update",
+        Date = "Feb 16, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Code Cleanup and Updates",
+            "Small UI Updates",
+            "Improved Memory Reading for Improved Gameplay Reading"
+        }
+    },
+          
+          new UpdateEntry
+    {
         Version = "2.2.1",
         Title = "Biome Tracker Hotfix",
-        Date = "Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
+        Date = "Feb 15, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
         Changes = new[]
         {
             "Fixed All Biomes Databanks and Blueprints",
@@ -46,7 +59,7 @@ public static class Updates
     {
         Version = "2.2.0",
         Title = "100% Tracker Additions",
-        Date = "Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
+        Date = "Feb 14, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.",
         Changes = new[]
         {
             "Tracks Unlocked Blueprints Per Biome",

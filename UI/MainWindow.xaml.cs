@@ -1,8 +1,11 @@
-﻿using SubnauticaLauncher.BelowZero;
+using SubnauticaLauncher.BelowZero;
+using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Explosion;
 using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Macros;
+using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
 using System;
@@ -403,7 +406,7 @@ namespace SubnauticaLauncher.UI
             if (ExplosionPresetDropdown.SelectedItem is ComboBoxItem item &&
                 item.Tag is string tag)
             {
-                ExplosionResetSettings.Preset = Enum.Parse<ExplosionResetPreset>(tag);
+                ExplosionResetSettings.Preset = Enum.Parse<Enums.ExplosionResetPreset>(tag);
                 ExplosionResetSettings.Save();
 
                 Logger.Log($"Explosion reset preset set to {ExplosionResetSettings.Preset}");

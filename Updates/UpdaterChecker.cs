@@ -1,4 +1,5 @@
-﻿using System;
+using SubnauticaLauncher.Core;
+using System;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;

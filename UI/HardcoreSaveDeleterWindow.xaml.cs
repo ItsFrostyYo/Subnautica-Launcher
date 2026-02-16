@@ -1,4 +1,7 @@
-﻿using System;
+using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Settings;
+using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -7,19 +10,6 @@ using System.Windows.Media.Imaging;
 
 namespace SubnauticaLauncher.UI
 {
-    public enum HardcoreSaveTargetGame
-    {
-        Subnautica,
-        BelowZero,
-        Both
-    }
-
-    public enum HardcoreSaveTargetScope
-    {
-        ActiveOnly,
-        AllVersions
-    }
-
     public partial class HardcoreSaveDeleterWindow : Window
     {
         private const string DefaultBg = "Lifepod";

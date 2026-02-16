@@ -1,4 +1,6 @@
 using SubnauticaLauncher.BelowZero;
+using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Versions;
 using System;
 using System.Diagnostics;

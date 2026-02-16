@@ -1,3 +1,5 @@
+using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Settings;
 using System;
 using System.Linq;
 using System.Windows;
@@ -5,7 +7,6 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using SubnauticaLauncher.Gameplay;
 using ComboBox = System.Windows.Controls.ComboBox;
 using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 

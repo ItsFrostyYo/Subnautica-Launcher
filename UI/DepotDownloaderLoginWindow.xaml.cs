@@ -1,9 +1,10 @@
-﻿using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Installer;
+using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.UI;
 using SubnauticaLauncher.Updates;
 using SubnauticaLauncher.Versions;
-using SubnauticaLauncher; // Logger
 using System;
 using System.IO;
 using System.Windows;

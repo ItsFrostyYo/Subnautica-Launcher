@@ -1,4 +1,5 @@
-﻿using SubnauticaLauncher.Display;
+using SubnauticaLauncher.Display;
+using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Macros;
 using System;
 using System.Diagnostics;

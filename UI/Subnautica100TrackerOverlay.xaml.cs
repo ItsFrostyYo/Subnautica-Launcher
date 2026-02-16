@@ -1,6 +1,6 @@
+using SubnauticaLauncher.Enums;
 using System;
 using System.Windows;
-using SubnauticaLauncher.Gameplay;
 
 namespace SubnauticaLauncher.UI
 {
