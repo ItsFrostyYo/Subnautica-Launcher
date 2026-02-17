@@ -133,12 +133,12 @@
                                Visibility="Collapsed"
                                FontSize="12"
                                Foreground="#D0E7F2"
-                               Text="Using remembered login. Password input is optional."/>
+                               Text="If this is your first remembered login setup, enter password once so DepotDownloader can save a sentry cache."/>
 
                     <CheckBox x:Name="RememberPasswordCheck"
                               Content="Remember password in DepotDownloader (Steam sentry cache)"/>
                     <CheckBox x:Name="UseRememberedLoginCheck"
-                              Content="Use remembered login only (skip password argument)"
+                              Content="Use remembered login only when cache already exists"
                               Click="UseRememberedLoginCheck_Click"/>
                     <CheckBox x:Name="PreferTwoFactorCodeCheck"
                               Content="Prefer code entry over mobile confirmation (-no-mobile)"

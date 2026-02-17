@@ -60,6 +60,7 @@ namespace SubnauticaLauncher.Settings
         public bool DepotDownloaderRememberPassword { get; set; } = false;
         public bool DepotDownloaderUseRememberedLoginOnly { get; set; } = false;
         public bool DepotDownloaderPreferTwoFactorCode { get; set; } = true;
+        public bool DepotDownloaderRememberedLoginSeeded { get; set; } = false;
 
         public static void Load()
         {

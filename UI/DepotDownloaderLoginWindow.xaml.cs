@@ -81,7 +81,7 @@ namespace SubnauticaLauncher.UI
         private void SyncPasswordState()
         {
             bool usingRemembered = UseRememberedLoginCheck.IsChecked == true;
-            PasswordBox.IsEnabled = !usingRemembered;
+            PasswordBox.IsEnabled = true;
             PasswordHintText.Visibility = usingRemembered ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -122,6 +122,7 @@ namespace SubnauticaLauncher.UI
             string username = UsernameBox.Text.Trim();
             bool useRemembered = UseRememberedLoginCheck.IsChecked == true;
             string password = PasswordBox.Password;
+            bool hasPassword = !string.IsNullOrWhiteSpace(password);
 
             if (string.IsNullOrWhiteSpace(username))
             {
@@ -129,9 +130,18 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (!useRemembered && string.IsNullOrWhiteSpace(password))
+            if (!useRemembered && !hasPassword)
             {
                 StatusText.Text = "Steam password is required unless using remembered login.";
+                return;
+            }
+
+            if (useRemembered &&
+                !hasPassword &&
+                !LauncherSettings.Current.DepotDownloaderRememberedLoginSeeded)
+            {
+                StatusText.Text =
+                    "No saved DepotDownloader login is seeded yet. Enter password once with 'Remember password' enabled.";
                 return;
             }
 

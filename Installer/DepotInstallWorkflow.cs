@@ -101,7 +101,7 @@ internal static class DepotInstallWorkflow
         psi.ArgumentList.Add("-username");
         psi.ArgumentList.Add(auth.Username);
 
-        if (!auth.UseRememberedLoginOnly)
+        if (!string.IsNullOrWhiteSpace(auth.Password))
         {
             psi.ArgumentList.Add("-password");
             psi.ArgumentList.Add(auth.Password);

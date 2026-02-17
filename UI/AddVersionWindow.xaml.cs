@@ -234,6 +234,12 @@ namespace SubnauticaLauncher.UI
                 if (installResult != true)
                     return;
 
+                if (login.AuthOptions.RememberPassword || login.AuthOptions.UseRememberedLoginOnly)
+                {
+                    LauncherSettings.Current.DepotDownloaderRememberedLoginSeeded = true;
+                    LauncherSettings.Save();
+                }
+
                 MessageBox.Show(
                     "Installation complete.",
                     "Success",
