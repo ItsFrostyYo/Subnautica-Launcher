@@ -1,9 +1,8 @@
 using SubnauticaLauncher.Core;
 using System;
 using System.Drawing;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
 using System.Runtime.Versioning;
+using System.Windows.Forms;
 
 namespace SubnauticaLauncher.Display
 {
@@ -30,7 +29,7 @@ namespace SubnauticaLauncher.Display
             PhysicalWidth = width;
             PhysicalHeight = height;
 
-            // 🔥 BASELINE = 1080p
+            // Baseline = 1080p.
             ScaleX = width / 1920f;
             ScaleY = height / 1080f;
 
@@ -79,17 +78,15 @@ namespace SubnauticaLauncher.Display
                 tier = MonitorTier.OneK_1080p;
             else
                 tier = MonitorTier.Unknown;
-            
+
             return tier;
         }
 
-        // 🔥 THIS IS THE MONEY METHOD
         public Point ScalePoint(Point p)
         {
             var scaled = new Point(
                 (int)Math.Round(p.X * ScaleX),
                 (int)Math.Round(p.Y * ScaleY)
-            
             );
 
             return scaled;

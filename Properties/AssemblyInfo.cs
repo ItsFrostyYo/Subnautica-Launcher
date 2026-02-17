@@ -1,8 +1,3 @@
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Versions;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Installer;
-
 using System.Windows;
 
 [assembly: ThemeInfo(

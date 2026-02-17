@@ -114,6 +114,26 @@
                 "${workspaceFolder}"
             ],
             "problemMatcher": []
+        },
+        {
+            "label": "stop-launcher-and-helpers",
+            "type": "process",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/Stop-LauncherAndHelpers.ps1"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "problemMatcher": []
         }
     ]
 }

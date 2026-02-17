@@ -1,1 +1,0 @@
-﻿taskkill /IM SubnauticaLauncher.exe /F - taskkill /IM ExplosionResetHelper2018.exe /F

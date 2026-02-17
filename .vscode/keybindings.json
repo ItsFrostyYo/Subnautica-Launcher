@@ -37,5 +37,10 @@
     "key": "f6",
     "command": "workbench.action.tasks.runTask",
     "args": "open-project-folder"
+  },
+  {
+    "key": "f7",
+    "command": "workbench.action.tasks.runTask",
+    "args": "stop-launcher-and-helpers"
   }
 ]

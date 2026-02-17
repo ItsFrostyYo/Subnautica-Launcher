@@ -1,6 +1,5 @@
 using SubnauticaLauncher.Display;
 using SubnauticaLauncher.Enums;
-using SubnauticaLauncher.Macros;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -8,49 +7,41 @@ using System.IO;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
-namespace SubnauticaLauncher.BelowZero
+namespace SubnauticaLauncher.Macros
 {
     [SupportedOSPlatform("windows")]
     public static class BZResetMacroService
     {
         public static async Task RunAsync(GameMode mode)
         {
-            // ✅ BELOW ZERO ONLY
-            var proc = Process.GetProcessesByName("SubnauticaZero");
-            if (proc.Length == 0)
+            var process = Process.GetProcessesByName("SubnauticaZero");
+            if (process.Length == 0)
                 return;
 
-            string root = Path.GetDirectoryName(proc[0].MainModule!.FileName!)!;
-
-            // 🔎 READ BUILD YEAR (BZ ONLY)
+            string root = Path.GetDirectoryName(process[0].MainModule!.FileName!)!;
             int buildYear = ReadBelowZeroBuildYear(root);
 
             bool isLegacy = buildYear >= 2019 && buildYear <= 2021;
             bool isModern = buildYear >= 2022;
 
-            // 🔒 SINGLE BZ GROUP
-            const int BZ_GROUP = -1;
+            const int BzGroup = -1;
 
-            var profile = GameStateDetectorRegistry.Get(BZ_GROUP);
-            var steps = MacroRegistry.Get(BZ_GROUP, mode);
+            var profile = GameStateDetectorRegistry.Get(BzGroup);
+            var steps = MacroRegistry.Get(BzGroup, mode);
             var display = DisplayInfo.GetPrimary();
 
             var state = GameStateDetector.Detect(profile, display);
-
             bool startedInGame = state == GameState.InGame;
 
-            // ================= MAIN MENU =================
             if (state == GameState.MainMenu)
             {
                 await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
                 await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
-
                 await Task.Delay(150);
                 await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
                 return;
             }
 
-            // ================= IN-GAME QUIT =================
             if (state == GameState.InGame)
             {
                 NativeInput.PressEsc();
@@ -58,15 +49,13 @@ namespace SubnauticaLauncher.BelowZero
 
                 if (isLegacy)
                 {
-                    // 🔁 2019–2021 FLOW                    
-                    await NativeInput.Click(steps.QuitButton2, steps.ClickDelayMedium);                    
+                    await NativeInput.Click(steps.QuitButton2, steps.ClickDelayMedium);
                     await NativeInput.Click(steps.ConfirmQuit1, steps.ClickDelayMedium);
                     await Task.Delay(25);
                     await NativeInput.Click(steps.ConfirmQuit2, steps.ClickDelayMedium);
                 }
                 else if (isModern)
                 {
-                    // 🔁 2022+ FLOW
                     await NativeInput.Click(steps.QuitButton, steps.ClickDelayMedium);
                     await NativeInput.Click(steps.ConfirmQuit1, steps.ClickDelayMedium);
                     await Task.Delay(25);
@@ -74,7 +63,6 @@ namespace SubnauticaLauncher.BelowZero
                 }
             }
 
-            // ================= BLACK SCREEN =================
             bool sawBlack = false;
             var sw = Stopwatch.StartNew();
 
@@ -85,6 +73,7 @@ namespace SubnauticaLauncher.BelowZero
                     sawBlack = true;
                     break;
                 }
+
                 await Task.Delay(50);
             }
 
@@ -105,10 +94,10 @@ namespace SubnauticaLauncher.BelowZero
 
                     await Task.Delay(50);
                 }
+
                 await Task.Delay(150);
             }
 
-            // ================= START NEW GAME =================
             string? slotToDelete = startedInGame
                 ? HardcoreSaveDeleter.GetLatestHardcoreSlotToDelete(root, mode)
                 : null;
@@ -120,7 +109,6 @@ namespace SubnauticaLauncher.BelowZero
             await HardcoreSaveDeleter.DeleteSlotAfterDelayAsync(slotToDelete);
         }
 
-        // ================= BUILD YEAR (BZ ONLY) =================
         private static int ReadBelowZeroBuildYear(string root)
         {
             string[] paths =
@@ -134,13 +122,12 @@ namespace SubnauticaLauncher.BelowZero
                 if (!File.Exists(path))
                     continue;
 
-                var text = File.ReadAllText(path).Trim();
+                string text = File.ReadAllText(path).Trim();
 
                 if (DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
                     return dt.Year;
             }
 
-            // Safe default → modern
             return 2022;
         }
     }
