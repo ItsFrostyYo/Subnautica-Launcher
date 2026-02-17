@@ -191,7 +191,7 @@ namespace SubnauticaLauncher.UI
                         candidate.DisplayName,
                         candidate.ManifestId);
 
-                    await SubnauticaLauncher.Installer.BZDepotDownloaderService.InstallVersionAsync(
+                    await SubnauticaLauncher.Installer.DepotDownloaderService.InstallVersionAsync(
                         version,
                         login.Username,
                         login.Password,

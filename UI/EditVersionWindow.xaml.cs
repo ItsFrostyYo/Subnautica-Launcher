@@ -235,21 +235,21 @@ namespace SubnauticaLauncher.UI
             {
                 if (IsBelowZero)
                 {
-                    var dialog = new BZDeleteVersionDialog { Owner = this };
+                    var dialog = new DeleteVersionDialog { Owner = this };
                     dialog.ShowDialog();
 
                     switch (dialog.Choice)
                     {
-                        case BZDeleteChoice.Cancel:
+                        case DeleteChoice.Cancel:
                             return;
 
-                        case BZDeleteChoice.RemoveFromLauncher:
+                        case DeleteChoice.RemoveFromLauncher:
                             string bzInfoPath = Path.Combine(_bzVersion!.HomeFolder, "BZVersion.info");
                             if (File.Exists(bzInfoPath))
                                 File.Delete(bzInfoPath);
                             break;
 
-                        case BZDeleteChoice.DeleteGame:
+                        case DeleteChoice.DeleteGame:
                             Directory.Delete(_bzVersion!.HomeFolder, true);
                             break;
                     }

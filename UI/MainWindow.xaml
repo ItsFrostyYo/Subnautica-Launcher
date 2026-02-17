@@ -26,7 +26,6 @@
     <Window.Resources>
 
         <converters:ActiveColorConverter x:Key="ActiveColorConverter"/>
-        <converters:BZActiveColorConverter x:Key="BZActiveColorConverter"/>
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
@@ -368,7 +367,7 @@ UseAeroCaptionButtons="False" />
                                                 <TextBlock Text="{Binding DisplayLabel}"
                                                            Margin="6,4"
                                                            TextTrimming="CharacterEllipsis"
-                                                           Foreground="{Binding Status, Converter={StaticResource BZActiveColorConverter}}"/>
+                                                           Foreground="{Binding Status, Converter={StaticResource ActiveColorConverter}}"/>
                                             </DataTemplate>
                                         </ListBox.ItemTemplate>
                                     </ListBox>

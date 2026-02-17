@@ -30,19 +30,19 @@ public static class Updates
 
     public static readonly UpdateEntry[] History =
     {
-          new UpdateEntry
+
+        new UpdateEntry
     {
-        Version = "2.2.3",
+        Version = "2.3.0",
         Title = "Updater and Release Pipeline Overhaul",
         Date = "Feb 16, 2026 | Contributors (1) - ItsFrosti.",
         Changes = new[]
         {
             "Rebuilt updater flow and improved update reliability checks",
             "Added a new update progress UI with clearer update status handling",
-            "Improved setup and packaging to ship a cleaner ready-to-upload release"
+            "Improved setup and packaging to ship a cleaner ready release"
         }
     },
-
           new UpdateEntry
     {
         Version = "2.2.2",
@@ -52,7 +52,7 @@ public static class Updates
         {
             "Code Cleanup and Updates",
             "Small UI Updates",
-            "Improved Memory Reading for Improved Gameplay Reading"
+            "Improved Memory Reading for Improved Gameplay Tracking"
         }
     },
           

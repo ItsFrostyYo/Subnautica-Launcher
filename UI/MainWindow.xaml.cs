@@ -587,7 +587,7 @@ namespace SubnauticaLauncher.UI
                     Directory.Exists(activePath) &&
                     PathsAreEqual(target.HomeFolder, activePath);
 
-                SetStatus(target, BZVersionStatus.Switching);
+                SetStatus(target, VersionStatus.Switching);
 
                 bool wasRunning = await LaunchCoordinator.CloseAllGameProcessesAsync();
 
@@ -613,7 +613,7 @@ namespace SubnauticaLauncher.UI
                 if (!File.Exists(targetExe))
                     throw new FileNotFoundException("SubnauticaZero.exe not found in active folder.", targetExe);
 
-                SetStatus(target, BZVersionStatus.Launching);
+                SetStatus(target, VersionStatus.Launching);
                 await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
 
                 Process? process = Process.Start(new ProcessStartInfo
@@ -627,13 +627,13 @@ namespace SubnauticaLauncher.UI
                     throw new InvalidOperationException("Failed to launch Below Zero.");
 
                 bool launched = await WaitForLaunchedAsync(process);
-                SetStatus(target, launched ? BZVersionStatus.Launched : BZVersionStatus.Active);
+                SetStatus(target, launched ? VersionStatus.Launched : VersionStatus.Active);
                 LoadInstalledVersions();
                 RefreshRunningStatusIndicators();
             }
             catch (Exception ex)
             {
-                SetStatus(target, BZVersionStatus.Idle);
+                SetStatus(target, VersionStatus.Idle);
 
                 MessageBox.Show(
                     ex.Message,
@@ -672,8 +672,8 @@ namespace SubnauticaLauncher.UI
                 string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
                 string active = Path.Combine(common, BzActiveFolder);
                 v.Status = PathsAreEqual(v.HomeFolder, active)
-                    ? BZVersionStatus.Active
-                    : BZVersionStatus.Idle;
+                    ? VersionStatus.Active
+                    : VersionStatus.Idle;
             }
 
             BZInstalledVersionsList.ItemsSource = bzList;
@@ -687,7 +687,7 @@ namespace SubnauticaLauncher.UI
             InstalledVersionsList.Items.Refresh();
         }
 
-        private void SetStatus(BZInstalledVersion version, BZVersionStatus status)
+        private void SetStatus(BZInstalledVersion version, VersionStatus status)
         {
             version.Status = status;
             BZInstalledVersionsList.Items.Refresh();
@@ -756,14 +756,14 @@ namespace SubnauticaLauncher.UI
             {
                 foreach (var v in bzVersions)
                 {
-                    if (v.Status is BZVersionStatus.Switching or BZVersionStatus.Launching)
+                    if (v.Status is VersionStatus.Switching or VersionStatus.Launching)
                         continue;
 
                     string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
                     string active = Path.Combine(common, BzActiveFolder);
-                    BZVersionStatus next = PathsAreEqual(v.HomeFolder, active)
-                        ? (bzRunning ? BZVersionStatus.Launched : BZVersionStatus.Active)
-                        : BZVersionStatus.Idle;
+                    VersionStatus next = PathsAreEqual(v.HomeFolder, active)
+                        ? (bzRunning ? VersionStatus.Launched : VersionStatus.Active)
+                        : VersionStatus.Idle;
 
                     if (v.Status != next)
                     {

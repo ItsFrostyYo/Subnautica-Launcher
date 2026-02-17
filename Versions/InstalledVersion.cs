@@ -18,12 +18,42 @@ public class InstalledVersion
 
     public string DisplayLabel => Status switch
     {
-        VersionStatus.Switching => "Switching → " + GetTrimmedDisplayName(DisplayName),
-        VersionStatus.Launching => "Launching → " + GetTrimmedDisplayName(DisplayName),
-        VersionStatus.Launched => "Launched → " + GetTrimmedDisplayName(DisplayName),
-        VersionStatus.Active => "Active → " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Switching => "Switching -> " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Launching => "Launching -> " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Launched => "Launched -> " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Active => "Active -> " + GetTrimmedDisplayName(DisplayName),
         _ => GetTrimmedDisplayName(DisplayName)
     };
+
+    protected static T? ParseFromInfo<T>(string folderPath, string infoPath)
+        where T : InstalledVersion, new()
+    {
+        var version = new T
+        {
+            HomeFolder = folderPath
+        };
+
+        foreach (var line in File.ReadAllLines(infoPath))
+        {
+            if (line.StartsWith("DisplayName="))
+                version.DisplayName = line["DisplayName=".Length..];
+            else if (line.StartsWith("FolderName="))
+                version.FolderName = line["FolderName=".Length..];
+            else if (line.StartsWith("OriginalDownload="))
+                version.OriginalDownload = line["OriginalDownload=".Length..];
+        }
+
+        if (string.IsNullOrWhiteSpace(version.DisplayName))
+            version.DisplayName = Path.GetFileName(folderPath);
+
+        if (string.IsNullOrWhiteSpace(version.FolderName))
+            version.FolderName = Path.GetFileName(folderPath);
+
+        return version;
+    }
+
+    public static InstalledVersion? FromInfo(string folderPath, string infoPath)
+        => ParseFromInfo<InstalledVersion>(folderPath, infoPath);
 
     private static string GetTrimmedDisplayName(string value)
     {
@@ -33,31 +63,5 @@ public class InstalledVersion
         return value.Length <= MaxDisplayNameLength
             ? value
             : value.Substring(0, MaxDisplayNameLength);
-    }
-
-    public static InstalledVersion? FromInfo(string folderPath, string infoPath)
-    {
-        var v = new InstalledVersion
-        {
-            HomeFolder = folderPath
-        };
-
-        foreach (var line in File.ReadAllLines(infoPath))
-        {
-            if (line.StartsWith("DisplayName="))
-                v.DisplayName = line["DisplayName=".Length..];
-            else if (line.StartsWith("FolderName="))
-                v.FolderName = line["FolderName=".Length..];
-            else if (line.StartsWith("OriginalDownload="))
-                v.OriginalDownload = line["OriginalDownload=".Length..];
-        }
-
-        if (string.IsNullOrWhiteSpace(v.DisplayName))
-            v.DisplayName = Path.GetFileName(folderPath);
-
-        if (string.IsNullOrWhiteSpace(v.FolderName))
-            v.FolderName = Path.GetFileName(folderPath);
-
-        return v;
     }
 }
