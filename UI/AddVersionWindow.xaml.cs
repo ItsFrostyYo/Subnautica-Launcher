@@ -1,12 +1,15 @@
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Versions;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -161,7 +164,7 @@ namespace SubnauticaLauncher.UI
             Close();
         }
 
-        private async void Install_Click(object sender, RoutedEventArgs e)
+        private void Install_Click(object sender, RoutedEventArgs e)
         {
             var candidate = GetSelectedCandidate();
             if (candidate == null)
@@ -171,6 +174,9 @@ namespace SubnauticaLauncher.UI
             bool? result = login.ShowDialog();
 
             if (result != true)
+                return;
+
+            if (login.AuthOptions == null)
                 return;
 
             try
@@ -184,6 +190,8 @@ namespace SubnauticaLauncher.UI
                     "common",
                     candidate.Id);
 
+                Func<DepotInstallCallbacks, CancellationToken, Task> installAction;
+
                 if (candidate.Game == LauncherGame.Subnautica)
                 {
                     var version = new VersionInstallDefinition(
@@ -191,11 +199,13 @@ namespace SubnauticaLauncher.UI
                         candidate.DisplayName,
                         candidate.ManifestId);
 
-                    await SubnauticaLauncher.Installer.DepotDownloaderService.InstallVersionAsync(
-                        version,
-                        login.Username,
-                        login.Password,
-                        installDir);
+                    installAction = (callbacks, cancellationToken) =>
+                        SubnauticaLauncher.Installer.DepotDownloaderService.InstallVersionAsync(
+                            version,
+                            login.AuthOptions,
+                            installDir,
+                            callbacks,
+                            cancellationToken);
                 }
                 else
                 {
@@ -204,12 +214,25 @@ namespace SubnauticaLauncher.UI
                         candidate.DisplayName,
                         candidate.ManifestId);
 
-                    await SubnauticaLauncher.BelowZero.BZDepotDownloaderService.BZInstallVersionAsync(
-                        version,
-                        login.Username,
-                        login.Password,
-                        installDir);
+                    installAction = (callbacks, cancellationToken) =>
+                        SubnauticaLauncher.BelowZero.BZDepotDownloaderService.BZInstallVersionAsync(
+                            version,
+                            login.AuthOptions,
+                            installDir,
+                            callbacks,
+                            cancellationToken);
                 }
+
+                var installWindow = new DepotDownloaderInstallWindow(
+                    candidate.DisplayName,
+                    installAction)
+                {
+                    Owner = this
+                };
+
+                bool? installResult = installWindow.ShowDialog();
+                if (installResult != true)
+                    return;
 
                 MessageBox.Show(
                     "Installation complete.",

@@ -30,6 +30,19 @@ public static class Updates
 
     public static readonly UpdateEntry[] History =
     {
+        
+        new UpdateEntry
+    {
+        Version = "2.3.1",
+        Title = "Version Installation Update",
+        Date = "Feb 16, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "New UI For Installing Versions",
+            "Added Remember Password Support",
+            "Improved overall installation process"
+        }
+    },     
 
         new UpdateEntry
     {
@@ -43,6 +56,7 @@ public static class Updates
             "Improved setup and packaging to ship a cleaner ready release"
         }
     },
+
           new UpdateEntry
     {
         Version = "2.2.2",

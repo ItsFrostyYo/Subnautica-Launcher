@@ -55,6 +55,12 @@ namespace SubnauticaLauncher.Settings
         public bool ExplosionOverlayEnabled { get; set; } = true;
         public bool ExplosionTrackResets { get; set; } = false;
 
+        // DepotDownloader install preferences
+        public string DepotDownloaderLastUsername { get; set; } = "";
+        public bool DepotDownloaderRememberPassword { get; set; } = false;
+        public bool DepotDownloaderUseRememberedLoginOnly { get; set; } = false;
+        public bool DepotDownloaderPreferTwoFactorCode { get; set; } = true;
+
         public static void Load()
         {
             if (_loaded)

@@ -1,10 +1,6 @@
 using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Settings;
-using SubnauticaLauncher.Macros;
-using SubnauticaLauncher.UI;
-using SubnauticaLauncher.Updates;
-using SubnauticaLauncher.Versions;
 using System;
 using System.IO;
 using System.Windows;
@@ -18,16 +14,13 @@ namespace SubnauticaLauncher.UI
     {
         private const string DefaultBg = "GrassyPlateau";
 
-        public string Username => UsernameBox.Text;
-        public string Password => PasswordBox.Password;
+        public DepotInstallAuthOptions? AuthOptions { get; private set; }
 
         public DepotDownloaderLoginWindow()
         {
             InitializeComponent();
             Loaded += DepotDownloaderLoginWindow_Loaded;
         }
-
-        // ================= BACKGROUND =================
 
         private ImageBrush GetBackgroundBrush()
         {
@@ -37,12 +30,20 @@ namespace SubnauticaLauncher.UI
         private void DepotDownloaderLoginWindow_Loaded(object sender, RoutedEventArgs e)
         {
             LauncherSettings.Load();
+
             string bg = LauncherSettings.Current.BackgroundPreset;
             if (string.IsNullOrWhiteSpace(bg))
                 bg = DefaultBg;
-            Logger.Log("Login Window has been Opened Successfully");
-            Logger.Log("Login Window Background Applied Successfully");
+
             ApplyBackground(bg);
+
+            UsernameBox.Text = LauncherSettings.Current.DepotDownloaderLastUsername;
+            RememberPasswordCheck.IsChecked = LauncherSettings.Current.DepotDownloaderRememberPassword;
+            UseRememberedLoginCheck.IsChecked = LauncherSettings.Current.DepotDownloaderUseRememberedLoginOnly;
+            PreferTwoFactorCodeCheck.IsChecked = LauncherSettings.Current.DepotDownloaderPreferTwoFactorCode;
+
+            SyncPasswordState();
+            Logger.Log("DepotDownloader login window opened.");
         }
 
         private void ApplyBackground(string preset)
@@ -52,18 +53,15 @@ namespace SubnauticaLauncher.UI
                 BitmapImage img = new BitmapImage();
                 img.BeginInit();
 
-                // Custom image path
                 if (File.Exists(preset))
                 {
                     img.UriSource = new Uri(preset, UriKind.Absolute);
                 }
                 else
                 {
-                    // Embedded asset
                     img.UriSource = new Uri(
                         $"pack://application:,,,/Assets/Backgrounds/{preset}.png",
-                        UriKind.Absolute
-                    );
+                        UriKind.Absolute);
                 }
 
                 img.CacheOption = BitmapCacheOption.OnLoad;
@@ -74,14 +72,18 @@ namespace SubnauticaLauncher.UI
             }
             catch
             {
-                // Safe fallback
                 GetBackgroundBrush().ImageSource = new BitmapImage(new Uri(
                     $"pack://application:,,,/Assets/Backgrounds/{DefaultBg}.png",
                     UriKind.Absolute));
             }
         }
 
-        // ================= TITLE BAR =================
+        private void SyncPasswordState()
+        {
+            bool usingRemembered = UseRememberedLoginCheck.IsChecked == true;
+            PasswordBox.IsEnabled = !usingRemembered;
+            PasswordHintText.Visibility = usingRemembered ? Visibility.Visible : Visibility.Collapsed;
+        }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -95,13 +97,11 @@ namespace SubnauticaLauncher.UI
 
         private void Minimize_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Log("Login Window Minimized");
             WindowState = WindowState.Minimized;
         }
 
         private void Maximize_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Log("Login Window Maximized");
             WindowState = WindowState == WindowState.Maximized
                 ? WindowState.Normal
                 : WindowState.Maximized;
@@ -109,21 +109,46 @@ namespace SubnauticaLauncher.UI
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Log("Login Window Closed");
             Close();
         }
 
-        // ================= ACTIONS =================
+        private void UseRememberedLoginCheck_Click(object sender, RoutedEventArgs e)
+        {
+            SyncPasswordState();
+        }
 
         private void Login_Click(object sender, RoutedEventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(Username) ||
-                string.IsNullOrWhiteSpace(Password))
+            string username = UsernameBox.Text.Trim();
+            bool useRemembered = UseRememberedLoginCheck.IsChecked == true;
+            string password = PasswordBox.Password;
+
+            if (string.IsNullOrWhiteSpace(username))
             {
-                StatusText.Text = "Username and Password required.";
-                Logger.Log("Failed to Login (Username and Password not Given)");
+                StatusText.Text = "Steam username is required.";
                 return;
             }
+
+            if (!useRemembered && string.IsNullOrWhiteSpace(password))
+            {
+                StatusText.Text = "Steam password is required unless using remembered login.";
+                return;
+            }
+
+            AuthOptions = new DepotInstallAuthOptions
+            {
+                Username = username,
+                Password = password,
+                RememberPassword = RememberPasswordCheck.IsChecked == true,
+                UseRememberedLoginOnly = useRemembered,
+                PreferTwoFactorCode = PreferTwoFactorCodeCheck.IsChecked == true
+            };
+
+            LauncherSettings.Current.DepotDownloaderLastUsername = username;
+            LauncherSettings.Current.DepotDownloaderRememberPassword = AuthOptions.RememberPassword;
+            LauncherSettings.Current.DepotDownloaderUseRememberedLoginOnly = useRemembered;
+            LauncherSettings.Current.DepotDownloaderPreferTwoFactorCode = AuthOptions.PreferTwoFactorCode;
+            LauncherSettings.Save();
 
             DialogResult = true;
             Close();
@@ -132,7 +157,6 @@ namespace SubnauticaLauncher.UI
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
             DialogResult = false;
-            Logger.Log("User Canceled Login");
             Close();
         }
     }
