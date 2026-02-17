@@ -189,6 +189,7 @@ namespace SubnauticaLauncher.UI
                     "steamapps",
                     "common",
                     candidate.Id);
+                bool installDirExistedBefore = Directory.Exists(installDir);
 
                 Func<DepotInstallCallbacks, CancellationToken, Task> installAction;
 
@@ -232,7 +233,12 @@ namespace SubnauticaLauncher.UI
 
                 bool? installResult = installWindow.ShowDialog();
                 if (installResult != true)
+                {
+                    if (installWindow.WasCancelled)
+                        TryDeleteCancelledInstallFolder(installDir, installDirExistedBefore);
+
                     return;
+                }
 
                 if (login.AuthOptions.RememberPassword || login.AuthOptions.UseRememberedLoginOnly)
                 {
@@ -281,6 +287,22 @@ namespace SubnauticaLauncher.UI
         {
             DialogResult = false;
             Close();
+        }
+
+        private static void TryDeleteCancelledInstallFolder(string installDir, bool existedBeforeInstall)
+        {
+            if (existedBeforeInstall)
+                return;
+
+            try
+            {
+                if (Directory.Exists(installDir))
+                    Directory.Delete(installDir, recursive: true);
+            }
+            catch
+            {
+                // Best effort cleanup only.
+            }
         }
     }
 }

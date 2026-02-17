@@ -19,13 +19,13 @@ internal static class DepotInstallWorkflow
 
     private static readonly string[] PromptMarkers =
     {
-        "steam guard",
-        "two-factor",
-        "2fa",
-        "auth code",
-        "authentication code",
-        "email code",
-        "device code",
+        "enter steam guard code",
+        "enter your steam guard code",
+        "enter two-factor code",
+        "enter authentication code",
+        "enter auth code",
+        "enter email code",
+        "enter device code",
         "enter account password",
         "password:"
     };
@@ -80,7 +80,6 @@ internal static class DepotInstallWorkflow
         Directory.CreateDirectory(installDir);
 
         callbacks?.OnStatus?.Invoke("Preparing DepotDownloader...");
-        callbacks?.OnProgress?.Invoke(0);
 
         var psi = new ProcessStartInfo
         {
@@ -210,7 +209,6 @@ internal static class DepotInstallWorkflow
     {
         var buffer = new char[256];
         var lineBuilder = new StringBuilder();
-        var promptTail = new StringBuilder();
 
         while (true)
         {
@@ -224,61 +222,81 @@ internal static class DepotInstallWorkflow
 
                 if (ch == '\r')
                 {
-                    EmitLine(lineBuilder, isError, callbacks, recentLines);
+                    string? emittedLine = EmitLine(lineBuilder, isError, callbacks, recentLines);
+                    if (!string.IsNullOrWhiteSpace(emittedLine))
+                    {
+                        await TryHandlePromptAsync(
+                            process,
+                            callbacks,
+                            emittedLine,
+                            promptLock,
+                            getLastPromptKey,
+                            setLastPromptKey,
+                            getLastPromptAtUtc,
+                            setLastPromptAtUtc,
+                            cancellationToken);
+                    }
                     continue;
                 }
 
                 if (ch == '\n')
                 {
-                    EmitLine(lineBuilder, isError, callbacks, recentLines);
+                    string? emittedLine = EmitLine(lineBuilder, isError, callbacks, recentLines);
+                    if (!string.IsNullOrWhiteSpace(emittedLine))
+                    {
+                        await TryHandlePromptAsync(
+                            process,
+                            callbacks,
+                            emittedLine,
+                            promptLock,
+                            getLastPromptKey,
+                            setLastPromptKey,
+                            getLastPromptAtUtc,
+                            setLastPromptAtUtc,
+                            cancellationToken);
+                    }
                     continue;
                 }
 
                 lineBuilder.Append(ch);
-                promptTail.Append(ch);
-            }
-
-            TrimTail(promptTail, 400);
-
-            string promptProbe = promptTail.ToString();
-            if (!string.IsNullOrWhiteSpace(promptProbe))
-            {
-                await TryHandlePromptAsync(
-                    process,
-                    callbacks,
-                    promptProbe,
-                    promptLock,
-                    getLastPromptKey,
-                    setLastPromptKey,
-                    getLastPromptAtUtc,
-                    setLastPromptAtUtc,
-                    cancellationToken);
             }
         }
 
-        EmitLine(lineBuilder, isError, callbacks, recentLines);
+        string? finalLine = EmitLine(lineBuilder, isError, callbacks, recentLines);
+        if (!string.IsNullOrWhiteSpace(finalLine))
+        {
+            await TryHandlePromptAsync(
+                process,
+                callbacks,
+                finalLine,
+                promptLock,
+                getLastPromptKey,
+                setLastPromptKey,
+                getLastPromptAtUtc,
+                setLastPromptAtUtc,
+                cancellationToken);
+        }
     }
 
-    private static void EmitLine(
+    private static string? EmitLine(
         StringBuilder lineBuilder,
         bool isError,
         DepotInstallCallbacks? callbacks,
         List<string> recentLines)
     {
         if (lineBuilder.Length == 0)
-            return;
+            return null;
 
         string line = lineBuilder.ToString().Trim();
         lineBuilder.Clear();
 
         if (string.IsNullOrWhiteSpace(line))
-            return;
+            return null;
 
         if (isError)
             line = "[stderr] " + line;
 
         callbacks?.OnOutput?.Invoke(line);
-        callbacks?.OnStatus?.Invoke(line);
 
         foreach (Match match in PercentRegex.Matches(line))
         {
@@ -289,18 +307,23 @@ internal static class DepotInstallWorkflow
             callbacks?.OnProgress?.Invoke(percent);
         }
 
-        lock (recentLines)
+        if (!line.StartsWith("Pre-allocating ", StringComparison.OrdinalIgnoreCase))
         {
-            recentLines.Add(line);
-            if (recentLines.Count > 20)
-                recentLines.RemoveAt(0);
+            lock (recentLines)
+            {
+                recentLines.Add(line);
+                if (recentLines.Count > 20)
+                    recentLines.RemoveAt(0);
+            }
         }
+
+        return line;
     }
 
     private static async Task TryHandlePromptAsync(
         Process process,
         DepotInstallCallbacks? callbacks,
-        string probeText,
+        string lineText,
         SemaphoreSlim promptLock,
         Func<string> getLastPromptKey,
         Action<string> setLastPromptKey,
@@ -311,7 +334,7 @@ internal static class DepotInstallWorkflow
         if (callbacks?.RequestInputAsync == null)
             return;
 
-        if (!TryClassifyPrompt(probeText, out string promptMessage, out bool isSecret))
+        if (!TryClassifyPrompt(lineText, out string promptMessage, out bool isSecret))
             return;
 
         string promptKey = promptMessage.Trim().ToLowerInvariant();
@@ -359,8 +382,15 @@ internal static class DepotInstallWorkflow
 
     private static bool TryClassifyPrompt(string rawText, out string promptMessage, out bool isSecret)
     {
-        string text = rawText.Trim();
-        string lower = text.ToLowerInvariant();
+        string lower = rawText.Trim().ToLowerInvariant();
+
+        // Mobile-app confirmation is informational and does not require input.
+        if (lower.Contains("use the steam mobile app to confirm your sign in", StringComparison.Ordinal))
+        {
+            promptMessage = "";
+            isSecret = false;
+            return false;
+        }
 
         foreach (string marker in PromptMarkers)
         {
@@ -374,8 +404,7 @@ internal static class DepotInstallWorkflow
                 marker.Contains("auth code", StringComparison.Ordinal) ||
                 marker.Contains("authentication code", StringComparison.Ordinal) ||
                 marker.Contains("email code", StringComparison.Ordinal) ||
-                marker.Contains("device code", StringComparison.Ordinal) ||
-                marker.Contains("2fa", StringComparison.Ordinal))
+                marker.Contains("device code", StringComparison.Ordinal))
             {
                 promptMessage = "Steam authentication code required. Enter the code to continue.";
                 return true;
@@ -391,14 +420,6 @@ internal static class DepotInstallWorkflow
         promptMessage = "";
         isSecret = false;
         return false;
-    }
-
-    private static void TrimTail(StringBuilder tail, int maxLength)
-    {
-        if (tail.Length <= maxLength)
-            return;
-
-        tail.Remove(0, tail.Length - maxLength);
     }
 
     private static void ValidateBasicAuth(string username, string password)

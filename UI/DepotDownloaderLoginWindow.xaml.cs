@@ -136,15 +136,6 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (useRemembered &&
-                !hasPassword &&
-                !LauncherSettings.Current.DepotDownloaderRememberedLoginSeeded)
-            {
-                StatusText.Text =
-                    "No saved DepotDownloader login is seeded yet. Enter password once with 'Remember password' enabled.";
-                return;
-            }
-
             AuthOptions = new DepotInstallAuthOptions
             {
                 Username = username,

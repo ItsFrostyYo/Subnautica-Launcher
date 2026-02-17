@@ -20,7 +20,6 @@
 		<EnableDebugTelemetry Condition="'$(EnableDebugTelemetry)' == '' and '$(Configuration)' != 'Debug'">false</EnableDebugTelemetry>
 		<DefineConstants Condition="'$(EnableDebugTelemetry)' == 'true'">$(DefineConstants);ENABLE_DEBUG_TELEMETRY</DefineConstants>
 	</PropertyGroup>
-
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<Optimize>false</Optimize>
 		<DebugType>portable</DebugType>

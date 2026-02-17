@@ -112,6 +112,7 @@
                                Grid.Row="0"
                                FontWeight="SemiBold"
                                FontSize="15"
+                               TextWrapping="Wrap"
                                Text="Preparing install..."/>
 
                     <ProgressBar x:Name="DownloadProgress"
@@ -145,13 +146,16 @@
                                        Margin="0,0,0,6"/>
 
                             <ScrollViewer Grid.Row="1"
-                                          VerticalScrollBarVisibility="Auto">
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          CanContentScroll="False">
                                 <TextBox x:Name="LogText"
                                          IsReadOnly="True"
                                          BorderThickness="0"
                                          Background="Transparent"
                                          Padding="0"
-                                         TextWrapping="Wrap"
+                                         TextWrapping="NoWrap"
+                                         FontFamily="Consolas"
                                          VerticalScrollBarVisibility="Disabled"
                                          AcceptsReturn="True"/>
                             </ScrollViewer>

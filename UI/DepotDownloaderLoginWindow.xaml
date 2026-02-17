@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Depot Downloader Steam Login"
-        Width="430"
-        Height="430"
+        Width="460"
+        Height="490"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         FontFamily="Aileron"
@@ -133,6 +133,8 @@
                                Visibility="Collapsed"
                                FontSize="12"
                                Foreground="#D0E7F2"
+                               TextWrapping="Wrap"
+                               MaxWidth="410"
                                Text="If this is your first remembered login setup, enter password once so DepotDownloader can save a sentry cache."/>
 
                     <CheckBox x:Name="RememberPasswordCheck"
@@ -154,6 +156,9 @@
 
                     <TextBlock x:Name="StatusText"
                                Foreground="#FFD28B4F"
+                               TextWrapping="Wrap"
+                               MaxWidth="410"
+                               TextTrimming="None"
                                Margin="0,0,0,12"/>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
