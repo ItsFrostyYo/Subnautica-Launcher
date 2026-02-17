@@ -16,6 +16,9 @@ internal static class DepotInstallWorkflow
     private static readonly Regex PercentRegex = new(
         @"(?<!\d)(\d{1,3}(?:\.\d+)?)%",
         RegexOptions.Compiled);
+    private static readonly Regex InstalledNameFromIdRegex = new(
+        @"^(SubnauticaZero|Subnautica)_?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly string[] PromptMarkers =
     {
@@ -489,10 +492,47 @@ internal static class DepotInstallWorkflow
 
         File.WriteAllText(infoPath,
 $@"{launcherMarker}=true
-DisplayName={version.DisplayName}
+DisplayName={BuildInstalledDisplayName(version)}
 FolderName={version.Id}
 OriginalDownload={version.Id}
 Manifest={version.ManifestId}
 ");
+    }
+
+    private static string BuildInstalledDisplayName(GameVersionInstallDefinition version)
+    {
+        Match match = InstalledNameFromIdRegex.Match(version.Id);
+        if (match.Success)
+        {
+            string gameName = match.Groups[1].Value.Equals("SubnauticaZero", StringComparison.OrdinalIgnoreCase)
+                ? "Below Zero"
+                : "Subnautica";
+            string month = NormalizeMonth(match.Groups[2].Value);
+            string year = match.Groups[3].Value;
+            return $"{gameName} {month} {year}";
+        }
+
+        return version.DisplayName;
+    }
+
+    private static string NormalizeMonth(string month)
+    {
+        return month.ToLowerInvariant() switch
+        {
+            "january" => "Jan",
+            "february" => "Feb",
+            "march" => "Mar",
+            "april" => "Apr",
+            "june" => "Jun",
+            "july" => "Jul",
+            "august" => "Aug",
+            "september" => "Sep",
+            "october" => "Oct",
+            "november" => "Nov",
+            "december" => "Dec",
+            _ => month.Length <= 3
+                ? char.ToUpperInvariant(month[0]) + month[1..].ToLowerInvariant()
+                : char.ToUpperInvariant(month[0]) + month[1..3].ToLowerInvariant()
+        };
     }
 }
