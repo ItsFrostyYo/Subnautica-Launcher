@@ -188,14 +188,16 @@ UseAeroCaptionButtons="False" />
         </Grid>
 
         <!-- ================= CONTENT ================= -->
-        <Viewbox Grid.Row="1"
+        <Viewbox x:Name="MainLayoutViewbox"
+                 Grid.Row="1"
                  Stretch="Uniform"
                  StretchDirection="UpOnly">
 
             <Border Padding="0">
 
                 <!-- BASE SIZE (DO NOT CHANGE) -->
-                <Grid Width="850"
+                <Grid x:Name="MainLayoutGrid"
+                      Width="850"
                       Height="468"
                       Margin="10">
 
@@ -205,7 +207,7 @@ UseAeroCaptionButtons="False" />
                     </Grid.ColumnDefinitions>
 
                     <!-- ================= LEFT SIDEBAR ================= -->
-                    <Grid Grid.Column="0">
+                    <Grid x:Name="SidebarPanel" Grid.Column="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
@@ -377,6 +379,14 @@ Margin="0,0,15,0"
 Background="#154966"
 Style="{StaticResource RoundedButton}"
 Click="EditVersion_Click"/>
+
+                                <Button Content="Close Game"
+Width="120"
+Height="44"
+Margin="0,0,0,0"
+Background="#C96A16"
+Style="{StaticResource RoundedButton}"
+Click="CloseGame_Click"/>
                             </StackPanel>
                         </Grid>
 
@@ -441,6 +451,35 @@ Click="EditVersion_Click"/>
                     Background="#154966"
                     Style="{StaticResource RoundedButton}"
                     Click="ChooseCustomBackground_Click"/>
+
+                                    <Border Height="1"
+                                            Background="#55FFFFFF"
+                                            Margin="0,14,0,10"/>
+
+                                    <TextBlock Text="Overlay Transparency"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,4"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Slider x:Name="OverlayOpacitySlider"
+                                                Minimum="0"
+                                                Maximum="1"
+                                                Value="0.5"
+                                                TickFrequency="0.05"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="OverlayOpacitySlider_ValueChanged"/>
+                                        <TextBlock x:Name="OverlayOpacityText"
+                                                   Grid.Column="1"
+                                                   Width="56"
+                                                   Margin="10,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   TextAlignment="Right"
+                                                   Text="50%"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
 
@@ -527,6 +566,52 @@ Content="Disabled"
 Style="{StaticResource RoundedButton}"
 Click="ExplosionTrackToggle_Click"/>
                                     </Grid>
+
+                                    <Border Height="1"
+                                            Background="#55FFFFFF"
+                                            Margin="0,12,0,10"/>
+
+                                    <TextBlock Text="Launcher Startup Mode"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,4"/>
+
+                                    <ComboBox x:Name="StartupModeDropdown"
+                                              Style="{StaticResource DarkComboBox}"
+                                              SelectionChanged="StartupModeDropdown_SelectionChanged">
+                                        <ComboBoxItem Content="Startup as Window"/>
+                                        <ComboBoxItem Content="Startup as Overlay"/>
+                                    </ComboBox>
+
+                                    <TextBlock Text="Overlay Toggle Hotkey"
+                                               FontWeight="SemiBold"
+                                               Margin="0,10,0,4"/>
+
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBox x:Name="OverlayHotkeyBox"
+                                                 Height="32"
+                                                 IsReadOnly="True"
+                                                 Text="Ctrl+Shift+Tab"
+                                                 Foreground="#CCCCCC"
+                                                 Background="#22000000"
+                                                 BorderBrush="White"
+                                                 BorderThickness="1"
+                                                 Padding="8"/>
+
+                                        <Button Grid.Column="1"
+                                                Content="Set"
+                                                Width="70"
+                                                Height="32"
+                                                Margin="8,0,0,0"
+                                                Background="#154966"
+                                                Style="{StaticResource RoundedButton}"
+                                                Click="SetOverlayHotkey_Click"/>
+                                    </Grid>
+
                                 </StackPanel>
 
                             </Border>
@@ -854,6 +939,373 @@ Click="ExplosionTrackToggle_Click"/>
                             </StackPanel>
                         </Grid>
                     </Grid>
+
+                    <!-- ================= OVERLAY DASHBOARD ================= -->
+                    <Border x:Name="OverlayDashboard"
+                            Grid.ColumnSpan="2"
+                            Margin="8"
+                            Background="#80000000"
+                            CornerRadius="16"
+                            Padding="10"
+                            Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.45*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="1.1*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="1.25*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="1.05*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- INSTALLS -->
+                            <Grid Grid.Column="0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Text="Versions"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,8"/>
+
+                                <Grid Grid.Row="1" Margin="0,0,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0"
+                                            Background="#90000000"
+                                            CornerRadius="10"
+                                            Padding="4">
+                                        <ListBox x:Name="OverlayInstalledVersionsList"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 FontSize="14"
+                                                 SelectionChanged="OverlayInstalledVersionsList_SelectionChanged">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayLabel}"
+                                                               Margin="4,2"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{Binding Status, Converter={StaticResource ActiveColorConverter}}"/>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Border>
+
+                                    <Border Grid.Column="2"
+                                            Background="#90000000"
+                                            CornerRadius="10"
+                                            Padding="4">
+                                        <ListBox x:Name="OverlayBZInstalledVersionsList"
+                                                 Background="Transparent"
+                                                 BorderThickness="0"
+                                                 FontSize="14"
+                                                 SelectionChanged="OverlayBZInstalledVersionsList_SelectionChanged">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding DisplayLabel}"
+                                                               Margin="4,2"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{Binding Status, Converter={StaticResource ActiveColorConverter}}"/>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Border>
+                                </Grid>
+
+                                <Grid Grid.Row="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Button x:Name="OverlayLaunchButton"
+                                            Grid.Column="0"
+                                            Content="Launch"
+                                            Height="34"
+                                            MinWidth="84"
+                                            Background="#FF4FD38B"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="OverlayLaunch_Click"/>
+                                    <Button x:Name="OverlayAddButton"
+                                            Grid.Column="2"
+                                            Content="Add"
+                                            Height="34"
+                                            MinWidth="60"
+                                            Background="#154966"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="OverlayAddVersion_Click"/>
+                                    <Button x:Name="OverlayEditButton"
+                                            Grid.Column="4"
+                                            Content="Edit"
+                                            Height="34"
+                                            MinWidth="60"
+                                            Background="#154966"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="OverlayEditVersion_Click"/>
+                                    <Button x:Name="OverlayOpenFolderButton"
+                                            Grid.Column="6"
+                                            Content="Open Folder"
+                                            Height="34"
+                                            MinWidth="96"
+                                            Background="#154966"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="OverlayOpenFolder_Click"/>
+                                </Grid>
+                            </Grid>
+
+                            <Border Grid.Column="1" Width="1" Background="#40FFFFFF"/>
+
+                            <!-- SETTINGS -->
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Settings"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,8"/>
+
+                                <TextBlock Text="Startup Mode" FontWeight="SemiBold"/>
+                                <ComboBox x:Name="OverlayStartupModeDropdown"
+                                          Height="30"
+                                          Margin="0,4,0,8"
+                                          Style="{StaticResource DarkComboBox}"
+                                          SelectionChanged="StartupModeDropdown_SelectionChanged">
+                                    <ComboBoxItem Content="Startup as Window"/>
+                                    <ComboBoxItem Content="Startup as Overlay"/>
+                                </ComboBox>
+
+                                <TextBlock Text="Overlay Hotkey" FontWeight="SemiBold"/>
+                                <Grid Margin="0,4,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="OverlayHotkeyBoxOverlay"
+                                             Height="30"
+                                             IsReadOnly="True"
+                                             Background="#22000000"
+                                             BorderBrush="White"
+                                             BorderThickness="1"
+                                             Foreground="#D8D8D8"
+                                             Padding="8"/>
+                                    <Button Grid.Column="1"
+                                            Width="64"
+                                            Height="30"
+                                            Margin="8,0,0,0"
+                                            Content="Set"
+                                            Background="#154966"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="SetOverlayHotkey_Click"/>
+                                </Grid>
+
+                                <TextBlock Text="Overlay Transparency" FontWeight="SemiBold"/>
+                                <Grid Margin="0,4,0,8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Slider x:Name="OverlayOpacitySliderOverlay"
+                                            Minimum="0"
+                                            Maximum="1"
+                                            Value="0.5"
+                                            TickFrequency="0.05"
+                                            IsSnapToTickEnabled="True"
+                                            ValueChanged="OverlayOpacitySlider_ValueChanged"/>
+                                    <TextBlock x:Name="OverlayOpacityTextOverlay"
+                                               Grid.Column="1"
+                                               Width="56"
+                                               Margin="8,0,0,0"
+                                               VerticalAlignment="Center"
+                                               TextAlignment="Right"
+                                               Text="50%"/>
+                                </Grid>
+
+                                <Button x:Name="OverlayRenameOnCloseButton"
+                                        Height="30"
+                                        Margin="0,0,0,6"
+                                        Content="Rename On Close: Enabled"
+                                        Background="#154966"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="RenameOnCloseButton_Click"/>
+
+                                <Button x:Name="OverlayExplosionDisplayToggleButton"
+                                        Height="30"
+                                        Margin="0,0,0,6"
+                                        Content="Explosion Overlay: Disabled"
+                                        Background="#8B2C2C"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="ExplosionDisplayToggle_Click"/>
+
+                                <Button x:Name="OverlayExplosionTrackToggleButton"
+                                        Height="30"
+                                        Content="Track Explosion Resets: Disabled"
+                                        Background="#8B2C2C"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="ExplosionTrackToggle_Click"/>
+                            </StackPanel>
+
+                            <Border Grid.Column="3" Width="1" Background="#40FFFFFF"/>
+
+                            <!-- TOOLS -->
+                            <StackPanel Grid.Column="4">
+                                <TextBlock Text="Tools"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,8"/>
+
+                                <Button x:Name="OverlayResetMacroToggleButton"
+                                        Height="30"
+                                        Margin="0,0,0,6"
+                                        Content="Reset Macro: Disabled"
+                                        Background="#8B2C2C"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="ResetMacroToggleButton_Click"/>
+
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="OverlayResetHotkeyBox"
+                                             Height="30"
+                                             IsReadOnly="True"
+                                             Background="#22000000"
+                                             BorderBrush="White"
+                                             BorderThickness="1"
+                                             Foreground="#D8D8D8"
+                                             Padding="8"/>
+                                    <Button Grid.Column="1"
+                                            Width="64"
+                                            Height="30"
+                                            Margin="8,0,0,0"
+                                            Content="Set"
+                                            Background="#154966"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="SetResetHotkey_Click"/>
+                                </Grid>
+
+                                <ComboBox x:Name="OverlayResetGamemodeDropdown"
+                                          Height="30"
+                                          Margin="0,0,0,6"
+                                          Style="{StaticResource DarkComboBox}"
+                                          SelectionChanged="OverlayResetGamemodeDropdown_SelectionChanged">
+                                    <ComboBoxItem Content="Survival"/>
+                                    <ComboBoxItem Content="Hardcore"/>
+                                    <ComboBoxItem Content="Creative"/>
+                                    <ComboBoxItem Content="Freedom"/>
+                                    <ComboBoxItem Content="SaveSlot1"/>
+                                    <ComboBoxItem Content="SaveSlot2"/>
+                                    <ComboBoxItem Content="SaveSlot3"/>
+                                </ComboBox>
+
+                                <Button x:Name="OverlayExplosionResetToggleButton"
+                                        Height="30"
+                                        Margin="0,0,0,6"
+                                        Content="Reset Until Explosion: Disabled"
+                                        Background="#8B2C2C"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="ExplosionResetToggle_Click"/>
+
+                                <ComboBox x:Name="OverlayExplosionPresetDropdown"
+                                          Height="30"
+                                          Margin="0,0,0,6"
+                                          Style="{StaticResource DarkComboBox}"
+                                          SelectionChanged="OverlayExplosionPresetDropdown_SelectionChanged">
+                                    <ComboBoxItem Content="46:00 to 46:30" Tag="Min46_To_4630"/>
+                                    <ComboBoxItem Content="46:00 to 47:00" Tag="Min46_To_47"/>
+                                    <ComboBoxItem Content="46:00 to 48:00" Tag="Min46_To_48"/>
+                                    <ComboBoxItem Content="46:00 to 50:00" Tag="Min46_To_50"/>
+                                    <ComboBoxItem Content="Under 1 Hour" Tag="Under1Hour"/>
+                                    <ComboBoxItem Content="Over 1 Hour" Tag="Over1Hour"/>
+                                </ComboBox>
+
+                                <Button x:Name="OverlayHardcoreSaveDeleterToggleButton"
+                                        Height="30"
+                                        Margin="0,0,0,6"
+                                        Content="Hardcore Save Deleter: Disabled"
+                                        Background="#8B2C2C"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="HardcoreSaveDeleterToggle_Click"/>
+
+                                <Button x:Name="OverlaySubnautica100TrackerToggleButton"
+                                        Height="30"
+                                        Margin="0,0,0,6"
+                                        Content="100% Tracker: Disabled"
+                                        Background="#8B2C2C"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="Subnautica100TrackerToggle_Click"/>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Grid.Column="0"
+                                            Height="30"
+                                            Content="Customize"
+                                            Background="#154966"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="Subnautica100TrackerCustomize_Click"/>
+                                    <Button Grid.Column="2"
+                                            Height="30"
+                                            Content="Delete Hardcore Saves"
+                                            Background="#154966"
+                                            Style="{StaticResource RoundedButton}"
+                                            Click="HardcoreSaveDeleterPurge_Click"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <Border Grid.Column="5" Width="1" Background="#40FFFFFF"/>
+
+                            <!-- INFO -->
+                            <StackPanel Grid.Column="6">
+                                <TextBlock Text="Launcher Info"
+                                           FontSize="18"
+                                           FontWeight="Bold"
+                                           Margin="0,0,0,8"/>
+
+                                <Border Background="#70000000"
+                                        CornerRadius="10"
+                                        Padding="8"
+                                        Height="170">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <StackPanel x:Name="OverlayUpdatesPanel"/>
+                                    </ScrollViewer>
+                                </Border>
+
+                                <Button Height="30"
+                                        Margin="0,8,0,0"
+                                        Content="Open GitHub"
+                                        Background="#154966"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="OpenGitHub_Click"/>
+                                <Button Height="30"
+                                        Margin="0,6,0,0"
+                                        Content="Open YouTube"
+                                        Background="#154966"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="OpenYouTube_Click"/>
+                                <Button Height="30"
+                                        Margin="0,6,0,0"
+                                        Content="Open Discord"
+                                        Background="#154966"
+                                        Style="{StaticResource RoundedButton}"
+                                        Click="OpenDiscord_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
         </Viewbox>

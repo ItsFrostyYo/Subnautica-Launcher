@@ -9,9 +9,10 @@ namespace SubnauticaLauncher.UI
     {
         private const int GwlExStyle = -20;
         private const int WsExTransparent = 0x20;
-        private const int WsExLayered = 0x80000;
         private const int WsExToolWindow = 0x80;
+        private const int WsExAppWindow = 0x00040000;
         private const int WsExNoActivate = 0x08000000;
+        private const uint WdaNone = 0x00000000;
 
         public static void MakeClickThrough(Window window)
         {
@@ -22,11 +23,15 @@ namespace SubnauticaLauncher.UI
             IntPtr exStyle = GetWindowLongPtr(hwnd, GwlExStyle);
             long updated = exStyle.ToInt64()
                 | WsExTransparent
-                | WsExLayered
-                | WsExToolWindow
-                | WsExNoActivate;
+                | WsExAppWindow;
+
+            // Capture-friendly mode: avoid hidden toolwindow/no-activate flags
+            // that some capture apps ignore, while preserving click-through.
+            updated &= ~WsExToolWindow;
+            updated &= ~WsExNoActivate;
 
             SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
+            SetWindowDisplayAffinity(hwnd, WdaNone);
         }
 
         private static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex)
@@ -54,5 +59,8 @@ namespace SubnauticaLauncher.UI
 
         [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
         private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
     }
 }

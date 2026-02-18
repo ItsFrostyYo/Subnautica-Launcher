@@ -1,6 +1,7 @@
 <Window x:Class="SubnauticaLauncher.UI.Subnautica100TrackerOverlay"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SNL Overlay - 100 Tracker"
         Width="200"
         Height="80"
         WindowStyle="None"

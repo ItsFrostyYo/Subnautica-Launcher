@@ -1,4 +1,5 @@
 using SubnauticaLauncher.Core;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Versioning;
@@ -17,7 +18,17 @@ internal static class InstalledVersionFileService
 
         foreach (var common in AppPaths.SteamCommonPaths)
         {
-            foreach (var dir in Directory.GetDirectories(common))
+            IEnumerable<string> directories;
+            try
+            {
+                directories = Directory.EnumerateDirectories(common);
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+
+            foreach (var dir in directories)
             {
                 string info = Path.Combine(dir, infoFileName);
                 if (!File.Exists(info))

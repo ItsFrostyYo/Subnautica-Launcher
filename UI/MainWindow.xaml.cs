@@ -27,6 +27,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Application = System.Windows.Application;
 using Brushes = System.Windows.Media.Brushes;
+using Forms = System.Windows.Forms;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using MessageBox = System.Windows.MessageBox;
 using UpdatesData = SubnauticaLauncher.Updates.Updates;
@@ -43,12 +44,27 @@ namespace SubnauticaLauncher.UI
         private const string DefaultBg = "Lifepod";
 
         private const int HotkeyIdReset = 9001;
+        private const int HotkeyIdOverlayToggle = 9002;
         private const int WM_HOTKEY = 0x0312;
+        private const uint MOD_ALT = 0x0001;
+        private const uint MOD_CONTROL = 0x0002;
+        private const uint MOD_SHIFT = 0x0004;
+        private const uint MOD_WIN = 0x0008;
 
         private Key _resetKey = Key.None;
+        private Key _overlayToggleKey = Key.Tab;
+        private ModifierKeys _overlayToggleModifiers = ModifierKeys.Control | ModifierKeys.Shift;
         private bool _macroEnabled;
         private bool _renameOnCloseEnabled = true;
+        private bool _overlayStartupMode;
+        private bool _isCapturingOverlayHotkey;
+        private bool _exitRequested;
+        private bool _syncingOverlaySelection;
+        private bool _syncingGameMode;
+        private bool _syncingModeSelectors;
         private DispatcherTimer? _statusRefreshTimer;
+        private Forms.NotifyIcon? _trayIcon;
+        private LauncherOverlayWindow? _launcherOverlayWindow;
 
         private static CancellationTokenSource? _explosionCts;
         private static bool _explosionRunning;
@@ -66,6 +82,7 @@ namespace SubnauticaLauncher.UI
             InitializeComponent();
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
+            Deactivated += MainWindow_Deactivated;
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -78,6 +95,8 @@ namespace SubnauticaLauncher.UI
             source.AddHook(WndProc);
 
             RegisterResetHotkey();
+            RegisterOverlayToggleHotkey();
+            EnsureTrayIcon();
         }
 
         private IntPtr WndProc(
@@ -107,6 +126,11 @@ namespace SubnauticaLauncher.UI
 
                     handled = true;
                 }
+                else if (hotkeyId == HotkeyIdOverlayToggle)
+                {
+                    _ = Dispatcher.InvokeAsync(ToggleOverlayVisibility);
+                    handled = true;
+                }
             }
 
             return IntPtr.Zero;
@@ -131,12 +155,6 @@ namespace SubnauticaLauncher.UI
                 }
             }
 
-            await CheckForUpdatesOnStartup();
-
-            Directory.CreateDirectory(AppPaths.DataPath);
-            OldRemover.Run();
-            await NewInstaller.RunAsync();
-
             LauncherSettings.Load();
             var settings = LauncherSettings.Current;
 
@@ -154,6 +172,10 @@ namespace SubnauticaLauncher.UI
             LoadInstalledVersions();
             StartStatusRefreshTimer();
             LoadMacroSettings();
+            LoadOverlayModeSettings();
+            SyncStartupModeSelectors();
+            UpdateOverlayHotkeyDisplays();
+            SyncOverlayToolControls();
 
             ExplosionResetSettings.Load();
 
@@ -185,6 +207,10 @@ namespace SubnauticaLauncher.UI
 
             UpdateHardcoreSaveDeleterVisualState();
             UpdateSubnautica100TrackerVisualState();
+            SyncOverlayToolControls();
+            SyncOverlayOptionButtons();
+            BuildUpdatesView();
+            BuildOverlayUpdatesView();
 
             GameEventDocumenter.Start();
             DebugTelemetryController.Start();
@@ -194,14 +220,340 @@ namespace SubnauticaLauncher.UI
             else
                 Subnautica100TrackerOverlayController.Stop();
 
-            Logger.Log("Startup complete");
             ShowView(InstallsView);
+            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
+
+            if (_overlayStartupMode)
+            {
+                EnableOverlayMode();
+                ShowOverlayWindow();
+            }
+
+            // Keep startup responsive: run safety/network checks in background.
+            _ = RunPostStartupSafetyChecksAsync();
+
+            Logger.Log("Startup complete");
+        }
+
+        private async Task RunPostStartupSafetyChecksAsync()
+        {
+            try
+            {
+                await Task.WhenAll(
+                    CheckForUpdatesOnStartup(),
+                    RunRuntimeSafetyChecksAsync());
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Post-startup safety checks failed");
+            }
+        }
+
+        private static async Task RunRuntimeSafetyChecksAsync()
+        {
+            Directory.CreateDirectory(AppPaths.DataPath);
+            OldRemover.Run();
+            await NewInstaller.RunAsync();
+
+            // Refresh Steam library discovery after installer/setup work.
+            AppPaths.InvalidateSteamCommonPathsCache();
+        }
+
+        private void LoadOverlayModeSettings()
+        {
+            var settings = LauncherSettings.Current;
+            _overlayStartupMode = settings.StartupMode == LauncherStartupMode.Overlay;
+            _overlayToggleKey = settings.OverlayToggleKey == Key.None ? Key.Tab : settings.OverlayToggleKey;
+            _overlayToggleModifiers = settings.OverlayToggleModifiers == ModifierKeys.None
+                ? (ModifierKeys.Control | ModifierKeys.Shift)
+                : settings.OverlayToggleModifiers;
+
+            double overlayOpacity = settings.OverlayPanelOpacity;
+            if (double.IsNaN(overlayOpacity) || overlayOpacity < 0 || overlayOpacity > 1)
+                overlayOpacity = 0.5;
+
+            settings.OverlayPanelOpacity = overlayOpacity;
+            ApplyOverlayOpacity(overlayOpacity);
+            RegisterOverlayToggleHotkey();
+        }
+
+        private void SyncStartupModeSelectors()
+        {
+            _syncingModeSelectors = true;
+            try
+            {
+                int index = _overlayStartupMode ? 1 : 0;
+                StartupModeDropdown.SelectedIndex = index;
+                OverlayStartupModeDropdown.SelectedIndex = index;
+            }
+            finally
+            {
+                _syncingModeSelectors = false;
+            }
+        }
+
+        private void BuildOverlayUpdatesView()
+        {
+            if (OverlayUpdatesPanel == null)
+                return;
+
+            OverlayUpdatesPanel.Children.Clear();
+
+            foreach (var update in UpdatesData.History.Take(4))
+            {
+                OverlayUpdatesPanel.Children.Add(new TextBlock
+                {
+                    Text = $"{update.Version} - {update.Title}",
+                    FontSize = 12,
+                    Margin = new Thickness(0, 0, 0, 4),
+                    TextTrimming = TextTrimming.CharacterEllipsis
+                });
+            }
+        }
+
+        private void UpdateOverlayHotkeyDisplays()
+        {
+            string text = FormatHotkey(_overlayToggleModifiers, _overlayToggleKey);
+            OverlayHotkeyBox.Text = text;
+            OverlayHotkeyBoxOverlay.Text = text;
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        private void SyncOverlayOptionButtons()
+        {
+            OverlayRenameOnCloseButton.Content =
+                $"Rename On Close: {(_renameOnCloseEnabled ? "Enabled" : "Disabled")}";
+            OverlayRenameOnCloseButton.Background =
+                _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            OverlayExplosionDisplayToggleButton.Content =
+                $"Explosion Overlay: {(ExplosionResetSettings.OverlayEnabled ? "Enabled" : "Disabled")}";
+            OverlayExplosionDisplayToggleButton.Background =
+                ExplosionResetSettings.OverlayEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            OverlayExplosionTrackToggleButton.Content =
+                $"Track Explosion Resets: {(ExplosionResetSettings.TrackResets ? "Enabled" : "Disabled")}";
+            OverlayExplosionTrackToggleButton.Background =
+                ExplosionResetSettings.TrackResets ? Brushes.Green : Brushes.DarkRed;
+        }
+
+        private void SyncOverlayToolControls()
+        {
+            OverlayResetMacroToggleButton.Content = $"Reset Macro: {(_macroEnabled ? "Enabled" : "Disabled")}";
+            OverlayResetMacroToggleButton.Background = _macroEnabled ? Brushes.Green : Brushes.DarkRed;
+            OverlayResetHotkeyBox.Text = _resetKey.ToString();
+
+            SelectGameMode(OverlayResetGamemodeDropdown, LauncherSettings.Current.ResetGameMode);
+
+            OverlayExplosionResetToggleButton.Content =
+                $"Reset Until Explosion: {(ExplosionResetSettings.Enabled ? "Enabled" : "Disabled")}";
+            OverlayExplosionResetToggleButton.Background =
+                ExplosionResetSettings.Enabled ? Brushes.Green : Brushes.DarkRed;
+
+            OverlayExplosionPresetDropdown.IsEnabled = ExplosionResetSettings.Enabled;
+            OverlayExplosionPresetDropdown.SelectedItem =
+                OverlayExplosionPresetDropdown.Items
+                    .Cast<ComboBoxItem>()
+                    .FirstOrDefault(i => (string)i.Tag == ExplosionResetSettings.Preset.ToString());
+
+            OverlayHardcoreSaveDeleterToggleButton.Content =
+                $"Hardcore Save Deleter: {(LauncherSettings.Current.HardcoreSaveDeleterEnabled ? "Enabled" : "Disabled")}";
+            OverlayHardcoreSaveDeleterToggleButton.Background =
+                LauncherSettings.Current.HardcoreSaveDeleterEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            OverlaySubnautica100TrackerToggleButton.Content =
+                $"100% Tracker: {(LauncherSettings.Current.Subnautica100TrackerEnabled ? "Enabled" : "Disabled")}";
+            OverlaySubnautica100TrackerToggleButton.Background =
+                LauncherSettings.Current.Subnautica100TrackerEnabled ? Brushes.Green : Brushes.DarkRed;
+        }
+
+        private static string FormatHotkey(ModifierKeys modifiers, Key key)
+        {
+            var parts = new List<string>(4);
+            if (modifiers.HasFlag(ModifierKeys.Control))
+                parts.Add("Ctrl");
+            if (modifiers.HasFlag(ModifierKeys.Shift))
+                parts.Add("Shift");
+            if (modifiers.HasFlag(ModifierKeys.Alt))
+                parts.Add("Alt");
+            if (modifiers.HasFlag(ModifierKeys.Windows))
+                parts.Add("Win");
+
+            parts.Add(key.ToString());
+            return string.Join("+", parts);
+        }
+
+        private static uint ToRegisterHotkeyModifiers(ModifierKeys modifiers)
+        {
+            uint value = 0;
+            if (modifiers.HasFlag(ModifierKeys.Alt))
+                value |= MOD_ALT;
+            if (modifiers.HasFlag(ModifierKeys.Control))
+                value |= MOD_CONTROL;
+            if (modifiers.HasFlag(ModifierKeys.Shift))
+                value |= MOD_SHIFT;
+            if (modifiers.HasFlag(ModifierKeys.Windows))
+                value |= MOD_WIN;
+            return value;
+        }
+
+        private void RegisterOverlayToggleHotkey()
+        {
+            var handle = new WindowInteropHelper(this).Handle;
+            UnregisterHotKey(handle, HotkeyIdOverlayToggle);
+
+            if (!_overlayStartupMode || _overlayToggleKey == Key.None)
+                return;
+
+            uint modifiers = ToRegisterHotkeyModifiers(_overlayToggleModifiers);
+            uint vk = (uint)KeyInterop.VirtualKeyFromKey(_overlayToggleKey);
+            bool ok = RegisterHotKey(handle, HotkeyIdOverlayToggle, modifiers, vk);
+            Logger.Log($"Overlay hotkey registered: {FormatHotkey(_overlayToggleModifiers, _overlayToggleKey)}, Success={ok}");
+        }
+
+        private void EnsureTrayIcon()
+        {
+            if (_trayIcon != null)
+                return;
+
+            _trayIcon = new Forms.NotifyIcon
+            {
+                Text = "Subnautica Launcher",
+                Visible = false
+            };
+
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "SNL.ico");
+            if (File.Exists(iconPath))
+                _trayIcon.Icon = new System.Drawing.Icon(iconPath);
+
+            var menu = new Forms.ContextMenuStrip();
+            menu.Items.Add("Show Overlay", null, (_, _) => Dispatcher.Invoke(() =>
+            {
+                if (!_overlayStartupMode)
+                    return;
+
+                EnableOverlayMode();
+                ShowOverlayWindow();
+            }));
+            menu.Items.Add("Open Window", null, (_, _) => Dispatcher.Invoke(() =>
+            {
+                DisableOverlayMode();
+                ShowLauncherWindow();
+            }));
+            menu.Items.Add("Exit Launcher", null, (_, _) => Dispatcher.Invoke(() =>
+            {
+                _exitRequested = true;
+                Close();
+            }));
+            _trayIcon.ContextMenuStrip = menu;
+            _trayIcon.DoubleClick += (_, _) => Dispatcher.Invoke(() =>
+            {
+                if (_overlayStartupMode)
+                    ToggleOverlayVisibility();
+                else
+                    ShowLauncherWindow();
+            });
+        }
+
+        private void ToggleOverlayVisibility()
+        {
+            if (!_overlayStartupMode)
+                return;
+
+            if (_launcherOverlayWindow?.IsVisible == true)
+            {
+                HideToTray();
+                return;
+            }
+
+            EnableOverlayMode();
+            ShowOverlayWindow();
+        }
+
+        private void EnsureOverlayWindow()
+        {
+            if (_launcherOverlayWindow != null)
+                return;
+
+            _launcherOverlayWindow = new LauncherOverlayWindow(this);
+            _launcherOverlayWindow.ApplyOverlayOpacity(Math.Clamp(LauncherSettings.Current.OverlayPanelOpacity, 0, 1));
+        }
+
+        private void ShowLauncherWindow()
+        {
+            _launcherOverlayWindow?.Hide();
+            ShowInTaskbar = true;
+            if (_trayIcon != null)
+                _trayIcon.Visible = _overlayStartupMode;
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+        }
+
+        private void ShowOverlayWindow()
+        {
+            if (!_overlayStartupMode)
+                return;
+
+            EnsureOverlayWindow();
+            _launcherOverlayWindow!.ApplyOverlaySizing();
+            _launcherOverlayWindow.RefreshFromMain();
+            if (!_launcherOverlayWindow.IsVisible)
+                _launcherOverlayWindow.Show();
+            _launcherOverlayWindow.Activate();
+
+            ApplyOverlayWindowSizing();
+            ShowInTaskbar = false;
+            if (_trayIcon != null)
+                _trayIcon.Visible = true;
+            Hide();
+        }
+
+        private void HideToTray()
+        {
+            _launcherOverlayWindow?.Hide();
+            if (_trayIcon != null)
+                _trayIcon.Visible = true;
+            Hide();
+            ShowInTaskbar = false;
+        }
+
+        private void EnableOverlayMode()
+        {
+            EnsureOverlayWindow();
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        private void DisableOverlayMode()
+        {
+            _launcherOverlayWindow?.Hide();
+        }
+
+        private void ApplyOverlayWindowSizing()
+        {
+            _launcherOverlayWindow?.ApplyOverlaySizing();
+        }
+
+        private void ApplyOverlayOpacity(double value)
+        {
+            double clamped = Math.Clamp(value, 0, 1);
+            byte alpha = (byte)Math.Round(clamped * 255d);
+            OverlayDashboard.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(alpha, 0, 0, 0));
+            _launcherOverlayWindow?.ApplyOverlayOpacity(clamped);
+
+            OverlayOpacitySlider.Value = clamped;
+            OverlayOpacitySliderOverlay.Value = clamped;
+            OverlayOpacityText.Text = $"{(int)Math.Round(clamped * 100)}%";
+            OverlayOpacityTextOverlay.Text = OverlayOpacityText.Text;
         }
 
         private void UpdateResetMacroVisualState()
         {
             ResetMacroToggleButton.Content = _macroEnabled ? "Enabled" : "Disabled";
             ResetMacroToggleButton.Background = _macroEnabled ? Brushes.Green : Brushes.DarkRed;
+            OverlayResetMacroToggleButton.Content = $"Reset Macro: {(_macroEnabled ? "Enabled" : "Disabled")}";
+            OverlayResetMacroToggleButton.Background = _macroEnabled ? Brushes.Green : Brushes.DarkRed;
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void UpdateHardcoreSaveDeleterVisualState()
@@ -209,6 +561,10 @@ namespace SubnauticaLauncher.UI
             bool enabled = LauncherSettings.Current.HardcoreSaveDeleterEnabled;
             HardcoreSaveDeleterToggleButton.Content = enabled ? "Enabled" : "Disabled";
             HardcoreSaveDeleterToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
+            OverlayHardcoreSaveDeleterToggleButton.Content =
+                $"Hardcore Save Deleter: {(enabled ? "Enabled" : "Disabled")}";
+            OverlayHardcoreSaveDeleterToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void UpdateSubnautica100TrackerVisualState()
@@ -216,6 +572,10 @@ namespace SubnauticaLauncher.UI
             bool enabled = LauncherSettings.Current.Subnautica100TrackerEnabled;
             Subnautica100TrackerToggleButton.Content = enabled ? "Enabled" : "Disabled";
             Subnautica100TrackerToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
+            OverlaySubnautica100TrackerToggleButton.Content =
+                $"100% Tracker: {(enabled ? "Enabled" : "Disabled")}";
+            OverlaySubnautica100TrackerToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void RegisterResetHotkey()
@@ -414,6 +774,9 @@ namespace SubnauticaLauncher.UI
                 border.Child = panel;
                 UpdatesPanel.Children.Add(border);
             }
+
+            BuildOverlayUpdatesView();
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void ExplosionResetToggle_Click(object sender, RoutedEventArgs e)
@@ -427,9 +790,16 @@ namespace SubnauticaLauncher.UI
             ExplosionResetToggleButton.Background =
                 ExplosionResetSettings.Enabled ? Brushes.Green : Brushes.DarkRed;
 
+            OverlayExplosionResetToggleButton.Content =
+                $"Reset Until Explosion: {(ExplosionResetSettings.Enabled ? "Enabled" : "Disabled")}";
+            OverlayExplosionResetToggleButton.Background =
+                ExplosionResetSettings.Enabled ? Brushes.Green : Brushes.DarkRed;
+
             ExplosionPresetDropdown.IsEnabled = ExplosionResetSettings.Enabled;
+            OverlayExplosionPresetDropdown.IsEnabled = ExplosionResetSettings.Enabled;
 
             Logger.Log($"Explosion reset enabled = {ExplosionResetSettings.Enabled}");
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void ExplosionPresetDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -440,8 +810,13 @@ namespace SubnauticaLauncher.UI
                 ExplosionResetSettings.Preset = Enum.Parse<Enums.ExplosionResetPreset>(tag);
                 ExplosionResetSettings.Save();
 
+                OverlayExplosionPresetDropdown.SelectedItem = OverlayExplosionPresetDropdown.Items
+                    .Cast<ComboBoxItem>()
+                    .FirstOrDefault(i => (string)i.Tag == tag);
+
                 Logger.Log($"Explosion reset preset set to {ExplosionResetSettings.Preset}");
             }
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void SyncThemeDropdown(string bg)
@@ -466,10 +841,286 @@ namespace SubnauticaLauncher.UI
                 LauncherSettings.Current.BackgroundPreset = name;
                 LauncherSettings.Save();
                 ApplyBackground(name);
+                _launcherOverlayWindow?.RefreshFromMain();
             }
         }
 
+        private void StartupModeDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncingModeSelectors)
+                return;
+
+            int index = 0;
+            if (sender is System.Windows.Controls.ComboBox combo)
+                index = combo.SelectedIndex;
+
+            ApplyStartupMode(index == 1);
+        }
+
+        private void ApplyStartupMode(bool startupAsOverlay)
+        {
+            _overlayStartupMode = startupAsOverlay;
+            LauncherSettings.Current.StartupMode =
+                _overlayStartupMode ? LauncherStartupMode.Overlay : LauncherStartupMode.Window;
+            LauncherSettings.Save();
+
+            SyncStartupModeSelectors();
+            RegisterOverlayToggleHotkey();
+
+            if (_overlayStartupMode)
+            {
+                EnableOverlayMode();
+                ShowOverlayWindow();
+            }
+            else
+            {
+                DisableOverlayMode();
+                ShowLauncherWindow();
+            }
+
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        internal IEnumerable<InstalledVersion> GetSubnauticaVersionsForOverlay()
+        {
+            return InstalledVersionsList.ItemsSource as IEnumerable<InstalledVersion>
+                ?? Enumerable.Empty<InstalledVersion>();
+        }
+
+        internal IEnumerable<BZInstalledVersion> GetBelowZeroVersionsForOverlay()
+        {
+            return BZInstalledVersionsList.ItemsSource as IEnumerable<BZInstalledVersion>
+                ?? Enumerable.Empty<BZInstalledVersion>();
+        }
+
+        internal InstalledVersion? GetSelectedSubnauticaVersionForOverlay()
+        {
+            return InstalledVersionsList.SelectedItem as InstalledVersion;
+        }
+
+        internal BZInstalledVersion? GetSelectedBelowZeroVersionForOverlay()
+        {
+            return BZInstalledVersionsList.SelectedItem as BZInstalledVersion;
+        }
+
+        internal void SetSelectedVersionsFromOverlay(InstalledVersion? snVersion, BZInstalledVersion? bzVersion)
+        {
+            _syncingOverlaySelection = true;
+            try
+            {
+                if (snVersion != null)
+                {
+                    InstalledVersionsList.SelectedItem = snVersion;
+                    BZInstalledVersionsList.SelectedItem = null;
+                    return;
+                }
+
+                if (bzVersion != null)
+                {
+                    BZInstalledVersionsList.SelectedItem = bzVersion;
+                    InstalledVersionsList.SelectedItem = null;
+                    return;
+                }
+
+                InstalledVersionsList.SelectedItem = null;
+                BZInstalledVersionsList.SelectedItem = null;
+            }
+            finally
+            {
+                _syncingOverlaySelection = false;
+            }
+        }
+
+        internal bool IsOverlayStartupModeForOverlay() => _overlayStartupMode;
+        internal string GetOverlayHotkeyTextForOverlay() => FormatHotkey(_overlayToggleModifiers, _overlayToggleKey);
+        internal double GetOverlayOpacityForOverlay() => Math.Clamp(LauncherSettings.Current.OverlayPanelOpacity, 0, 1);
+        internal bool IsRenameOnCloseEnabledForOverlay() => _renameOnCloseEnabled;
+        internal bool IsExplosionOverlayEnabledForOverlay() => ExplosionResetSettings.OverlayEnabled;
+        internal bool IsExplosionTrackingEnabledForOverlay() => ExplosionResetSettings.TrackResets;
+        internal bool IsResetMacroEnabledForOverlay() => _macroEnabled;
+        internal Key GetResetHotkeyForOverlay() => _resetKey;
+        internal GameMode GetResetGameModeForOverlay() => GetSelectedGameMode(ResetGamemodeDropdown, LauncherSettings.Current.ResetGameMode);
+        internal bool IsExplosionResetEnabledForOverlay() => ExplosionResetSettings.Enabled;
+        internal ExplosionResetPreset GetExplosionPresetForOverlay() => ExplosionResetSettings.Preset;
+        internal bool IsHardcoreSaveDeleterEnabledForOverlay() => LauncherSettings.Current.HardcoreSaveDeleterEnabled;
+        internal bool IsSubnauticaTrackerEnabledForOverlay() => LauncherSettings.Current.Subnautica100TrackerEnabled;
+        internal string GetBackgroundPresetForOverlay() => LauncherSettings.Current.BackgroundPreset;
+
+        internal void SetStartupModeFromOverlay(bool startupAsOverlay)
+        {
+            ApplyStartupMode(startupAsOverlay);
+        }
+
+        internal void SetBackgroundPresetFromOverlay(string preset)
+        {
+            if (string.IsNullOrWhiteSpace(preset))
+                return;
+
+            LauncherSettings.Current.BackgroundPreset = preset;
+            LauncherSettings.Save();
+            ApplyBackground(preset);
+            SyncThemeDropdown(preset);
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        internal void ChooseCustomBackgroundFromOverlay()
+        {
+            ChooseAndApplyCustomBackground();
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        internal void SetOverlayHotkeyFromOverlay(ModifierKeys modifiers, Key key)
+        {
+            if (key == Key.None)
+                return;
+
+            if (modifiers == ModifierKeys.None)
+                modifiers = ModifierKeys.Control | ModifierKeys.Shift;
+
+            _overlayToggleKey = key;
+            _overlayToggleModifiers = modifiers;
+
+            LauncherSettings.Current.OverlayToggleKey = _overlayToggleKey;
+            LauncherSettings.Current.OverlayToggleModifiers = _overlayToggleModifiers;
+            LauncherSettings.Save();
+
+            UpdateOverlayHotkeyDisplays();
+            RegisterOverlayToggleHotkey();
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        internal void SetOverlayOpacityFromOverlay(double value)
+        {
+            value = Math.Clamp(value, 0, 1);
+            ApplyOverlayOpacity(value);
+            LauncherSettings.Current.OverlayPanelOpacity = value;
+            LauncherSettings.Save();
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        internal void SetResetHotkeyFromOverlay(Key key)
+        {
+            if (key == Key.None)
+                return;
+
+            _resetKey = key;
+            ResetHotkeyBox.Text = _resetKey.ToString();
+            OverlayResetHotkeyBox.Text = _resetKey.ToString();
+
+            SaveMacroSettings();
+            RegisterResetHotkey();
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        internal void SetResetGameModeFromOverlay(GameMode mode)
+        {
+            SelectGameMode(ResetGamemodeDropdown, mode);
+            SelectGameMode(OverlayResetGamemodeDropdown, mode);
+            SaveMacroSettings();
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        internal void SetExplosionPresetFromOverlay(ExplosionResetPreset preset)
+        {
+            ExplosionResetSettings.Preset = preset;
+            ExplosionResetSettings.Save();
+
+            string tag = preset.ToString();
+            ExplosionPresetDropdown.SelectedItem = ExplosionPresetDropdown.Items
+                .Cast<ComboBoxItem>()
+                .FirstOrDefault(i => (string)i.Tag == tag);
+            OverlayExplosionPresetDropdown.SelectedItem = OverlayExplosionPresetDropdown.Items
+                .Cast<ComboBoxItem>()
+                .FirstOrDefault(i => (string)i.Tag == tag);
+
+            Logger.Log($"Explosion reset preset set to {ExplosionResetSettings.Preset}");
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        internal void LaunchSelectedFromOverlay() => Launch_Click(this, new RoutedEventArgs());
+        internal void AddVersionFromOverlay() => InstallVersion_Click(this, new RoutedEventArgs());
+        internal void EditVersionFromOverlay() => EditVersion_Click(this, new RoutedEventArgs());
+        internal void OpenInstallFolderFromOverlay() => OpenInstallFolder_Click(this, new RoutedEventArgs());
+        internal async Task CloseGameFromOverlayAsync() => await CloseRunningGamesAsync(showNoGameMessage: false);
+        internal void ExitLauncherFromOverlay()
+        {
+            _exitRequested = true;
+            Close();
+        }
+        internal void ToggleRenameOnCloseFromOverlay() => RenameOnCloseButton_Click(this, new RoutedEventArgs());
+        internal void ToggleExplosionOverlayFromOverlay() => ExplosionDisplayToggle_Click(this, new RoutedEventArgs());
+        internal void ToggleExplosionTrackingFromOverlay() => ExplosionTrackToggle_Click(this, new RoutedEventArgs());
+        internal void ToggleResetMacroFromOverlay() => ResetMacroToggleButton_Click(this, new RoutedEventArgs());
+        internal void ToggleExplosionResetFromOverlay() => ExplosionResetToggle_Click(this, new RoutedEventArgs());
+        internal void ToggleHardcoreSaveDeleterFromOverlay() => HardcoreSaveDeleterToggle_Click(this, new RoutedEventArgs());
+        internal void ToggleSubnauticaTrackerFromOverlay() => Subnautica100TrackerToggle_Click(this, new RoutedEventArgs());
+        internal void OpenTrackerCustomizeFromOverlay() => Subnautica100TrackerCustomize_Click(this, new RoutedEventArgs());
+        internal void OpenHardcorePurgeFromOverlay() => HardcoreSaveDeleterPurge_Click(this, new RoutedEventArgs());
+        internal void OpenGitHubFromOverlay() => OpenGitHub_Click(this, new RoutedEventArgs());
+        internal void OpenYouTubeFromOverlay() => OpenYouTube_Click(this, new RoutedEventArgs());
+        internal void OpenDiscordFromOverlay() => OpenDiscord_Click(this, new RoutedEventArgs());
+
+        private void SetOverlayHotkey_Click(object sender, RoutedEventArgs e)
+        {
+            _isCapturingOverlayHotkey = true;
+            OverlayHotkeyBox.Text = "Press new combo...";
+            OverlayHotkeyBoxOverlay.Text = "Press new combo...";
+
+            PreviewKeyDown -= CaptureOverlayHotkey;
+            PreviewKeyDown += CaptureOverlayHotkey;
+        }
+
+        private void CaptureOverlayHotkey(object sender, KeyEventArgs e)
+        {
+            if (!_isCapturingOverlayHotkey)
+                return;
+
+            Key key = e.Key == Key.System ? e.SystemKey : e.Key;
+            if (key is Key.LeftShift or Key.RightShift or
+                Key.LeftCtrl or Key.RightCtrl or
+                Key.LeftAlt or Key.RightAlt or
+                Key.LWin or Key.RWin)
+            {
+                return;
+            }
+
+            ModifierKeys modifiers = Keyboard.Modifiers;
+            if (modifiers == ModifierKeys.None)
+                modifiers = ModifierKeys.Control | ModifierKeys.Shift;
+
+            _overlayToggleKey = key;
+            _overlayToggleModifiers = modifiers;
+
+            LauncherSettings.Current.OverlayToggleKey = _overlayToggleKey;
+            LauncherSettings.Current.OverlayToggleModifiers = _overlayToggleModifiers;
+            LauncherSettings.Save();
+
+            UpdateOverlayHotkeyDisplays();
+            RegisterOverlayToggleHotkey();
+            _launcherOverlayWindow?.RefreshFromMain();
+
+            _isCapturingOverlayHotkey = false;
+            PreviewKeyDown -= CaptureOverlayHotkey;
+            e.Handled = true;
+        }
+
+        private void OverlayOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!IsLoaded)
+                return;
+
+            double value = e.NewValue;
+            ApplyOverlayOpacity(value);
+            LauncherSettings.Current.OverlayPanelOpacity = value;
+            LauncherSettings.Save();
+        }
+
         private void ChooseCustomBackground_Click(object sender, RoutedEventArgs e)
+        {
+            ChooseAndApplyCustomBackground();
+        }
+
+        private void ChooseAndApplyCustomBackground()
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
@@ -483,7 +1134,8 @@ namespace SubnauticaLauncher.UI
             LauncherSettings.Current.BackgroundPreset = dlg.FileName;
             LauncherSettings.Save();
             ApplyBackground(dlg.FileName);
-            ThemeDropdown.SelectedItem = null;
+            SyncThemeDropdown(dlg.FileName);
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private async void Launch_Click(object sender, RoutedEventArgs e)
@@ -665,6 +1317,8 @@ namespace SubnauticaLauncher.UI
 
             InstalledVersionsList.ItemsSource = snList;
             InstalledVersionsList.Items.Refresh();
+            OverlayInstalledVersionsList.ItemsSource = snList;
+            OverlayInstalledVersionsList.Items.Refresh();
 
             var bzList = BZVersionLoader.LoadInstalled();
             foreach (var v in bzList)
@@ -678,7 +1332,10 @@ namespace SubnauticaLauncher.UI
 
             BZInstalledVersionsList.ItemsSource = bzList;
             BZInstalledVersionsList.Items.Refresh();
+            OverlayBZInstalledVersionsList.ItemsSource = bzList;
+            OverlayBZInstalledVersionsList.Items.Refresh();
             RefreshRunningStatusIndicators();
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void SetStatus(InstalledVersion version, VersionStatus status)
@@ -777,6 +1434,9 @@ namespace SubnauticaLauncher.UI
                 InstalledVersionsList.Items.Refresh();
             if (bzChanged)
                 BZInstalledVersionsList.Items.Refresh();
+
+            if (snChanged || bzChanged)
+                _launcherOverlayWindow?.RefreshVersionStatusOnly();
         }
 
         private static async Task<bool> WaitForLaunchedAsync(Process process, int timeoutMs = 10000)
@@ -817,19 +1477,126 @@ namespace SubnauticaLauncher.UI
 
         private void InstalledVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_syncingOverlaySelection)
+                return;
+
             if (InstalledVersionsList.SelectedItem != null && BZInstalledVersionsList.SelectedItem != null)
                 BZInstalledVersionsList.SelectedItem = null;
+
+            _syncingOverlaySelection = true;
+            OverlayInstalledVersionsList.SelectedItem = InstalledVersionsList.SelectedItem;
+            OverlayBZInstalledVersionsList.SelectedItem = BZInstalledVersionsList.SelectedItem;
+            _syncingOverlaySelection = false;
+            _launcherOverlayWindow?.SyncSelectedVersionsFromMain();
         }
 
         private void BZInstalledVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_syncingOverlaySelection)
+                return;
+
             if (BZInstalledVersionsList.SelectedItem != null && InstalledVersionsList.SelectedItem != null)
                 InstalledVersionsList.SelectedItem = null;
+
+            _syncingOverlaySelection = true;
+            OverlayInstalledVersionsList.SelectedItem = InstalledVersionsList.SelectedItem;
+            OverlayBZInstalledVersionsList.SelectedItem = BZInstalledVersionsList.SelectedItem;
+            _syncingOverlaySelection = false;
+            _launcherOverlayWindow?.SyncSelectedVersionsFromMain();
+        }
+
+        private void OverlayInstalledVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncingOverlaySelection)
+                return;
+
+            _syncingOverlaySelection = true;
+            InstalledVersionsList.SelectedItem = OverlayInstalledVersionsList.SelectedItem;
+            if (OverlayInstalledVersionsList.SelectedItem != null)
+                OverlayBZInstalledVersionsList.SelectedItem = null;
+            BZInstalledVersionsList.SelectedItem = OverlayBZInstalledVersionsList.SelectedItem;
+            _syncingOverlaySelection = false;
+        }
+
+        private void OverlayBZInstalledVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncingOverlaySelection)
+                return;
+
+            _syncingOverlaySelection = true;
+            BZInstalledVersionsList.SelectedItem = OverlayBZInstalledVersionsList.SelectedItem;
+            if (OverlayBZInstalledVersionsList.SelectedItem != null)
+                OverlayInstalledVersionsList.SelectedItem = null;
+            InstalledVersionsList.SelectedItem = OverlayInstalledVersionsList.SelectedItem;
+            _syncingOverlaySelection = false;
+        }
+
+        private void OverlayLaunch_Click(object sender, RoutedEventArgs e)
+        {
+            Launch_Click(sender, e);
+        }
+
+        private void OverlayAddVersion_Click(object sender, RoutedEventArgs e)
+        {
+            InstallVersion_Click(sender, e);
+        }
+
+        private void OverlayEditVersion_Click(object sender, RoutedEventArgs e)
+        {
+            EditVersion_Click(sender, e);
+        }
+
+        private void OverlayOpenFolder_Click(object sender, RoutedEventArgs e)
+        {
+            OpenInstallFolder_Click(sender, e);
+        }
+
+        private void OverlayResetGamemodeDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncingGameMode)
+                return;
+
+            _syncingGameMode = true;
+            if (OverlayResetGamemodeDropdown.SelectedItem is ComboBoxItem item &&
+                item.Content is string modeText)
+            {
+                ResetGamemodeDropdown.SelectedItem = ResetGamemodeDropdown.Items
+                    .Cast<ComboBoxItem>()
+                    .FirstOrDefault(i => string.Equals((string)i.Content, modeText, StringComparison.Ordinal));
+            }
+            _syncingGameMode = false;
+
+            SaveMacroSettings();
+            _launcherOverlayWindow?.RefreshFromMain();
+        }
+
+        private void OverlayExplosionPresetDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncingOverlaySelection)
+                return;
+
+            if (OverlayExplosionPresetDropdown.SelectedItem is ComboBoxItem item &&
+                item.Tag is string tag)
+            {
+                ExplosionPresetDropdown.SelectedItem = ExplosionPresetDropdown.Items
+                    .Cast<ComboBoxItem>()
+                    .FirstOrDefault(i => (string)i.Tag == tag);
+            }
+
+            ExplosionPresetDropdown_SelectionChanged(ExplosionPresetDropdown, e);
+        }
+
+        private Window GetDialogOwnerWindow()
+        {
+            if (_launcherOverlayWindow?.IsVisible == true)
+                return _launcherOverlayWindow;
+
+            return this;
         }
 
         private void InstallVersion_Click(object sender, RoutedEventArgs e)
         {
-            new AddVersionWindow { Owner = this }.ShowDialog();
+            new AddVersionWindow { Owner = GetDialogOwnerWindow() }.ShowDialog();
             LoadInstalledVersions();
         }
 
@@ -850,6 +1617,39 @@ namespace SubnauticaLauncher.UI
             });
         }
 
+        private async void CloseGame_Click(object sender, RoutedEventArgs e)
+        {
+            await CloseRunningGamesAsync(showNoGameMessage: true);
+        }
+
+        private async Task CloseRunningGamesAsync(bool showNoGameMessage)
+        {
+            try
+            {
+                bool wasRunning = await LaunchCoordinator.CloseAllGameProcessesAsync();
+                RefreshRunningStatusIndicators();
+                _launcherOverlayWindow?.RefreshVersionStatusOnly();
+
+                if (showNoGameMessage && !wasRunning)
+                {
+                    MessageBox.Show(
+                        "No running Subnautica or Below Zero process was found.",
+                        "Close Game",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Failed to close running game process");
+                MessageBox.Show(
+                    "Failed to close game process. Check launcher logs for details.",
+                    "Close Game Failed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
+
         private void EditVersion_Click(object sender, RoutedEventArgs e)
         {
             if (InstalledVersionsList.SelectedItem is InstalledVersion snVersion)
@@ -864,7 +1664,7 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
 
-                var win = new EditVersionWindow(snVersion) { Owner = this };
+                var win = new EditVersionWindow(snVersion) { Owner = GetDialogOwnerWindow() };
                 if (win.ShowDialog() == true)
                     LoadInstalledVersions();
 
@@ -883,7 +1683,7 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
 
-                var win = new EditVersionWindow(bzVersion) { Owner = this };
+                var win = new EditVersionWindow(bzVersion) { Owner = GetDialogOwnerWindow() };
                 if (win.ShowDialog() == true)
                     LoadInstalledVersions();
             }
@@ -1002,6 +1802,12 @@ namespace SubnauticaLauncher.UI
 
             ExplosionDisplayToggleButton.Background =
                 ExplosionResetSettings.OverlayEnabled ? Brushes.Green : Brushes.DarkRed;
+
+            OverlayExplosionDisplayToggleButton.Content =
+                $"Explosion Overlay: {(ExplosionResetSettings.OverlayEnabled ? "Enabled" : "Disabled")}";
+            OverlayExplosionDisplayToggleButton.Background =
+                ExplosionResetSettings.OverlayEnabled ? Brushes.Green : Brushes.DarkRed;
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void ExplosionTrackToggle_Click(object sender, RoutedEventArgs e)
@@ -1014,6 +1820,12 @@ namespace SubnauticaLauncher.UI
 
             ExplosionTrackToggleButton.Background =
                 ExplosionResetSettings.TrackResets ? Brushes.Green : Brushes.DarkRed;
+
+            OverlayExplosionTrackToggleButton.Content =
+                $"Track Explosion Resets: {(ExplosionResetSettings.TrackResets ? "Enabled" : "Disabled")}";
+            OverlayExplosionTrackToggleButton.Background =
+                ExplosionResetSettings.TrackResets ? Brushes.Green : Brushes.DarkRed;
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void HardcoreSaveDeleterToggle_Click(object sender, RoutedEventArgs e)
@@ -1051,7 +1863,7 @@ namespace SubnauticaLauncher.UI
                 settings.SubnauticaBiomeTrackerCycleMode,
                 settings.SubnauticaBiomeTrackerScrollSpeed)
             {
-                Owner = this
+                Owner = GetDialogOwnerWindow()
             };
 
             if (window.ShowDialog() != true)
@@ -1069,7 +1881,7 @@ namespace SubnauticaLauncher.UI
 
         private void HardcoreSaveDeleterPurge_Click(object sender, RoutedEventArgs e)
         {
-            var win = new HardcoreSaveDeleterWindow { Owner = this };
+            var win = new HardcoreSaveDeleterWindow { Owner = GetDialogOwnerWindow() };
             if (win.ShowDialog() != true)
                 return;
 
@@ -1155,26 +1967,34 @@ namespace SubnauticaLauncher.UI
             RenameOnCloseButton.Content = _renameOnCloseEnabled ? "Enabled" : "Disabled";
             RenameOnCloseButton.Background = _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
 
+            OverlayRenameOnCloseButton.Content =
+                $"Rename On Close: {(_renameOnCloseEnabled ? "Enabled" : "Disabled")}";
+            OverlayRenameOnCloseButton.Background = _renameOnCloseEnabled ? Brushes.Green : Brushes.DarkRed;
+
             LauncherSettings.Current.RenameOnCloseEnabled = _renameOnCloseEnabled;
             LauncherSettings.Save();
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void SetResetHotkey_Click(object sender, RoutedEventArgs e)
         {
             ResetHotkeyBox.Text = "Press a key...";
+            OverlayResetHotkeyBox.Text = "Press a key...";
             PreviewKeyDown -= CaptureResetKey;
             PreviewKeyDown += CaptureResetKey;
         }
 
         private void CaptureResetKey(object sender, KeyEventArgs e)
         {
-            _resetKey = e.Key;
+            _resetKey = e.Key == Key.System ? e.SystemKey : e.Key;
             ResetHotkeyBox.Text = _resetKey.ToString();
+            OverlayResetHotkeyBox.Text = _resetKey.ToString();
 
             PreviewKeyDown -= CaptureResetKey;
 
             SaveMacroSettings();
             RegisterResetHotkey();
+            _launcherOverlayWindow?.RefreshFromMain();
             e.Handled = true;
         }
 
@@ -1206,11 +2026,14 @@ namespace SubnauticaLauncher.UI
             _renameOnCloseEnabled = settings.RenameOnCloseEnabled;
 
             ResetHotkeyBox.Text = _resetKey.ToString();
+            OverlayResetHotkeyBox.Text = _resetKey.ToString();
 
             SelectGameMode(ResetGamemodeDropdown, settings.ResetGameMode);
+            SelectGameMode(OverlayResetGamemodeDropdown, settings.ResetGameMode);
 
             UpdateResetMacroVisualState();
             RegisterResetHotkey();
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private static void SelectGameMode(System.Windows.Controls.ComboBox comboBox, GameMode mode)
@@ -1225,6 +2048,19 @@ namespace SubnauticaLauncher.UI
 
         private void ResetGamemodeDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_syncingGameMode)
+                return;
+
+            _syncingGameMode = true;
+            if (ResetGamemodeDropdown.SelectedItem is ComboBoxItem item &&
+                item.Content is string modeText)
+            {
+                OverlayResetGamemodeDropdown.SelectedItem = OverlayResetGamemodeDropdown.Items
+                    .Cast<ComboBoxItem>()
+                    .FirstOrDefault(i => string.Equals((string)i.Content, modeText, StringComparison.Ordinal));
+            }
+            _syncingGameMode = false;
+
             SaveMacroSettings();
         }
 
@@ -1289,6 +2125,13 @@ namespace SubnauticaLauncher.UI
 
         private async void MainWindow_Closing(object? sender, CancelEventArgs e)
         {
+            if (_overlayStartupMode && !_exitRequested)
+            {
+                e.Cancel = true;
+                HideToTray();
+                return;
+            }
+
             await Task.Yield();
             Logger.Log("Launcher is now closing");
             _statusRefreshTimer?.Stop();
@@ -1300,6 +2143,14 @@ namespace SubnauticaLauncher.UI
 
             var handle = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(handle, HotkeyIdReset);
+            UnregisterHotKey(handle, HotkeyIdOverlayToggle);
+
+            if (_launcherOverlayWindow != null)
+            {
+                _launcherOverlayWindow.AllowClose();
+                _launcherOverlayWindow.Close();
+                _launcherOverlayWindow = null;
+            }
 
             if (!_renameOnCloseEnabled)
             {
@@ -1332,7 +2183,20 @@ namespace SubnauticaLauncher.UI
                 }
             }
 
+            if (_trayIcon != null)
+            {
+                _trayIcon.Visible = false;
+                _trayIcon.Dispose();
+                _trayIcon = null;
+            }
+
             Logger.Log("Launcher shutdown complete");
+        }
+
+        private void MainWindow_Deactivated(object? sender, EventArgs e)
+        {
+            // Main window should behave normally; overlay visibility is controlled
+            // by the dedicated overlay window + global toggle hotkey.
         }
     }
 }

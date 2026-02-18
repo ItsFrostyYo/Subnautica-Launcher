@@ -33,14 +33,29 @@ public static class Updates
         
         new UpdateEntry
     {
+        Version = "2.3.2",
+        Title = "Overlay Mode and Performance Improvements",
+        Date = "Feb 18, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Added a full standalone launcher overlay mode window (separate from the main window)",
+            "Added startup mode controls for Window vs Overlay and overlay hotkey flow improvements",
+            "Added Close Game button in main installs view",
+            "Editable overlay transparency from 0-100% range",
+            "Additional startup and menu responsiveness improvements"
+        }
+    },     
+        
+        new UpdateEntry
+    {
         Version = "2.3.1",
         Title = "Version Installation Update",
-        Date = "Feb 16, 2026 | Contributors (1) - ItsFrosti.",
+        Date = "Feb 17, 2026 | Contributors (1) - ItsFrosti.",
         Changes = new[]
         {
             "New UI For Installing Versions",
             "Added Remember Password Support",
-            "Improved overall installation process"
+            "Improved overall version installation process"
         }
     },     
 

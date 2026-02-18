@@ -2,6 +2,7 @@ using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Installer;
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -55,14 +56,19 @@ namespace SubnauticaLauncher
                 Directory.CreateDirectory(AppPaths.DataPath);
                 Directory.CreateDirectory(AppPaths.LogsPath);
 
-                using HttpClient http = new HttpClient
+                bool missingExplosionHelpers = RequiredHelperTools.Any(tool =>
+                    !File.Exists(Path.Combine(AppPaths.ToolsPath, tool.FileName)));
+
+                if (missingExplosionHelpers)
                 {
-                    Timeout = TimeSpan.FromSeconds(45)
-                };
+                    using HttpClient http = new HttpClient
+                    {
+                        Timeout = TimeSpan.FromSeconds(45)
+                    };
 
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
-
-                await EnsureExplosionHelpersAsync(http, status);
+                    http.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
+                    await EnsureExplosionHelpersAsync(http, status);
+                }
 
                 status?.Report("Checking DepotDownloader...");
                 await DepotDownloaderInstaller.EnsureInstalledAsync();

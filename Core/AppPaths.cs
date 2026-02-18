@@ -43,11 +43,25 @@ namespace SubnauticaLauncher.Core
                 "Steam");
 
         public static IReadOnlyList<string> SteamCommonPaths =>
-            GetSteamCommonPaths();
+            GetSteamCommonPathsCached();
+
+        private static readonly object SteamPathsCacheLock = new();
+        private static IReadOnlyList<string>? _cachedSteamCommonPaths;
+        private static DateTime _steamPathsCacheExpiresUtc = DateTime.MinValue;
+        private static readonly TimeSpan SteamPathsCacheDuration = TimeSpan.FromSeconds(20);
 
         public static string SteamCommonPath =>
             SteamCommonPaths.FirstOrDefault()
             ?? Path.Combine(DefaultSteamRootX86, "steamapps", "common");
+
+        public static void InvalidateSteamCommonPathsCache()
+        {
+            lock (SteamPathsCacheLock)
+            {
+                _cachedSteamCommonPaths = null;
+                _steamPathsCacheExpiresUtc = DateTime.MinValue;
+            }
+        }
 
         public static string GetSteamCommonPathFor(string versionFolder)
         {
@@ -60,6 +74,23 @@ namespace SubnauticaLauncher.Core
 
             return SteamCommonPath;
         }
+        [SupportedOSPlatform("windows")]
+        private static IReadOnlyList<string> GetSteamCommonPathsCached()
+        {
+            lock (SteamPathsCacheLock)
+            {
+                if (_cachedSteamCommonPaths != null &&
+                    DateTime.UtcNow < _steamPathsCacheExpiresUtc)
+                {
+                    return _cachedSteamCommonPaths;
+                }
+
+                _cachedSteamCommonPaths = GetSteamCommonPaths();
+                _steamPathsCacheExpiresUtc = DateTime.UtcNow.Add(SteamPathsCacheDuration);
+                return _cachedSteamCommonPaths;
+            }
+        }
+
         [SupportedOSPlatform("windows")]
         private static IReadOnlyList<string> GetSteamCommonPaths()
         {
