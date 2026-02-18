@@ -102,7 +102,7 @@ namespace SubnauticaLauncher.UI
             }
 
             OverlayRenameOnCloseButton.Content =
-                $"Rename On Close: {(_main.IsRenameOnCloseEnabledForOverlay() ? "Enabled" : "Disabled")}";
+                $"Allow Launching through Steam: {(_main.IsRenameOnCloseEnabledForOverlay() ? "Enabled" : "Disabled")}";
             OverlayRenameOnCloseButton.Background =
                 _main.IsRenameOnCloseEnabledForOverlay() ? Brushes.Green : Brushes.DarkRed;
 
