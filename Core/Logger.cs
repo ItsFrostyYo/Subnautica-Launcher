@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -6,30 +7,50 @@ namespace SubnauticaLauncher.Core
 {
     public static class Logger
     {
-        private static readonly object _lock = new();
+        private static readonly object WriteLock = new();
+        private static readonly object ThrottleLock = new();
+        private static readonly Dictionary<string, DateTime> LastWriteByThrottleKey =
+            new(StringComparer.Ordinal);
 
-        private static string LogDirectory =>
-            AppPaths.LogsPath;
+        private static string LogDirectory => AppPaths.LogsPath;
+        private static string DefaultLogFile => AppPaths.LogFile;
 
-        private static string LogFile =>
-            AppPaths.LogFile;
+        public static void Log(string message) => Write("INFO", message);
+        public static void Warn(string message) => Write("WARN", message);
+        public static void Error(string message) => Write("ERROR", message);
 
-        public static void Log(string message)
+        public static void LogTo(string relativeFilePath, string message) =>
+            WriteToFile(relativeFilePath, "INFO", message);
+
+        public static void WarnTo(string relativeFilePath, string message) =>
+            WriteToFile(relativeFilePath, "WARN", message);
+
+        public static void ErrorTo(string relativeFilePath, string message) =>
+            WriteToFile(relativeFilePath, "ERROR", message);
+
+        public static void LogThrottled(string throttleKey, string message, TimeSpan minInterval)
         {
-            Write("INFO", message);
+            if (ShouldWriteThrottled(throttleKey, minInterval))
+                Write("INFO", message);
         }
 
-        public static void Warn(string message)
+        public static void WarnThrottled(string throttleKey, string message, TimeSpan minInterval)
         {
-            Write("WARN", message);
-        }
-
-        public static void Error(string message)
-        {
-            Write("ERROR", message);
+            if (ShouldWriteThrottled(throttleKey, minInterval))
+                Write("WARN", message);
         }
 
         public static void Exception(Exception ex, string? context = null)
+        {
+            Write("EXCEPTION", BuildExceptionMessage(ex, context));
+        }
+
+        public static void ExceptionTo(string relativeFilePath, Exception ex, string? context = null)
+        {
+            WriteToFile(relativeFilePath, "EXCEPTION", BuildExceptionMessage(ex, context));
+        }
+
+        private static string BuildExceptionMessage(Exception ex, string? context)
         {
             var sb = new StringBuilder();
 
@@ -37,27 +58,73 @@ namespace SubnauticaLauncher.Core
                 sb.AppendLine(context);
 
             sb.AppendLine(ex.ToString());
-
-            Write("EXCEPTION", sb.ToString());
+            return sb.ToString();
         }
 
         private static void Write(string level, string message)
         {
+            WriteToFile("launcher.log", level, message);
+        }
+
+        private static void WriteToFile(string relativeFilePath, string level, string message)
+        {
             try
             {
-                Directory.CreateDirectory(LogDirectory);
+                string targetLogFile = ResolveLogPath(relativeFilePath);
+                string? targetDirectory = Path.GetDirectoryName(targetLogFile);
+                if (string.IsNullOrWhiteSpace(targetDirectory))
+                    targetDirectory = LogDirectory;
 
-                var line =
-                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}";
+                Directory.CreateDirectory(targetDirectory);
 
-                lock (_lock)
+                string line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [{level}] {message}";
+
+                lock (WriteLock)
                 {
-                    File.AppendAllText(LogFile, line + Environment.NewLine);
+                    File.AppendAllText(targetLogFile, line + Environment.NewLine);
                 }
             }
             catch
             {
-                // 🔒 Logging must NEVER crash the app
+                // Logging must never crash the app.
+            }
+        }
+
+        private static string ResolveLogPath(string relativeFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativeFilePath))
+                return DefaultLogFile;
+
+            string normalized = relativeFilePath
+                .Replace('/', Path.DirectorySeparatorChar)
+                .Replace('\\', Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
+
+            string fullBase = Path.GetFullPath(LogDirectory);
+            string combined = Path.GetFullPath(Path.Combine(fullBase, normalized));
+
+            if (!combined.StartsWith(fullBase, StringComparison.OrdinalIgnoreCase))
+                return DefaultLogFile;
+
+            return combined;
+        }
+
+        private static bool ShouldWriteThrottled(string throttleKey, TimeSpan minInterval)
+        {
+            if (string.IsNullOrWhiteSpace(throttleKey))
+                return true;
+
+            DateTime now = DateTime.UtcNow;
+            lock (ThrottleLock)
+            {
+                if (LastWriteByThrottleKey.TryGetValue(throttleKey, out DateTime lastUtc))
+                {
+                    if (now - lastUtc < minInterval)
+                        return false;
+                }
+
+                LastWriteByThrottleKey[throttleKey] = now;
+                return true;
             }
         }
     }

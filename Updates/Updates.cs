@@ -33,6 +33,18 @@ public static class Updates
         
         new UpdateEntry
     {
+        Version = "2.3.3",
+        Title = "Logging Updated",
+        Date = "Feb 18, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Improved Logging for Runs, Full Reset Macro Logging, no more spamming logs",
+            "Added a Readme for the Launcher",            
+        }
+    },     
+        
+        new UpdateEntry
+    {
         Version = "2.3.2",
         Title = "Overlay Mode and Performance Improvements",
         Date = "Feb 18, 2026 | Contributors (1) - ItsFrosti.",

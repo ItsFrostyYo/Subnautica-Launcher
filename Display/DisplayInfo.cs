@@ -18,6 +18,14 @@ namespace SubnauticaLauncher.Display
     [SupportedOSPlatform("windows")]
     public sealed class DisplayInfo
     {
+        private static readonly object CacheLock = new();
+        private static DisplayInfo? _cachedPrimary;
+        private static int _cachedWidth;
+        private static int _cachedHeight;
+        private static DateTime _lastCacheRefreshUtc = DateTime.MinValue;
+        private static readonly TimeSpan CacheRefreshInterval = TimeSpan.FromSeconds(2);
+        private static bool _loggedNoPrimaryScreen;
+
         public int PhysicalWidth { get; }
         public int PhysicalHeight { get; }
         public float ScaleX { get; }
@@ -34,34 +42,51 @@ namespace SubnauticaLauncher.Display
             ScaleY = height / 1080f;
 
             Tier = DetectTier(width, height);
-
-            Logger.Log(
-                $"DisplayInfo Fetched for Reset Macro |" +
-                $"Resolution={width}x{height} | " +
-                $"ScaleX={ScaleX:F3} ScaleY={ScaleY:F3}"
-            );
         }
 
         public static DisplayInfo GetPrimary()
         {
-            Logger.Log("Detecting primary display");
-
-            var screen = Screen.PrimaryScreen;
-            if (screen == null)
+            lock (CacheLock)
             {
-                Logger.Log("ERROR: No Primary Screen could be Detected");
-                throw new InvalidOperationException("No primary screen");
+                DateTime now = DateTime.UtcNow;
+                if (_cachedPrimary != null && now - _lastCacheRefreshUtc < CacheRefreshInterval)
+                    return _cachedPrimary;
+
+                var screen = Screen.PrimaryScreen;
+                if (screen == null)
+                {
+                    if (!_loggedNoPrimaryScreen)
+                    {
+                        Logger.Error("[Display] No primary screen could be detected.");
+                        _loggedNoPrimaryScreen = true;
+                    }
+
+                    throw new InvalidOperationException("No primary screen");
+                }
+
+                _loggedNoPrimaryScreen = false;
+
+                int width = screen.Bounds.Width;
+                int height = screen.Bounds.Height;
+                bool changed = _cachedPrimary == null ||
+                               width != _cachedWidth ||
+                               height != _cachedHeight;
+
+                if (changed)
+                {
+                    _cachedPrimary = new DisplayInfo(width, height);
+                    _cachedWidth = width;
+                    _cachedHeight = height;
+
+                    Logger.Log(
+                        $"[Display] Primary display {width}x{height} | " +
+                        $"ScaleX={_cachedPrimary.ScaleX:F3} ScaleY={_cachedPrimary.ScaleY:F3} | Tier={_cachedPrimary.Tier}");
+                }
+
+                _lastCacheRefreshUtc = now;
+                return _cachedPrimary!;
             }
 
-            Logger.Log(
-                $"Primary Screen Bounds Detected: " +
-                $"{screen.Bounds.Width}x{screen.Bounds.Height}"
-            );
-
-            return new DisplayInfo(
-                screen.Bounds.Width,
-                screen.Bounds.Height
-            );
         }
 
         private static MonitorTier DetectTier(int w, int h)

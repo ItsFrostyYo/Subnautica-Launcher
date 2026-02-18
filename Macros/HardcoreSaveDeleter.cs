@@ -40,7 +40,10 @@ namespace SubnauticaLauncher.Macros
             return IsHardcoreSlot(latestSlot.Path) ? latestSlot.Path : null;
         }
 
-        public static async Task DeleteSlotAfterDelayAsync(string? slotPath, int delayMs = 1500)
+        public static async Task DeleteSlotAfterDelayAsync(
+            string? slotPath,
+            int delayMs = 1500,
+            ResetMacroLogChannel? logChannel = null)
         {
             if (string.IsNullOrWhiteSpace(slotPath))
                 return;
@@ -52,12 +55,12 @@ namespace SubnauticaLauncher.Macros
                 if (Directory.Exists(slotPath))
                 {
                     Directory.Delete(slotPath, recursive: true);
-                    Logger.Log($"Hardcore save deleted: {slotPath}");
+                    LogInfo(logChannel, $"Hardcore save deleted: {slotPath}");
                 }
             }
             catch (Exception ex)
             {
-                Logger.Exception(ex, "Hardcore save delete failed");
+                LogException(logChannel, ex, "Hardcore save delete failed");
             }
         }
 
@@ -156,6 +159,22 @@ namespace SubnauticaLauncher.Macros
             }
 
             return false;
+        }
+
+        private static void LogInfo(ResetMacroLogChannel? channel, string message)
+        {
+            if (channel.HasValue)
+                ResetMacroLogger.Info(channel.Value, message);
+            else
+                Logger.Log(message);
+        }
+
+        private static void LogException(ResetMacroLogChannel? channel, Exception ex, string context)
+        {
+            if (channel.HasValue)
+                ResetMacroLogger.Exception(channel.Value, ex, context);
+            else
+                Logger.Exception(ex, context);
         }
     }
 }

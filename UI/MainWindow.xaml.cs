@@ -1697,6 +1697,7 @@ namespace SubnauticaLauncher.UI
             if (_explosionRunning)
             {
                 Logger.Warn("[ExplosionReset] Abort requested");
+                ResetMacroLogger.Warn(ResetMacroLogChannel.Explosion, "Abort requested from reset hotkey.");
 
                 _explosionCts?.Cancel();
                 _explosionCts = null;
@@ -1710,11 +1711,22 @@ namespace SubnauticaLauncher.UI
             if (runningState == RunningGameState.Both)
             {
                 Logger.Warn("Reset macro blocked: both Subnautica and Below Zero are running.");
+                ResetMacroLogger.Warn(
+                    ResetMacroLogChannel.Subnautica,
+                    "Reset blocked: both Subnautica and Below Zero are running.");
+                ResetMacroLogger.Warn(
+                    ResetMacroLogChannel.BelowZero,
+                    "Reset blocked: both Subnautica and Below Zero are running.");
                 return;
             }
 
             if (ResetGamemodeDropdown.SelectedItem is not ComboBoxItem item)
+            {
+                ResetMacroLogger.Warn(
+                    ResetMacroLogChannel.Subnautica,
+                    "Reset requested but no game mode was selected.");
                 return;
+            }
 
             var mode = Enum.Parse<GameMode>((string)item.Content);
 
@@ -1722,6 +1734,9 @@ namespace SubnauticaLauncher.UI
             {
                 try
                 {
+                    ResetMacroLogger.Info(
+                        ResetMacroLogChannel.BelowZero,
+                        $"Hotkey reset start. Mode={mode}.");
                     await BZResetMacroService.RunAsync(mode);
                 }
                 catch (Exception ex)
@@ -1733,11 +1748,26 @@ namespace SubnauticaLauncher.UI
             }
 
             if (runningState != RunningGameState.SubnauticaOnly)
+            {
+                ResetMacroLogger.Warn(
+                    ResetMacroLogChannel.Subnautica,
+                    "Reset requested but Subnautica was not running.");
                 return;
+            }
 
             if (!ExplosionResetSettings.Enabled)
             {
-                await ResetMacroService.RunAsync(mode);
+                try
+                {
+                    ResetMacroLogger.Info(
+                        ResetMacroLogChannel.Subnautica,
+                        $"Hotkey reset start. Mode={mode}.");
+                    await ResetMacroService.RunAsync(mode);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Exception(ex, "Subnautica reset macro failed");
+                }
                 return;
             }
 
@@ -1746,10 +1776,17 @@ namespace SubnauticaLauncher.UI
 
             try
             {
+                ResetMacroLogger.Info(
+                    ResetMacroLogChannel.Explosion,
+                    $"Hotkey explosion reset start. Mode={mode}, Preset={ExplosionResetSettings.Preset}.");
                 await ExplosionResetService.RunAsync(
                     mode,
                     ExplosionResetSettings.Preset,
                     _explosionCts.Token);
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Explosion reset macro failed");
             }
             finally
             {
