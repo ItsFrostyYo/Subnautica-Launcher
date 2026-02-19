@@ -33,6 +33,20 @@ public static class Updates
         
         new UpdateEntry
     {
+        Version = "2.4.0",
+        Title = "Speedrun Timer",
+        Date = "Feb 19, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Speedrun Timer Added, Full Customization.",
+            "Improved Gameplay Tracking",        
+            "Small UI Updates",
+            "Small Code Updates",
+        }
+    },     
+        
+        new UpdateEntry
+    {
         Version = "2.3.4",
         Title = "Tiny Fixes",
         Date = "Feb 19, 2026 | Contributors (1) - ItsFrosti.",

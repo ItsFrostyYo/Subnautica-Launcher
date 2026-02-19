@@ -20,6 +20,7 @@ namespace SubnauticaLauncher.Converters
                 VersionStatus.Launched => Brushes.Red,
                 VersionStatus.Launching => Brushes.Orange,
                 VersionStatus.Switching => Brushes.Yellow,
+                VersionStatus.Closing => Brushes.OrangeRed,
                 _ => Brushes.White
             };
         }

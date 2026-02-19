@@ -6,6 +6,7 @@ namespace SubnauticaLauncher.Enums
         Switching,
         Launching,
         Launched,
-        Active
+        Active,
+        Closing
     }
 }

@@ -44,13 +44,33 @@ namespace SubnauticaLauncher.Settings
         public Subnautica100TrackerOverlaySize Subnautica100TrackerSize { get; set; } =
             Subnautica100TrackerOverlaySize.Medium;
         public bool Subnautica100TrackerUnlockPopupEnabled { get; set; } = true;
-        public bool Subnautica100TrackerSurvivalStartsEnabled { get; set; } = true;
-        public bool Subnautica100TrackerCreativeStartsEnabled { get; set; } = false;
         public bool SubnauticaBiomeTrackerEnabled { get; set; } = true;
         public SubnauticaBiomeTrackerCycleMode SubnauticaBiomeTrackerCycleMode { get; set; } =
             SubnauticaBiomeTrackerCycleMode.Databanks;
         public SubnauticaBiomeTrackerScrollSpeed SubnauticaBiomeTrackerScrollSpeed { get; set; } =
             SubnauticaBiomeTrackerScrollSpeed.Medium;
+
+        // Speedrun timer settings
+        public bool SpeedrunTimerEnabled { get; set; } = false;
+        public SpeedrunGamemode SpeedrunGamemode { get; set; } = SpeedrunGamemode.SurvivalHardcore;
+        public SpeedrunCategory SpeedrunCategory { get; set; } = SpeedrunCategory.AnyPercent;
+        public SpeedrunRunType SpeedrunRunType { get; set; } = SpeedrunRunType.Glitched;
+
+        // Speedrun timer style
+        public string TimerForegroundColor { get; set; } = "#FFFFFF";
+        public bool TimerTextBorderEnabled { get; set; } = false;
+        public double TimerTextBorderThickness { get; set; } = 1.0;
+        public string TimerTextBorderColor { get; set; } = "#000000";
+        public double TimerPaddingH { get; set; } = 10;
+        public double TimerPaddingV { get; set; } = 6;
+        public string TimerBackgroundColor { get; set; } = "#000000";
+        public double TimerBackgroundOpacity { get; set; } = 0.53;
+        public double TimerFontSize { get; set; } = 40;
+        public SpeedrunTimerFormat TimerFormat { get; set; } = SpeedrunTimerFormat.RightAligned;
+
+        // Speedrun timer placement (normalized 0-1)
+        public double TimerPositionX { get; set; } = 1.0;
+        public double TimerPositionY { get; set; } = 0.0;
 
         // Explosion reset settings
         public bool ExplosionResetEnabled { get; set; } = false;

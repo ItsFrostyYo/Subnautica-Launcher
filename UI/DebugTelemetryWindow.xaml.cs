@@ -2,6 +2,7 @@ using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Gameplay;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Windows;
 
 namespace SubnauticaLauncher.UI
@@ -53,6 +54,32 @@ namespace SubnauticaLauncher.UI
 
         public void AppendEvent(GameplayEvent evt)
         {
+            _eventLines.Enqueue(FormatEventLine(evt));
+            while (_eventLines.Count > MaxLines)
+                _eventLines.Dequeue();
+
+            EventsTextBox.Text = string.Join(Environment.NewLine, _eventLines);
+            EventsTextBox.ScrollToEnd();
+        }
+
+        public void AppendEvents(IReadOnlyList<GameplayEvent> events)
+        {
+            if (events.Count == 0)
+                return;
+
+            foreach (var evt in events)
+            {
+                _eventLines.Enqueue(FormatEventLine(evt));
+                while (_eventLines.Count > MaxLines)
+                    _eventLines.Dequeue();
+            }
+
+            EventsTextBox.Text = string.Join(Environment.NewLine, _eventLines);
+            EventsTextBox.ScrollToEnd();
+        }
+
+        private static string FormatEventLine(GameplayEvent evt)
+        {
             string valueText = evt.Type switch
             {
                 GameplayEventType.ItemPickedUp or GameplayEventType.ItemDropped or GameplayEventType.ItemCrafted
@@ -64,17 +91,9 @@ namespace SubnauticaLauncher.UI
                 _ => string.Empty
             };
 
-            string line =
-                $"[{evt.TimestampUtc:HH:mm:ss.fff}] [{evt.Game}] {evt.Type} key={evt.Key}" +
+            return $"[{evt.TimestampUtc:HH:mm:ss.fff}] [{evt.Game}] {evt.Type} key={evt.Key}" +
                 (string.IsNullOrEmpty(valueText) ? string.Empty : $" {valueText}") +
                 $" src={evt.Source}";
-
-            _eventLines.Enqueue(line);
-            while (_eventLines.Count > MaxLines)
-                _eventLines.Dequeue();
-
-            EventsTextBox.Text = string.Join(Environment.NewLine, _eventLines);
-            EventsTextBox.ScrollToEnd();
         }
     }
 }

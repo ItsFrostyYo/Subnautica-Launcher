@@ -6,7 +6,7 @@
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 
-		<Version>2.3.4</Version>
+		<Version>2.4.0</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 
@@ -34,6 +34,10 @@
 	  <Compile Remove="tools\SNLUpdater\**\*.cs" />
 	  <EmbeddedResource Remove="tools\SNLUpdater\**\*" />
 	  <None Remove="tools\SNLUpdater\**\*" />
+	  <Compile Remove="SprinterAutosplitter\**\*.cs" />
+	  <EmbeddedResource Remove="SprinterAutosplitter\**\*" />
+	  <None Remove="SprinterAutosplitter\**\*" />
+	  <Content Remove="SprinterAutosplitter\**\*" />
 	  <None Remove="Assets\Backgrounds\Aurora Borealis.png" />
 	  <None Remove="Assets\Backgrounds\Cove Tree.png" />
 	  <None Remove="Assets\Backgrounds\Floating Island.png" />

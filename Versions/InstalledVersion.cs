@@ -22,6 +22,7 @@ public class InstalledVersion
         VersionStatus.Launching => "Launching -> " + GetTrimmedDisplayName(DisplayName),
         VersionStatus.Launched => "Launched -> " + GetTrimmedDisplayName(DisplayName),
         VersionStatus.Active => "Active -> " + GetTrimmedDisplayName(DisplayName),
+        VersionStatus.Closing => "Closing -> " + GetTrimmedDisplayName(DisplayName),
         _ => GetTrimmedDisplayName(DisplayName)
     };
 

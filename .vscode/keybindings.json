@@ -42,5 +42,14 @@
     "key": "f7",
     "command": "workbench.action.tasks.runTask",
     "args": "stop-launcher-and-helpers"
+  },
+  {
+    "key": "f8",
+    "command": "-editor.action.marker.nextInFiles"
+  },
+  {
+    "key": "f8",
+    "command": "workbench.action.tasks.runTask",
+    "args": "open-log-picker"
   }
 ]

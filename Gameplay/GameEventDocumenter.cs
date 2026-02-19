@@ -3,10 +3,13 @@ using SubnauticaLauncher.Display;
 using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Macros;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -16,6 +19,10 @@ namespace SubnauticaLauncher.Gameplay
 {
     public static class GameEventDocumenter
     {
+        private const int ForegroundPollIntervalMs = 1;
+        private const int BackgroundPollIntervalMs = 4;
+        private const int IdlePollIntervalMs = 100;
+
         private static readonly object Sync = new();
         private static readonly Dictionary<string, DynamicMonoGameplayEventTracker> Trackers = new();
         private static readonly Dictionary<string, ProcessStateTracker> StateTrackers = new();
@@ -25,9 +32,13 @@ namespace SubnauticaLauncher.Gameplay
             Converters = { new JsonStringEnumConverter() }
         };
 
+        private static readonly ConcurrentQueue<GameplayEvent> _eventQueue = new();
+
         private static CancellationTokenSource? _cts;
         private static Task? _loopTask;
+        private static Task? _drainTask;
         public static event Action<GameplayEvent>? EventWritten;
+        public static event Action<IReadOnlyList<GameplayEvent>>? BatchEventWritten;
 
         public static void Start()
         {
@@ -43,6 +54,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 _cts = new CancellationTokenSource();
                 _loopTask = Task.Run(() => RunLoopAsync(_cts.Token));
+                _drainTask = Task.Run(() => DrainQueueAsync(_cts.Token));
                 Logger.Log("Game event documenter started.");
             }
         }
@@ -51,13 +63,16 @@ namespace SubnauticaLauncher.Gameplay
         {
             CancellationTokenSource? cts;
             Task? loop;
+            Task? drain;
 
             lock (Sync)
             {
                 cts = _cts;
                 loop = _loopTask;
+                drain = _drainTask;
                 _cts = null;
                 _loopTask = null;
+                _drainTask = null;
             }
 
             if (cts == null)
@@ -66,7 +81,11 @@ namespace SubnauticaLauncher.Gameplay
             try
             {
                 cts.Cancel();
-                loop?.Wait(2000);
+                var tasks = new List<Task>(2);
+                if (loop != null) tasks.Add(loop);
+                if (drain != null) tasks.Add(drain);
+                if (tasks.Count > 0)
+                    Task.WaitAll(tasks.ToArray(), 500);
             }
             catch
             {
@@ -81,6 +100,7 @@ namespace SubnauticaLauncher.Gameplay
                     StateTrackers.Clear();
                 }
 
+                DrainRemainingEvents();
                 WriteLifecycleEvent("DocumenterStopped");
                 Logger.Log("Game event documenter stopped.");
             }
@@ -90,9 +110,11 @@ namespace SubnauticaLauncher.Gameplay
         {
             while (!token.IsCancellationRequested)
             {
+                PollMode pollMode = PollMode.Idle;
+
                 try
                 {
-                    PollGame("Subnautica", token);
+                    pollMode = PollGame("Subnautica", token);
                 }
                 catch (Exception ex)
                 {
@@ -101,7 +123,14 @@ namespace SubnauticaLauncher.Gameplay
 
                 try
                 {
-                    await Task.Delay(100, token);
+                    int delay = pollMode switch
+                    {
+                        PollMode.Foreground => ForegroundPollIntervalMs,
+                        PollMode.Background => BackgroundPollIntervalMs,
+                        _ => IdlePollIntervalMs
+                    };
+
+                    await Task.Delay(delay, token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -110,10 +139,119 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
-        private static void PollGame(string processName, CancellationToken token)
+        private static async Task DrainQueueAsync(CancellationToken token)
+        {
+            var batch = new List<GameplayEvent>(64);
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    batch.Clear();
+                    while (_eventQueue.TryDequeue(out var evt))
+                        batch.Add(evt);
+
+                    if (batch.Count > 0)
+                        WriteBatchAndNotify(batch);
+
+                    await Task.Delay(5, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Logger.Exception(ex, "Event drain loop error");
+                }
+            }
+        }
+
+        private static void WriteBatchAndNotify(List<GameplayEvent> batch)
+        {
+            var formatted = new List<GameplayEvent>(batch.Count);
+            var jsonLines = new StringBuilder(batch.Count * 200);
+            var logLines = new StringBuilder(batch.Count * 120);
+
+            foreach (var evt in batch)
+            {
+                var output = GameplayEventFormatter.FormatForOutput(evt);
+                formatted.Add(output);
+
+                try
+                {
+                    string json = JsonSerializer.Serialize(output, JsonOptions);
+                    jsonLines.AppendLine(json);
+                }
+                catch { }
+
+                logLines.AppendLine($"[GameEvent] {output.Game} {output.Type} key={output.Key} delta={output.Delta}");
+            }
+
+            try
+            {
+                Directory.CreateDirectory(AppPaths.DataPath);
+                string file = Path.Combine(AppPaths.DataPath, "gameplay_events.jsonl");
+                File.AppendAllText(file, jsonLines.ToString());
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Failed to write gameplay event batch");
+            }
+
+            Logger.Log(logLines.ToString().TrimEnd());
+
+            var snapshot = formatted.ToArray();
+
+            if (BatchEventWritten != null)
+            {
+                _ = Task.Run(() =>
+                {
+                    try { BatchEventWritten?.Invoke(snapshot); } catch { }
+                });
+            }
+
+            foreach (var output in snapshot)
+            {
+                if (output.Type == GameplayEventType.BlueprintUnlocked ||
+                    output.Type == GameplayEventType.DatabankEntryUnlocked ||
+                    output.Type == GameplayEventType.ItemPickedUp ||
+                    output.Type == GameplayEventType.ItemDropped ||
+                    output.Type == GameplayEventType.ItemCrafted)
+                    continue;
+
+                try
+                {
+                    EventWritten?.Invoke(output);
+                }
+                catch { }
+            }
+        }
+
+        private static void DrainRemainingEvents()
+        {
+            var batch = new List<GameplayEvent>();
+            while (_eventQueue.TryDequeue(out var evt))
+                batch.Add(evt);
+
+            if (batch.Count > 0)
+            {
+                try
+                {
+                    WriteBatchAndNotify(batch);
+                }
+                catch { }
+            }
+        }
+
+        private static PollMode PollGame(string processName, CancellationToken token)
         {
             Process[] processes = Process.GetProcessesByName(processName);
+            if (processes.Length == 0)
+                return PollMode.Idle;
+
             var alive = new HashSet<int>(processes.Select(p => p.Id));
+            bool isForeground = IsAnyForegroundProcess(alive);
             string prefix = processName + ":";
 
             lock (Sync)
@@ -135,6 +273,8 @@ namespace SubnauticaLauncher.Gameplay
                 }
             }
 
+            var trackerPairs = new List<(Process proc, string key, DynamicMonoGameplayEventTracker tracker)>();
+
             foreach (var process in processes)
             {
                 if (token.IsCancellationRequested)
@@ -143,21 +283,44 @@ namespace SubnauticaLauncher.Gameplay
                 try
                 {
                     if (process.HasExited)
+                    {
+                        process.Dispose();
                         continue;
+                    }
 
                     string trackerKey = processName + ":" + process.Id;
                     DynamicMonoGameplayEventTracker tracker = GetOrCreateTracker(processName, trackerKey);
 
                     TryEmitStateEvents(processName, process, trackerKey, tracker);
 
-                    if (!tracker.TryPoll(process, out var events) || events.Count == 0)
+                    trackerPairs.Add((process, trackerKey, tracker));
+                }
+                catch (InvalidOperationException)
+                {
+                    process.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Exception(ex, $"Game event polling failed for {processName}");
+                    process.Dispose();
+                }
+            }
+
+            foreach (var (proc, key, tracker) in trackerPairs)
+            {
+                if (token.IsCancellationRequested)
+                    break;
+
+                try
+                {
+                    if (proc.HasExited)
+                        continue;
+
+                    if (!tracker.TryPoll(proc, out var events) || events.Count == 0)
                         continue;
 
                     foreach (var evt in events)
-                    {
-                        var outputEvent = WriteEvent(evt);
-                        Logger.Log($"[GameEvent] {outputEvent.Game} {outputEvent.Type} key={outputEvent.Key} delta={outputEvent.Delta}");
-                    }
+                        _eventQueue.Enqueue(evt);
                 }
                 catch (InvalidOperationException)
                 {
@@ -169,9 +332,11 @@ namespace SubnauticaLauncher.Gameplay
                 }
                 finally
                 {
-                    process.Dispose();
+                    proc.Dispose();
                 }
             }
+
+            return isForeground ? PollMode.Foreground : PollMode.Background;
         }
 
         private static DynamicMonoGameplayEventTracker GetOrCreateTracker(string processName, string trackerKey)
@@ -195,6 +360,35 @@ namespace SubnauticaLauncher.Gameplay
         {
             try
             {
+                if (tracker.TryDetectRunStart(process, out string runStartReason))
+                {
+                    WriteEvent(new GameplayEvent
+                    {
+                        TimestampUtc = DateTime.UtcNow,
+                        Game = processName,
+                        ProcessId = process.Id,
+                        Type = GameplayEventType.RunStarted,
+                        Key = string.IsNullOrWhiteSpace(runStartReason) ? "AutosplitterStart" : runStartReason,
+                        Delta = 1,
+                        Source = "autosplitter-start"
+                    });
+                }
+
+                // Lowest-latency path: end event is consumed by timer stop logic immediately.
+                if (tracker.TryDetectRocketLaunch(process, out bool runEndedTriggered) && runEndedTriggered)
+                {
+                    WriteEvent(new GameplayEvent
+                    {
+                        TimestampUtc = DateTime.UtcNow,
+                        Game = processName,
+                        ProcessId = process.Id,
+                        Type = GameplayEventType.RunEnded,
+                        Key = "RocketLaunch",
+                        Delta = 0,
+                        Source = "autosplitter-rocket-launch"
+                    });
+                }
+
                 GameState state;
                 string source;
 
@@ -221,11 +415,6 @@ namespace SubnauticaLauncher.Gameplay
                 bool biomeChanged = false;
                 string currentBiome = string.Empty;
                 SubnauticaBiomeCatalog.BiomeMatch biomeMatch = default;
-                bool runStarted = false;
-                string runStartReason = string.Empty;
-
-                if (source == "dynamic-state")
-                    runStarted = tracker.TryDetectRunStart(process, out runStartReason);
 
                 if (hasBiome)
                 {
@@ -279,24 +468,24 @@ namespace SubnauticaLauncher.Gameplay
                     });
                 }
 
-                if (runStarted)
-                {
-                    WriteEvent(new GameplayEvent
-                    {
-                        TimestampUtc = DateTime.UtcNow,
-                        Game = processName,
-                        ProcessId = process.Id,
-                        Type = GameplayEventType.RunStarted,
-                        Key = string.IsNullOrWhiteSpace(runStartReason) ? "AutosplitterStart" : runStartReason,
-                        Delta = 1,
-                        Source = "autosplitter-start"
-                    });
-                }
             }
             catch
             {
                 // state detection is best-effort, never break event tracking
             }
+        }
+
+        private static bool IsAnyForegroundProcess(HashSet<int> processIds)
+        {
+            IntPtr hwnd = GetForegroundWindow();
+            if (hwnd == IntPtr.Zero)
+                return false;
+
+            _ = GetWindowThreadProcessId(hwnd, out uint foregroundPid);
+            if (foregroundPid == 0)
+                return false;
+
+            return processIds.Contains((int)foregroundPid);
         }
 
         private sealed class ProcessStateTracker
@@ -428,6 +617,31 @@ namespace SubnauticaLauncher.Gameplay
         private static GameplayEvent WriteEvent(GameplayEvent evt)
         {
             GameplayEvent output = GameplayEventFormatter.FormatForOutput(evt);
+            bool isTimingCritical =
+                output.Type == GameplayEventType.RunStarted ||
+                output.Type == GameplayEventType.RunEnded;
+
+            void NotifyListeners()
+            {
+                try
+                {
+                    BatchEventWritten?.Invoke(new[] { output });
+                }
+                catch { }
+
+                try
+                {
+                    EventWritten?.Invoke(output);
+                }
+                catch
+                {
+                    // UI listeners are best-effort only.
+                }
+            }
+
+            // Run start/end power the timer and should not wait on disk I/O.
+            if (isTimingCritical)
+                NotifyListeners();
 
             try
             {
@@ -441,16 +655,26 @@ namespace SubnauticaLauncher.Gameplay
                 Logger.Exception(ex, "Failed to write gameplay event log");
             }
 
-            try
-            {
-                EventWritten?.Invoke(output);
-            }
-            catch
-            {
-                // UI listeners are best-effort only.
-            }
+            if (output.Type == GameplayEventType.RunEnded)
+                Logger.Log($"[GameEvent] {output.Game} RunEnded key={output.Key} (run ending)");
+
+            if (!isTimingCritical)
+                NotifyListeners();
 
             return output;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        private enum PollMode
+        {
+            Idle,
+            Background,
+            Foreground
         }
     }
 }

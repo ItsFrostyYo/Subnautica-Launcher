@@ -3,6 +3,7 @@ using SubnauticaLauncher.Explosion;
 using SubnauticaLauncher.Macros;
 using SubnauticaLauncher.UI;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -52,7 +53,7 @@ namespace SubnauticaLauncher.Gameplay
                     _window.SetState(BuildStateText());
                 });
 
-                GameEventDocumenter.EventWritten += OnEventWritten;
+                GameEventDocumenter.BatchEventWritten += OnBatchEventWritten;
                 _cts = new CancellationTokenSource();
                 _pollTask = Task.Run(() => PollLoopAsync(_cts.Token));
             }
@@ -74,7 +75,7 @@ namespace SubnauticaLauncher.Gameplay
                 _pollTask = null;
             }
 
-            GameEventDocumenter.EventWritten -= OnEventWritten;
+            GameEventDocumenter.BatchEventWritten -= OnBatchEventWritten;
 
             if (cts != null)
             {
@@ -187,18 +188,20 @@ namespace SubnauticaLauncher.Gameplay
                 p.Dispose();
         }
 
-        private static void OnEventWritten(GameplayEvent evt)
+        private static void OnBatchEventWritten(IReadOnlyList<GameplayEvent> events)
         {
-            if (evt.Type == GameplayEventType.GameStateChanged)
+            foreach (var evt in events)
             {
-                if (evt.Game.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
+                if (evt.Type == GameplayEventType.GameStateChanged &&
+                    evt.Game.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
                     _subnauticaState = evt.Key;
             }
 
-            Application.Current.Dispatcher.Invoke(() =>
+            var snapshot = events;
+            _ = Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 _window?.SetState(BuildStateText());
-                _window?.AppendEvent(evt);
+                _window?.AppendEvents(snapshot);
             });
         }
 

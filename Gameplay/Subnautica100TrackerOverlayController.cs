@@ -57,6 +57,8 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly HashSet<string> LoggedUnmatchedBlueprintAliases = new(StringComparer.Ordinal);
         private static readonly HashSet<string> LoggedUnmatchedDatabankAliases = new(StringComparer.Ordinal);
         private static readonly HashSet<string> LoggedUnmatchedBiomePairingEntries = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, HashSet<string>> BlueprintResolutionCache = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, HashSet<string>> DatabankResolutionCache = new(StringComparer.Ordinal);
 
         // Common internal-name to checklist-name mismatches and shorthand aliases.
         private static readonly Dictionary<string, string[]> SpecialBlueprintAliasMap = new(StringComparer.Ordinal)
@@ -248,7 +250,7 @@ namespace SubnauticaLauncher.Gameplay
                 EnsureRulesLoaded();
                 ResetRunState();
 
-                GameEventDocumenter.EventWritten += OnEventWritten;
+                GameEventDocumenter.BatchEventWritten += OnBatchEventWritten;
                 _cts = new CancellationTokenSource();
                 _loopTask = Task.Run(() => OverlayLoopAsync(_cts.Token));
             }
@@ -280,14 +282,14 @@ namespace SubnauticaLauncher.Gameplay
                 PendingPreRunDatabankEntries.Clear();
             }
 
-            GameEventDocumenter.EventWritten -= OnEventWritten;
+            GameEventDocumenter.BatchEventWritten -= OnBatchEventWritten;
 
             if (cts != null)
             {
                 try
                 {
                     cts.Cancel();
-                    loopTask?.Wait(1500);
+                    loopTask?.Wait(500);
                 }
                 catch
                 {
@@ -583,136 +585,172 @@ namespace SubnauticaLauncher.Gameplay
             targets.Add(requirement);
         }
 
-        private static void OnEventWritten(GameplayEvent evt)
+        private static void OnBatchEventWritten(IReadOnlyList<GameplayEvent> batch)
         {
-            if (!evt.Game.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
-                return;
+            bool needsOverlayUpdate = false;
+            int batchBlueprintAdded = 0;
+            int batchDatabankAdded = 0;
+            string? lastBpKey = null;
+            string? lastBpReq = null;
+            string? lastDbKey = null;
+            string? lastDbReq = null;
 
             lock (Sync)
             {
-                if (evt.Type == GameplayEventType.GameStateChanged)
+                foreach (var evt in batch)
                 {
-                    string state = NormalizeEventName(evt.Key);
-                    if (state == "mainmenu")
+                    if (!evt.Game.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (evt.Type == GameplayEventType.GameStateChanged)
                     {
-                        ResetRunState();
-                        UpdateOverlayText();
-                        return;
+                        string state = NormalizeEventName(evt.Key);
+                        if (state == "mainmenu")
+                        {
+                            ResetRunState();
+                            needsOverlayUpdate = true;
+                            batchBlueprintAdded = 0;
+                            batchDatabankAdded = 0;
+                        }
+                        else if (state == "ingame")
+                        {
+                            _collectPreRunUnlocks = true;
+                            PendingPreRunBlueprints.Clear();
+                            PendingPreRunDatabankEntries.Clear();
+                        }
+
+                        continue;
                     }
 
-                    if (state == "ingame")
+                    if (evt.Type == GameplayEventType.RunStarted)
                     {
-                        _collectPreRunUnlocks = true;
-                        PendingPreRunBlueprints.Clear();
-                        PendingPreRunDatabankEntries.Clear();
+                        bool creativeStart = IsCreativeRunStart(evt.Key);
+                        bool survivalStart = IsSurvivalRunStart(evt.Key);
+
+                        if (!_runActive)
+                        {
+                            StartRunState(creativeStart);
+                            if (creativeStart)
+                                ApplyCreativeDatabankExclusions();
+                            ApplyPendingPreRunUnlocks();
+                            Logger.Log($"[100Tracker] Run started from RunStarted event. reason={evt.Key}");
+                            needsOverlayUpdate = true;
+                        }
+                        else if (_runStartedFromCreative && survivalStart)
+                        {
+                            Logger.Log(
+                                $"[100Tracker] Run start fallback: restarting from creative provisional start to survival start. reason={evt.Key}");
+                            StartRunState(creativeStart: false);
+                            ApplyPendingPreRunUnlocks();
+                            needsOverlayUpdate = true;
+                        }
+
+                        continue;
                     }
 
-                    return;
-                }
-
-                if (evt.Type == GameplayEventType.RunStarted)
-                {
-                    bool creativeStart = IsCreativeRunStart(evt.Key);
-                    bool survivalStart = IsSurvivalRunStart(evt.Key);
-
-                    if (!_runActive)
+                    if (evt.Type == GameplayEventType.BiomeChanged)
                     {
-                        StartRunState(creativeStart);
-                        if (creativeStart)
-                            ApplyCreativeDatabankExclusions();
-                        ApplyPendingPreRunUnlocks();
-                        Logger.Log($"[100Tracker] Run started from RunStarted event. reason={evt.Key}");
-                        UpdateOverlayText();
-                    }
-                    else if (_runStartedFromCreative && survivalStart)
-                    {
-                        Logger.Log(
-                            $"[100Tracker] Run start fallback: restarting from creative provisional start to survival start. reason={evt.Key}");
-                        StartRunState(creativeStart: false);
-                        ApplyPendingPreRunUnlocks();
-                        UpdateOverlayText();
+                        SetCurrentBiome(evt.Key);
+                        continue;
                     }
 
-                    return;
-                }
-
-                if (evt.Type == GameplayEventType.BiomeChanged)
-                {
-                    SetCurrentBiome(evt.Key);
-                    return;
-                }
-
-                if (evt.Type == GameplayEventType.BlueprintUnlocked)
-                {
-                    var matches = ResolveBlueprintMatches(evt.Key);
-
-                    if (!_runActive)
+                    if (evt.Type == GameplayEventType.BlueprintUnlocked)
                     {
-                        BufferPreRunUnlocks(matches, PendingPreRunBlueprints);
+                        var matches = ResolveBlueprintMatches(evt.Key);
+
+                        if (!_runActive)
+                        {
+                            BufferPreRunUnlocks(matches, PendingPreRunBlueprints);
+                            if (matches.Count == 0)
+                                LogUnmatchedBlueprint(evt.Key);
+                            continue;
+                        }
+
+                        foreach (string requirement in matches)
+                        {
+                            if (RunBlueprints.Add(requirement))
+                            {
+                                batchBlueprintAdded++;
+                                lastBpKey = evt.Key;
+                                lastBpReq = requirement;
+                            }
+                        }
+
                         if (matches.Count == 0)
                             LogUnmatchedBlueprint(evt.Key);
-                        return;
+
+                        continue;
                     }
 
-                    int added = 0;
-                    var newlyAdded = new List<string>();
-                    foreach (string requirement in matches)
+                    if (evt.Type == GameplayEventType.DatabankEntryUnlocked)
                     {
-                        if (RunBlueprints.Add(requirement))
+                        var matches = ResolveDatabankMatches(evt.Key);
+
+                        if (!_runActive)
                         {
-                            added++;
-                            newlyAdded.Add(requirement);
+                            BufferPreRunUnlocks(matches, PendingPreRunDatabankEntries);
+                            if (matches.Count == 0)
+                                LogUnmatchedDatabank(evt.Key);
+                            continue;
                         }
-                    }
 
-                    if (added > 0)
-                    {
-                        UpdateOverlayText();
-                        foreach (string requirement in newlyAdded)
-                            QueueUnlockToast(GameplayEventType.BlueprintUnlocked, requirement, evt.Key);
-                    }
-                    else
-                    {
-                        LogUnmatchedBlueprint(evt.Key);
-                    }
+                        foreach (string requirement in matches)
+                        {
+                            if (RunDatabankEntries.Add(requirement))
+                            {
+                                batchDatabankAdded++;
+                                lastDbKey = evt.Key;
+                                lastDbReq = requirement;
+                            }
+                        }
 
-                    return;
-                }
-
-                if (evt.Type == GameplayEventType.DatabankEntryUnlocked)
-                {
-                    var matches = ResolveDatabankMatches(evt.Key);
-
-                    if (!_runActive)
-                    {
-                        BufferPreRunUnlocks(matches, PendingPreRunDatabankEntries);
                         if (matches.Count == 0)
                             LogUnmatchedDatabank(evt.Key);
-                        return;
-                    }
-
-                    int added = 0;
-                    var newlyAdded = new List<string>();
-                    foreach (string requirement in matches)
-                    {
-                        if (RunDatabankEntries.Add(requirement))
-                        {
-                            added++;
-                            newlyAdded.Add(requirement);
-                        }
-                    }
-
-                    if (added > 0)
-                    {
-                        UpdateOverlayText();
-                        foreach (string requirement in newlyAdded)
-                            QueueUnlockToast(GameplayEventType.DatabankEntryUnlocked, requirement, evt.Key);
-                    }
-                    else
-                    {
-                        LogUnmatchedDatabank(evt.Key);
                     }
                 }
+            }
+
+            int totalAdded = batchBlueprintAdded + batchDatabankAdded;
+
+            if (totalAdded > 0 || needsOverlayUpdate)
+                UpdateOverlayText();
+
+            if (totalAdded == 0)
+                return;
+
+            if (totalAdded == 1)
+            {
+                if (batchBlueprintAdded == 1 && lastBpReq != null && lastBpKey != null)
+                    QueueUnlockToast(GameplayEventType.BlueprintUnlocked, lastBpReq, lastBpKey);
+                else if (batchDatabankAdded == 1 && lastDbReq != null && lastDbKey != null)
+                    QueueUnlockToast(GameplayEventType.DatabankEntryUnlocked, lastDbReq, lastDbKey);
+            }
+            else
+            {
+                string summary;
+                if (batchDatabankAdded == 0)
+                    summary = $"{batchBlueprintAdded} Blueprints Unlocked";
+                else if (batchBlueprintAdded == 0)
+                    summary = $"{batchDatabankAdded} Databank Entries Unlocked";
+                else
+                    summary = $"{totalAdded} Unlocks ({batchBlueprintAdded} Blueprints, {batchDatabankAdded} Databank)";
+
+                CancellationTokenSource? previousCts;
+                CancellationTokenSource currentCts;
+                lock (Sync)
+                {
+                    previousCts = _toastDisplayCts;
+                    currentCts = new CancellationTokenSource();
+                    _toastDisplayCts = currentCts;
+                }
+
+                try { previousCts?.Cancel(); } catch { }
+                previousCts?.Dispose();
+
+                _ = Application.Current.Dispatcher.InvokeAsync(async () =>
+                {
+                    await ShowToastSequenceAsync(summary, currentCts.Token);
+                });
             }
         }
 
@@ -763,8 +801,8 @@ namespace SubnauticaLauncher.Gameplay
         private static bool IsSurvivalRunStart(string runStartKey)
         {
             string normalized = NormalizeEventName(runStartKey);
-            return normalized == "cutsceneskipped"
-                || normalized == "lifepodradiodamaged";
+            return normalized is "cutsceneskipped" or "lifepodradiodamaged"
+                or "introcinematicended" or "oxygensept2018" or "legacyintrocinematicended";
         }
 
         private static void ApplyCreativeDatabankExclusions()
@@ -786,6 +824,9 @@ namespace SubnauticaLauncher.Gameplay
 
         private static HashSet<string> ResolveBlueprintMatches(string eventKey)
         {
+            if (BlueprintResolutionCache.TryGetValue(eventKey, out var cached))
+                return cached;
+
             var matches = new HashSet<string>(StringComparer.Ordinal);
 
             if (TryExtractTechTypeId(eventKey, out int techTypeId) &&
@@ -794,6 +835,7 @@ namespace SubnauticaLauncher.Gameplay
                 foreach (string requirement in mappedById)
                     matches.Add(requirement);
 
+                BlueprintResolutionCache[eventKey] = matches;
                 return matches;
             }
 
@@ -806,6 +848,7 @@ namespace SubnauticaLauncher.Gameplay
                     matches.Add(requirement);
             }
 
+            BlueprintResolutionCache[eventKey] = matches;
             return matches;
         }
 
@@ -832,6 +875,9 @@ namespace SubnauticaLauncher.Gameplay
 
         private static HashSet<string> ResolveDatabankMatches(string eventKey)
         {
+            if (DatabankResolutionCache.TryGetValue(eventKey, out var cached))
+                return cached;
+
             var matches = new HashSet<string>(StringComparer.Ordinal);
 
             string normalizedEventKey = NormalizeEventName(eventKey);
@@ -847,6 +893,7 @@ namespace SubnauticaLauncher.Gameplay
                     matches.Add(requirement);
             }
 
+            DatabankResolutionCache[eventKey] = matches;
             return matches;
         }
 
@@ -1360,7 +1407,7 @@ namespace SubnauticaLauncher.Gameplay
             LoggedUnmatchedBlueprintAliases.Clear();
             LoggedUnmatchedDatabankAliases.Clear();
 
-            Application.Current.Dispatcher.Invoke(() =>
+            _ = Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 _biomeWindow?.Hide();
                 _toastWindow?.Hide();
@@ -1419,7 +1466,7 @@ namespace SubnauticaLauncher.Gameplay
             int entries = RunDatabankEntries.Count;
             int total = blueprints + entries;
 
-            Application.Current.Dispatcher.Invoke(() =>
+            _ = Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 _window?.SetProgress(
                     total,
@@ -1428,7 +1475,7 @@ namespace SubnauticaLauncher.Gameplay
                     RequiredBlueprintTotal,
                     entries,
                     RequiredDatabankTotal);
-            });
+            }, System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private static bool IsUnlockPopupEnabled() => LauncherSettings.Current.Subnautica100TrackerUnlockPopupEnabled;
@@ -1499,8 +1546,7 @@ namespace SubnauticaLauncher.Gameplay
         private static List<BiomeCycleItem> BuildCurrentBiomeMissingItems()
         {
             var items = new List<BiomeCycleItem>();
-            var seenDatabank = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var seenBlueprint = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             if (!_runActive || string.IsNullOrWhiteSpace(_currentBiomeCanonical))
                 return items;
@@ -1516,7 +1562,7 @@ namespace SubnauticaLauncher.Gameplay
                     if (string.IsNullOrWhiteSpace(requirement))
                         continue;
 
-                    if (!seenDatabank.Add(requirement))
+                    if (!seen.Add("d:" + requirement))
                         continue;
 
                     if (!RunDatabankEntries.Contains(requirement))
@@ -1532,7 +1578,7 @@ namespace SubnauticaLauncher.Gameplay
                     if (string.IsNullOrWhiteSpace(requirement))
                         continue;
 
-                    if (!seenBlueprint.Add(requirement))
+                    if (!seen.Add("b:" + requirement))
                         continue;
 
                     if (!RunBlueprints.Contains(requirement))
@@ -1540,7 +1586,22 @@ namespace SubnauticaLauncher.Gameplay
                 }
             }
 
+            items.Sort((a, b) =>
+            {
+                string nameA = GetCycleItemSortName(a);
+                string nameB = GetCycleItemSortName(b);
+                return string.Compare(nameA, nameB, StringComparison.OrdinalIgnoreCase);
+            });
+
             return items;
+        }
+
+        private static string GetCycleItemSortName(BiomeCycleItem item)
+        {
+            string name = item.IsBlueprint
+                ? ResolveRequirementDisplayName(GameplayEventType.BlueprintUnlocked, item.Requirement, item.Requirement)
+                : ResolveRequirementDisplayName(GameplayEventType.DatabankEntryUnlocked, item.Requirement, item.Requirement);
+            return string.IsNullOrWhiteSpace(name) ? item.Requirement : name;
         }
 
         private static BiomeDisplayFrame BuildBiomeDisplayRows()
@@ -1688,7 +1749,7 @@ namespace SubnauticaLauncher.Gameplay
                         && !ExplosionResetDisplayController.IsActive
                         && TryGetFocusedSubnauticaWindowRect(out rect);
 
-                    Application.Current.Dispatcher.Invoke(() =>
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         if (shouldShow)
                         {
@@ -1704,10 +1765,6 @@ namespace SubnauticaLauncher.Gameplay
                                     RunDatabankEntries.Count,
                                     RequiredDatabankTotal);
                             }
-                            else
-                            {
-                                ApplyOverlaySizePreset();
-                            }
 
                             _overlayLeft = rect.Left + OverlayPadding;
                             _overlayTop = rect.Top + OverlayPadding;
@@ -1720,8 +1777,10 @@ namespace SubnauticaLauncher.Gameplay
 
                             if (biomeTrackerEnabled)
                             {
+                                bool biomeCreated = _biomeWindow == null;
                                 _biomeWindow ??= new SubnauticaBiomeTrackerOverlay();
-                                ApplyBiomeOverlaySizePreset();
+                                if (biomeCreated)
+                                    ApplyBiomeOverlaySizePreset();
 
                                 double trackerWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
                                 _biomeWindow.Left = _overlayLeft + trackerWidth + 8;
@@ -1763,22 +1822,22 @@ namespace SubnauticaLauncher.Gameplay
                             _toastWindow?.Hide();
                             _toastVisible = false;
                         }
-                    });
+                    }, System.Windows.Threading.DispatcherPriority.Background);
                 }
                 catch
                 {
                     _toastVisible = false;
-                    Application.Current.Dispatcher.Invoke(() =>
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         _window?.Hide();
                         _biomeWindow?.Hide();
                         _toastWindow?.Hide();
-                    });
+                    }, System.Windows.Threading.DispatcherPriority.Background);
                 }
 
                 try
                 {
-                    await Task.Delay(16, token);
+                    await Task.Delay(33, token);
                 }
                 catch (OperationCanceledException)
                 {

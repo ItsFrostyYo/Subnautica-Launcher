@@ -1,11 +1,11 @@
-﻿<Window x:Class="SubnauticaLauncher.UI.EditVersionWindow"
+<Window x:Class="SubnauticaLauncher.UI.EditVersionWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Width="480"
         Height="310"
         ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         FontFamily="{DynamicResource AppFontFamily}"
         WindowStyle="None"
         AllowsTransparency="True">
@@ -144,6 +144,7 @@
         </Grid>
     </Grid>
 </Window>
+
 
 
 

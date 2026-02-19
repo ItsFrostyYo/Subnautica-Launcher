@@ -51,6 +51,9 @@ namespace SubnauticaLauncher.Gameplay
             if (type == GameplayEventType.RunStarted)
                 return HumanizeIdentifier(rawKey);
 
+            if (type == GameplayEventType.RunEnded)
+                return rawKey == "RocketLaunch" ? "Rocket Launch" : HumanizeIdentifier(rawKey);
+
             return rawKey;
         }
 
@@ -112,6 +115,7 @@ namespace SubnauticaLauncher.Gameplay
                     return 0;
 
                 case GameplayEventType.RunStarted:
+                case GameplayEventType.RunEnded:
                 case GameplayEventType.BlueprintUnlocked:
                 case GameplayEventType.DatabankEntryUnlocked:
                     return delta <= 0 ? 1 : delta;

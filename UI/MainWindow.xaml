@@ -1,4 +1,4 @@
-﻿<Window x:Class="SubnauticaLauncher.UI.MainWindow"
+<Window x:Class="SubnauticaLauncher.UI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:SubnauticaLauncher.Converters"
@@ -164,7 +164,7 @@ UseAeroCaptionButtons="False" />
                         VerticalAlignment="Center">
 
                             <Button Content="Versions List"
-                        Width="185"
+                        Width="210"
                         Height="60"
                         Margin="0,5"
                         FontSize="25"
@@ -173,7 +173,7 @@ UseAeroCaptionButtons="False" />
                         Click="InstallsTab_Click"/>
 
                             <Button Content="Settings"
-                        Width="185"
+                        Width="210"
                         Height="60"
                         FontSize="25" 
                         Margin="0,25,0,0"            
@@ -182,17 +182,16 @@ UseAeroCaptionButtons="False" />
                         Click="SettingsTab_Click"/>
 
                             <Button Content="Tools"
-        Width="185"
-        Height="60"
-        FontSize="25"
-        Margin="0,25,0,0"
-        Background="{StaticResource AccentBlueBrush}"
-        Style="{StaticResource RoundedButton}"
-        Click="ToolsTab_Click"/>
-
+                        Width="210"
+                        Height="60"
+                        FontSize="25"
+                        Margin="0,25,0,0"
+                        Background="{StaticResource AccentBlueBrush}"
+                        Style="{StaticResource RoundedButton}"
+                        Click="ToolsTab_Click"/>
 
                             <Button Content="Launcher Info"
-                        Width="185"
+                        Width="210"
                         Height="60"
                         FontSize="25"
                         Margin="0,25"
@@ -304,7 +303,7 @@ UseAeroCaptionButtons="False" />
                             Margin="0,12,0,0">
 
                                 <Button Content="Close Game"
-Width="120"
+Width="130"
 Height="44"
 Margin="0,0,15,0"
 Background="{StaticResource WarningOrangeBrush}"
@@ -393,8 +392,10 @@ Click="EditVersion_Click"/>
                                     </ComboBox>
 
                                     <Button Content="Choose Custom Background"
+                    Width="250"                    
                     Height="35"
-                    Margin="0,15,0,0"
+                    FontSize="15"
+                    Margin="-5,15,-5,0"
                     Background="{StaticResource AccentBlueBrush}"
                     Style="{StaticResource RoundedButton}"
                     Click="ChooseCustomBackground_Click"/>
@@ -477,7 +478,7 @@ Click="EditVersion_Click"/>
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock
-Text="Explosion Reset Display"
+Text="Explosion Overlay"
 VerticalAlignment="Center"
 FontWeight="SemiBold"/>
 
@@ -500,7 +501,7 @@ Click="ExplosionDisplayToggle_Click"/>
                                         </Grid.ColumnDefinitions>
 
                                         <TextBlock
-Text="Track Explosion Resets"
+Text="Track Explo Resets"
 VerticalAlignment="Center"
 FontWeight="SemiBold"/>
 
@@ -732,7 +733,7 @@ Click="ExplosionTrackToggle_Click"/>
                                             Height="32"
                                             Margin="0,10,0,0"
                                             Background="{StaticResource AccentBlueBrush}"
-                                            Content="Delete All Hardcore Saves"
+                                            Content="Delete Hardcore Saves"
                                             Style="{StaticResource RoundedButton}"
                                             Click="HardcoreSaveDeleterPurge_Click"/>
 

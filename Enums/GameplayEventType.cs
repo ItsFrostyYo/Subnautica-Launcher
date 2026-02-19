@@ -5,6 +5,7 @@ namespace SubnauticaLauncher.Enums
         GameStateChanged,
         BiomeChanged,
         RunStarted,
+        RunEnded,
         BlueprintUnlocked,
         DatabankEntryUnlocked,
         ItemCrafted,

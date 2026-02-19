@@ -16,13 +16,13 @@ namespace SubnauticaLauncher.UI
     public partial class Subnautica100TrackerCustomizeWindow : Window
     {
         private const string DefaultBackground = "Lifepod";
+        private bool _syncingGamemodes;
 
         public Subnautica100TrackerCustomizeWindow(
             bool trackerEnabled,
             Subnautica100TrackerOverlaySize currentSize,
             bool unlockPopupEnabled,
-            bool survivalStartsEnabled,
-            bool creativeStartsEnabled,
+            SpeedrunGamemode gamemodeSelection,
             bool biomeTrackerEnabled,
             SubnauticaBiomeTrackerCycleMode biomeCycleMode,
             SubnauticaBiomeTrackerScrollSpeed biomeScrollSpeed)
@@ -36,9 +36,12 @@ namespace SubnauticaLauncher.UI
 
             TrackerEnabled = trackerEnabled;
             UnlockPopupCheckBox.IsChecked = unlockPopupEnabled;
-            SurvivalStartCheckBox.IsChecked = survivalStartsEnabled;
-            CreativeStartCheckBox.IsChecked = creativeStartsEnabled;
+            GamemodeSelection = gamemodeSelection;
             BiomeTrackerEnabled = biomeTrackerEnabled;
+
+            _syncingGamemodes = true;
+            SelectComboByTag(GamemodesDropdown, gamemodeSelection.ToString(), fallbackIndex: 0);
+            _syncingGamemodes = false;
 
             UpdateTrackerEnabledButton();
             UpdateBiomeTrackerButton();
@@ -47,8 +50,7 @@ namespace SubnauticaLauncher.UI
         public bool TrackerEnabled { get; private set; }
         public Subnautica100TrackerOverlaySize SelectedSize { get; private set; } = Subnautica100TrackerOverlaySize.Medium;
         public bool UnlockPopupEnabled { get; private set; } = true;
-        public bool SurvivalStartsEnabled { get; private set; } = true;
-        public bool CreativeStartsEnabled { get; private set; } = true;
+        public SpeedrunGamemode GamemodeSelection { get; private set; } = SpeedrunGamemode.SurvivalHardcore;
         public bool BiomeTrackerEnabled { get; private set; }
         public SubnauticaBiomeTrackerCycleMode BiomeCycleMode { get; private set; } = SubnauticaBiomeTrackerCycleMode.Databanks;
         public SubnauticaBiomeTrackerScrollSpeed BiomeScrollSpeed { get; private set; } = SubnauticaBiomeTrackerScrollSpeed.Medium;
@@ -57,11 +59,19 @@ namespace SubnauticaLauncher.UI
         {
             SelectedSize = ReadEnumSelection(SizeComboBox, Subnautica100TrackerOverlaySize.Medium);
             UnlockPopupEnabled = UnlockPopupCheckBox.IsChecked == true;
-            SurvivalStartsEnabled = SurvivalStartCheckBox.IsChecked == true;
-            CreativeStartsEnabled = CreativeStartCheckBox.IsChecked == true;
             BiomeCycleMode = ReadEnumSelection(BiomeCycleComboBox, SubnauticaBiomeTrackerCycleMode.Databanks);
             BiomeScrollSpeed = ReadEnumSelection(BiomeSpeedComboBox, SubnauticaBiomeTrackerScrollSpeed.Medium);
             DialogResult = true;
+        }
+
+        private void GamemodesDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncingGamemodes)
+                return;
+
+            GamemodeSelection = ReadEnumSelection(GamemodesDropdown, SpeedrunGamemode.SurvivalHardcore);
+            LauncherSettings.Current.SpeedrunGamemode = GamemodeSelection;
+            LauncherSettings.Save();
         }
 
         private void TrackerEnabledToggleButton_Click(object sender, RoutedEventArgs e)

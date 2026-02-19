@@ -29,6 +29,9 @@ namespace SubnauticaLauncher.Gameplay
         private const float MainMenuPosY = 1.75f;
         private const float MainMenuPosZ = 0f;
         private const float MainMenuPositionTolerance = 0.01f;
+        // Exact version sizing used by SprinterAutosplitter init() to decide pointers.
+        private const int SubnauticaMainModuleSizeSeptember2018 = 23801856;
+        private const int SubnauticaMainModuleSizeMarch2023 = 675840;
 
         private static readonly MonoLayout LayoutV1 = new(
             assemblyImage: 0x58,
@@ -196,8 +199,15 @@ namespace SubnauticaLauncher.Gameplay
         private readonly DeepPointer? _legacyBiome;
         private readonly DeepPointer? _modernBiome;
         private readonly DeepPointer? _sept2018Oxygen;
+        private readonly DeepPointer? _legacyRocketLaunch;
+        private readonly DeepPointer? _modernRocketLaunch;
+        private int _lastRocketLaunchValue = -1;
+        private bool _hasRocketLaunchBaseline;
+        private SubnauticaRocketBuild _rocketBuild = SubnauticaRocketBuild.Unknown;
         private bool _hasRunStartBaseline;
         private bool _previousIntroCinematicActive;
+        private bool _hasPreviousDamageEffects;
+        private bool _previousDamageEffectsShowing;
         private bool _previousPlayerCinematicActive;
         private bool _previousCreativeMoveActive;
         private bool _previousCreativeJumping;
@@ -244,6 +254,9 @@ namespace SubnauticaLauncher.Gameplay
                 _legacyBiome = new DeepPointer("Subnautica.exe", 0x142B908, 0x180, 0x128, 0x80, 0x1D0, 0x8, 0x248, 0x1D0, 0x14);
                 _modernBiome = new DeepPointer("UnityPlayer.dll", 0x17FBE70, 0x8, 0x10, 0x30, 0x58, 0x28, 0x1F0, 0x14);
                 _sept2018Oxygen = new DeepPointer("Subnautica.exe", 0x142ADA8, 0x8, 0x10, 0x30, 0x30, 0x18, 0x28, 0x70);
+                // Rocket launch: 2018 = 1, 2023 = 256 (match SprinterAutosplitter)
+                _legacyRocketLaunch = new DeepPointer("mono.dll", 0x27EAD8, 0x40, 0x70, 0x50, 0x90, 0x30, 0x8, 0x80);
+                _modernRocketLaunch = new DeepPointer("UnityPlayer.dll", 0x17FC238, 0x10, 0x3C);
             }
         }
 
@@ -363,6 +376,126 @@ namespace SubnauticaLauncher.Gameplay
                 return false;
 
             return TryReadRunStart(proc, out reason);
+        }
+
+        /// <summary>Detects Rocket Launch (Neptune) - matches SprinterAutosplitter: 2018 = 1, 2023 = 256. Returns true only on transition to launching.</summary>
+        public bool TryDetectRocketLaunch(Process proc, out bool triggered)
+        {
+            triggered = false;
+
+            EnsureInitialized(proc);
+            if (!_ready || string.IsNullOrEmpty(_gameName) || !string.Equals(_gameName, "Subnautica", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (!TryReadRocketLaunchValue(proc, out int current))
+                return false;
+
+            if (!_hasRocketLaunchBaseline)
+            {
+                _lastRocketLaunchValue = current;
+                _hasRocketLaunchBaseline = true;
+                return true;
+            }
+
+            int old = _lastRocketLaunchValue;
+            _lastRocketLaunchValue = current;
+
+            // Exact autosplitter Rocket Split:
+            // current.isRocketLaunching != old.isRocketLaunching &&
+            // (current.isRocketLaunching == 1 || current.isRocketLaunching == 256)
+            if (current != old && (current == 1 || current == 256))
+            {
+                triggered = true;
+            }
+
+            return true;
+        }
+
+        private bool TryReadRocketLaunchValue(Process proc, out int value)
+        {
+            value = 0;
+            SubnauticaRocketBuild build = ResolveRocketBuild(proc);
+
+            if (build == SubnauticaRocketBuild.March2023)
+                return TryReadModernRocketLaunchValue(proc, out value) || TryReadLegacyRocketLaunchValue(proc, out value);
+
+            if (build == SubnauticaRocketBuild.September2018)
+                return TryReadLegacyRocketLaunchValue(proc, out value) || TryReadModernRocketLaunchValue(proc, out value);
+
+            return TryReadModernRocketLaunchValue(proc, out value) || TryReadLegacyRocketLaunchValue(proc, out value);
+        }
+
+        private bool TryReadLegacyRocketLaunchValue(Process proc, out int value)
+        {
+            value = 0;
+            if (_legacyRocketLaunch == null)
+                return false;
+
+            return _legacyRocketLaunch.Deref(proc, out IntPtr addr) && MemoryReader.ReadInt32(proc, addr, out value);
+        }
+
+        private bool TryReadModernRocketLaunchValue(Process proc, out int value)
+        {
+            value = 0;
+            if (_modernRocketLaunch == null)
+                return false;
+
+            return _modernRocketLaunch.Deref(proc, out IntPtr addr) && MemoryReader.ReadInt32(proc, addr, out value);
+        }
+
+        private SubnauticaRocketBuild ResolveRocketBuild(Process proc)
+        {
+            if (_rocketBuild != SubnauticaRocketBuild.Unknown)
+                return _rocketBuild;
+
+            try
+            {
+                int mainModuleSize = proc.MainModule?.ModuleMemorySize ?? 0;
+                if (mainModuleSize == SubnauticaMainModuleSizeSeptember2018)
+                {
+                    _rocketBuild = SubnauticaRocketBuild.September2018;
+                    return _rocketBuild;
+                }
+
+                if (mainModuleSize == SubnauticaMainModuleSizeMarch2023)
+                {
+                    _rocketBuild = SubnauticaRocketBuild.March2023;
+                    return _rocketBuild;
+                }
+            }
+            catch
+            {
+                // Fallback to module-presence heuristics below.
+            }
+
+            try
+            {
+                bool hasMonoV2 = proc.Modules
+                    .Cast<ProcessModule>()
+                    .Any(m => m.ModuleName.Equals("mono-2.0-bdwgc.dll", StringComparison.OrdinalIgnoreCase));
+
+                if (hasMonoV2)
+                {
+                    _rocketBuild = SubnauticaRocketBuild.March2023;
+                    return _rocketBuild;
+                }
+
+                bool hasMonoV1 = proc.Modules
+                    .Cast<ProcessModule>()
+                    .Any(m => m.ModuleName.Equals("mono.dll", StringComparison.OrdinalIgnoreCase));
+
+                if (hasMonoV1)
+                {
+                    _rocketBuild = SubnauticaRocketBuild.September2018;
+                    return _rocketBuild;
+                }
+            }
+            catch
+            {
+                // Keep unknown; value-read fallback still tries both pointers.
+            }
+
+            return SubnauticaRocketBuild.Unknown;
         }
 
         public bool TryDetectBiome(Process proc, out string biome)
@@ -625,12 +758,12 @@ namespace SubnauticaLauncher.Gameplay
             bool hasCreativeJump = hasPlayer && TryReadCreativeJumping(proc, playerMain, out creativeJumping);
             bool hasPdaOpen = TryReadCreativePdaOpen(proc, out bool creativePdaOpen);
             bool hasFabricator = TryReadCreativeFabricatorInteraction(proc, out bool creativeFabricatorActive);
-            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
             bool hasOxygen = TryReadSept2018Oxygen(proc, out int oxygenValue);
-            bool oxygenTriggered = hasOxygen &&
-                _hasPreviousOxygen &&
-                oxygenValue > 35 &&
-                _previousOxygen < 35;
+
+            bool hasDamageEffects = TryReadEscapePodDamageEffects(proc, out bool damageEffectsActive);
+            bool damageEffectsTriggered = hasDamageEffects && _hasPreviousDamageEffects && damageEffectsActive && !_previousDamageEffectsShowing;
+            bool introEnded = hasIntro && _previousIntroCinematicActive && !introActive;
+            bool oxygenTriggered = hasOxygen && _hasPreviousOxygen && oxygenValue > 35 && _previousOxygen < 35;
             bool skipProgressHigh = hasSkipProgress && skipProgress > 0.988f;
             bool blockRunStart = isMainMenuSample;
 
@@ -673,6 +806,8 @@ namespace SubnauticaLauncher.Gameplay
                 _hasPreviousOxygen = hasOxygen;
                 if (hasOxygen)
                     _previousOxygen = oxygenValue;
+                _hasPreviousDamageEffects = hasDamageEffects;
+                _previousDamageEffectsShowing = hasDamageEffects && damageEffectsActive;
                 return false;
             }
 
@@ -684,16 +819,20 @@ namespace SubnauticaLauncher.Gameplay
             bool fabricatorTriggered = hasFabricator && creativeFabricatorActive && !_previousCreativeFabricatorActive;
 
             bool allowNewStart = !_startedBefore;
-            bool enableSurvivalStarts = LauncherSettings.Current.Subnautica100TrackerSurvivalStartsEnabled;
-            bool enableCreativeStarts = LauncherSettings.Current.Subnautica100TrackerCreativeStartsEnabled;
+            SpeedrunGamemode gamemode = LauncherSettings.Current.SpeedrunGamemode;
+            bool enableSurvivalStarts = gamemode == SpeedrunGamemode.SurvivalHardcore;
+            bool enableCreativeStarts = gamemode == SpeedrunGamemode.Creative;
 
             if (allowNewStart && !blockRunStart)
             {
                 if (enableSurvivalStarts &&
-                    (oxygenTriggered || introEnded || skipProgressHigh))
+                    (damageEffectsTriggered || introEnded || oxygenTriggered || skipProgressHigh))
                 {
                     runStarted = true;
-                    runStartReason = "CutsceneSkipped";
+                    runStartReason = damageEffectsTriggered ? "LifepodRadioDamaged"
+                        : introEnded ? "IntroCinematicEnded"
+                        : oxygenTriggered ? "OxygenSept2018"
+                        : "CutsceneSkipped";
                 }
                 else if (enableCreativeStarts &&
                          !isMainMenuNow &&
@@ -727,6 +866,8 @@ namespace SubnauticaLauncher.Gameplay
             _hasPreviousOxygen = hasOxygen;
             if (hasOxygen)
                 _previousOxygen = oxygenValue;
+            _hasPreviousDamageEffects = hasDamageEffects;
+            _previousDamageEffectsShowing = hasDamageEffects && damageEffectsActive;
 
             if (!runStarted)
                 return false;
@@ -1215,6 +1356,8 @@ namespace SubnauticaLauncher.Gameplay
             _previousRunStartMainMenu = false;
             _previousOxygen = 0;
             _hasPreviousOxygen = false;
+            _hasPreviousDamageEffects = false;
+            _previousDamageEffectsShowing = false;
             _notInGameStableSamples = 0;
             _startedFromCreative = false;
             _awaitingSurvivalAfterCreativeCutscene = false;
@@ -3704,6 +3847,13 @@ namespace SubnauticaLauncher.Gameplay
             Unknown,
             MonoV1,
             MonoV2
+        }
+
+        private enum SubnauticaRocketBuild
+        {
+            Unknown,
+            September2018,
+            March2023
         }
 
         private readonly struct StaticFieldRef

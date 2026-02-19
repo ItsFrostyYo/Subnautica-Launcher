@@ -1,4 +1,4 @@
-﻿<Window x:Class="SubnauticaLauncher.UI.UpdateProgressWindow"
+<Window x:Class="SubnauticaLauncher.UI.UpdateProgressWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Updating Subnautica Launcher"
@@ -10,7 +10,7 @@
         Topmost="True"
         Width="520"
         Height="230"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         FontFamily="{DynamicResource AppFontFamily}">
 
     <Border CornerRadius="14"
@@ -75,5 +75,6 @@
         </Grid>
     </Border>
 </Window>
+
 
 

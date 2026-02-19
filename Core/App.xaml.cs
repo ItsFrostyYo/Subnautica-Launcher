@@ -17,8 +17,9 @@ namespace SubnauticaLauncher.Core
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            // 🔥 MUST be first
             SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+
+            Logger.TruncateOnStartup();
 
             DispatcherUnhandledException += (s, ex) =>
             {

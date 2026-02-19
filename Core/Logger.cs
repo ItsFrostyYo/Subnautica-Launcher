@@ -11,9 +11,32 @@ namespace SubnauticaLauncher.Core
         private static readonly object ThrottleLock = new();
         private static readonly Dictionary<string, DateTime> LastWriteByThrottleKey =
             new(StringComparer.Ordinal);
+        private static StreamWriter? _cachedWriter;
+        private static string? _cachedWriterPath;
 
         private static string LogDirectory => AppPaths.LogsPath;
         private static string DefaultLogFile => AppPaths.LogFile;
+
+        public static void TruncateOnStartup()
+        {
+            try
+            {
+                lock (WriteLock)
+                {
+                    _cachedWriter?.Dispose();
+                    _cachedWriter = null;
+                    _cachedWriterPath = null;
+
+                    string logFile = DefaultLogFile;
+                    if (File.Exists(logFile))
+                        File.WriteAllText(logFile, string.Empty);
+                }
+            }
+            catch
+            {
+                // Must never crash the app.
+            }
+        }
 
         public static void Log(string message) => Write("INFO", message);
         public static void Warn(string message) => Write("WARN", message);
@@ -81,13 +104,26 @@ namespace SubnauticaLauncher.Core
 
                 lock (WriteLock)
                 {
-                    File.AppendAllText(targetLogFile, line + Environment.NewLine);
+                    var writer = GetOrCreateWriter(targetLogFile);
+                    writer.WriteLine(line);
+                    writer.Flush();
                 }
             }
             catch
             {
                 // Logging must never crash the app.
             }
+        }
+
+        private static StreamWriter GetOrCreateWriter(string filePath)
+        {
+            if (_cachedWriter != null && string.Equals(_cachedWriterPath, filePath, StringComparison.OrdinalIgnoreCase))
+                return _cachedWriter;
+
+            _cachedWriter?.Dispose();
+            _cachedWriter = new StreamWriter(filePath, append: true, Encoding.UTF8) { AutoFlush = false };
+            _cachedWriterPath = filePath;
+            return _cachedWriter;
         }
 
         private static string ResolveLogPath(string relativeFilePath)
