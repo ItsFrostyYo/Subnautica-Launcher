@@ -145,11 +145,6 @@ namespace SubnauticaLauncher.UI
             OverlayHardcoreButton.Background =
                 _main.IsHardcoreSaveDeleterEnabledForOverlay() ? Brushes.Green : Brushes.DarkRed;
 
-            OverlayTrackerButton.Content =
-                $"100% Tracker: {(_main.IsSubnauticaTrackerEnabledForOverlay() ? "Enabled" : "Disabled")}";
-            OverlayTrackerButton.Background =
-                _main.IsSubnauticaTrackerEnabledForOverlay() ? Brushes.Green : Brushes.DarkRed;
-
             if (!_updatesBuilt)
             {
                 BuildUpdatesView();
@@ -469,15 +464,15 @@ namespace SubnauticaLauncher.UI
             RefreshFromMain();
         }
 
-        private void OverlayTrackerButton_Click(object sender, RoutedEventArgs e)
-        {
-            _main.ToggleSubnauticaTrackerFromOverlay();
-            RefreshFromMain();
-        }
-
         private void OverlayTrackerCustomizeButton_Click(object sender, RoutedEventArgs e)
         {
             _main.OpenTrackerCustomizeFromOverlay();
+            RefreshFromMain();
+        }
+
+        private void OverlaySpeedrunTimerCustomizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            _main.OpenSpeedrunTimerCustomizeFromOverlay();
             RefreshFromMain();
         }
 

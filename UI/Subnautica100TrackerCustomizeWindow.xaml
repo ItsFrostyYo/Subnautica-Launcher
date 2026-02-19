@@ -24,62 +24,8 @@
             <Setter Property="Foreground" Value="#D0E7F2"/>
         </Style>
 
-        <Style x:Key="DarkComboBox" TargetType="ComboBox">
+        <Style x:Key="DarkComboBox" TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxBase}">
             <Setter Property="Height" Value="35"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="White"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <ToggleButton
-                                Background="Transparent"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
-                                Focusable="False">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"/>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-
-                            <ContentPresenter
-                                Content="{TemplateBinding SelectionBoxItem}"
-                                Margin="8,2,30,2"
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Left"
-                                TextElement.Foreground="White"/>
-
-                            <Path Data="M 0 0 L 4 4 L 8 0 Z"
-                                  Fill="White"
-                                  HorizontalAlignment="Right"
-                                  Margin="0,0,10,0"
-                                  VerticalAlignment="Center"/>
-
-                            <Popup x:Name="PART_Popup"
-                                   Placement="Bottom"
-                                   IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   AllowsTransparency="True">
-                                <Border Background="Black"
-                                        BorderBrush="White"
-                                        BorderThickness="2"
-                                        CornerRadius="5"
-                                        Margin="0,4,0,0">
-                                    <ScrollViewer>
-                                        <ItemsPresenter/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
     </Window.Resources>
@@ -151,69 +97,105 @@
                     <TextBlock Text="Default Tracker"
                                FontSize="18"
                                FontWeight="SemiBold"
-                               Margin="0,0,0,8"/>
+                               Margin="0,0,0,6"/>
 
-                    <TextBlock Text="Configure size and popup behavior for the standard 100% Progress Tracker."
+                    <TextBlock Text="Enable or Disable the 100% Tracker, configure size, popup behavior, and run start type."
                                Style="{StaticResource MutedText}"
                                TextWrapping="Wrap"
                                Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Overlay Size"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,4"/>
-                    <ComboBox x:Name="SizeComboBox"
-                              Style="{StaticResource DarkComboBox}">
-                        <ComboBoxItem Content="Small" Tag="Small"/>
-                        <ComboBoxItem Content="Medium" Tag="Medium"/>
-                        <ComboBoxItem Content="Large" Tag="Large"/>
-                    </ComboBox>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.2*"/>
+                            <ColumnDefinition Width="18"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <WrapPanel Margin="0,10,0,0">
-                        <CheckBox x:Name="UnlockPopupCheckBox"
-                                  Content="Unlock Popup"
-                                  Foreground="White"
-                                  Margin="0,0,14,6"/>
-                        <CheckBox x:Name="SurvivalStartCheckBox"
-                                  Content="Survival/Hardcore Tracker Starts"
-                                  Foreground="White"
-                                  Margin="0,0,14,6"/>
-                        <CheckBox x:Name="CreativeStartCheckBox"
-                                  Content="Creative Tracker Starts"
-                                  Foreground="White"
-                                  Margin="0,0,14,6"/>
-                    </WrapPanel>
+                        <StackPanel Grid.Column="0">
+                            <Button x:Name="TrackerEnabledToggleButton"
+                                    Width="178"
+                                    Height="32"
+                                    Background="#8B2C2C"
+                                    Content="100% Tracker: Disabled"
+                                    HorizontalAlignment="Left"
+                                    Style="{StaticResource RoundedButton}"
+                                    Click="TrackerEnabledToggleButton_Click"/>
 
-                    <Border Height="1" Background="#55FFFFFF" Margin="0,12,0,10"/>
+                            <TextBlock Text="Overlay Size"
+                                       FontWeight="SemiBold"
+                                       Margin="0,12,0,4"/>
+                            <ComboBox x:Name="SizeComboBox"
+                                      Width="180"
+                                      HorizontalAlignment="Left"
+                                      Style="{StaticResource DarkComboBox}">
+                                <ComboBoxItem Content="Small" Tag="Small"/>
+                                <ComboBoxItem Content="Medium" Tag="Medium"/>
+                                <ComboBoxItem Content="Large" Tag="Large"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="0,16,43,12" Grid.ColumnSpan="2">
+                            <CheckBox x:Name="UnlockPopupCheckBox"
+                                      Content="Unlock Popup"
+                                      Foreground="White"
+                                      Margin="0,0,0,8"/>
+                            <CheckBox x:Name="SurvivalStartCheckBox"
+                                      Content="Start for Survival/Hardcore"
+                                      Foreground="White"
+                                      Margin="0,0,0,8"/>
+                            <CheckBox x:Name="CreativeStartCheckBox"
+                                      Content="Start for Creative"
+                                      Foreground="White"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Height="1" Background="#55FFFFFF" Margin="0,2,0,10"/>
 
                     <TextBlock Text="Biome Tracker"
                                FontSize="18"
                                FontWeight="SemiBold"
                                Margin="0,0,0,8"/>
 
-                    <CheckBox x:Name="BiomeTrackerEnabledCheckBox"
-                              Content="Enable Biome Tracker"
-                              Foreground="White"
-                              Margin="0,0,0,10"/>
+                    <Button x:Name="BiomeTrackerToggleButton"
+                            Width="207"
+                            Height="32"
+                            Background="#8B2C2C"
+                            Content="Biome Tracker: Disabled"
+                            HorizontalAlignment="Left"
+                            Style="{StaticResource RoundedButton}"
+                            Click="BiomeTrackerToggleButton_Click"/>
 
-                    <TextBlock Text="Cycle per Biome"
-                               FontWeight="SemiBold"
-                               Margin="0,0,0,4"/>
-                    <ComboBox x:Name="BiomeCycleComboBox"
-                              Style="{StaticResource DarkComboBox}">
-                        <ComboBoxItem Content="Databanks" Tag="Databanks"/>
-                        <ComboBoxItem Content="Blueprints" Tag="Blueprints"/>
-                        <ComboBoxItem Content="Both" Tag="Both"/>
-                    </ComboBox>
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Scroll Speed"
-                               FontWeight="SemiBold"
-                               Margin="0,10,0,4"/>
-                    <ComboBox x:Name="BiomeSpeedComboBox"
-                              Style="{StaticResource DarkComboBox}">
-                        <ComboBoxItem Content="Slow" Tag="Slow"/>
-                        <ComboBoxItem Content="Medium" Tag="Medium"/>
-                        <ComboBoxItem Content="Fast" Tag="Fast"/>
-                    </ComboBox>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Show per Biome"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4"/>
+                            <ComboBox x:Name="BiomeCycleComboBox"
+                                      Style="{StaticResource DarkComboBox}">
+                                <ComboBoxItem Content="Databanks" Tag="Databanks"/>
+                                <ComboBoxItem Content="Blueprints" Tag="Blueprints"/>
+                                <ComboBoxItem Content="Both" Tag="Both"/>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Scroll Speed"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,4"/>
+                            <ComboBox x:Name="BiomeSpeedComboBox"
+                                      Style="{StaticResource DarkComboBox}">
+                                <ComboBoxItem Content="Slow" Tag="Slow"/>
+                                <ComboBoxItem Content="Medium" Tag="Medium"/>
+                                <ComboBoxItem Content="Fast" Tag="Fast"/>
+                            </ComboBox>
+                        </StackPanel>
+                    </Grid>
 
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Center"

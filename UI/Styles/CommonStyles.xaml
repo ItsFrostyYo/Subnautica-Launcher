@@ -1,17 +1,53 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+    <SolidColorBrush x:Key="AccentBlueBrush" Color="#154966"/>
+    <SolidColorBrush x:Key="WarningOrangeBrush" Color="#C96A16"/>
+    <SolidColorBrush x:Key="DangerRedBrush" Color="#8B2C2C"/>
+    <SolidColorBrush x:Key="SuccessGreenBrush" Color="#1A6F3C"/>
+    <SolidColorBrush x:Key="LaunchAccentBrush" Color="#FF4FD38B"/>
+    <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#60000000"/>
+    <SolidColorBrush x:Key="StrongPanelBackgroundBrush" Color="#80000000"/>
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#70000000"/>
+    <SolidColorBrush x:Key="VersionListCardBrush" Color="#90000000"/>
+    <SolidColorBrush x:Key="WindowTitleBarBrush" Color="#40000000"/>
+    <SolidColorBrush x:Key="WindowButtonBorderBrush" Color="#55000000"/>
+    <SolidColorBrush x:Key="DividerBrush" Color="#35FFFFFF"/>
+    <SolidColorBrush x:Key="SoftDividerBrush" Color="#55FFFFFF"/>
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#22000000"/>
+    <SolidColorBrush x:Key="ReadOnlyInputForegroundBrush" Color="#CCCCCC"/>
+    <SolidColorBrush x:Key="OverlayInputForegroundBrush" Color="#D8D8D8"/>
+    <SolidColorBrush x:Key="PureBlackBrush" Color="#FF000000"/>
+
+    <Style x:Key="KeyboardFocusVisualStyle" TargetType="{x:Type Control}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Control}">
+                    <Rectangle Margin="2"
+                               RadiusX="6"
+                               RadiusY="6"
+                               Stroke="#7FD8FF"
+                               StrokeThickness="2"
+                               SnapsToDevicePixels="True"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="RoundedButtonBase" TargetType="Button">
         <Setter Property="Height" Value="36"/>
         <Setter Property="Foreground" Value="White"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocusVisualStyle}"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border x:Name="Root"
                             Background="{TemplateBinding Background}"
+                            BorderBrush="Transparent"
+                            BorderThickness="0"
                             CornerRadius="14">
                         <ContentPresenter HorizontalAlignment="Center"
                                           VerticalAlignment="Center"/>
@@ -23,6 +59,10 @@
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Root" Property="Opacity" Value="0.7"/>
                         </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Root" Property="BorderBrush" Value="#7FD8FF"/>
+                            <Setter TargetName="Root" Property="BorderThickness" Value="2"/>
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
                         </Trigger>
@@ -33,4 +73,78 @@
     </Style>
 
     <Style x:Key="RoundedButton" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}"/>
+
+    <Style x:Key="DarkComboBoxBase" TargetType="ComboBox">
+        <Setter Property="Height" Value="35"/>
+        <Setter Property="MaxDropDownHeight" Value="320"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderBrush" Value="White"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="FocusVisualStyle" Value="{StaticResource KeyboardFocusVisualStyle}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <ToggleButton
+                            Background="Transparent"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                            Focusable="False">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"/>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+
+                        <ContentPresenter
+                            Content="{TemplateBinding SelectionBoxItem}"
+                            Margin="8,2,30,2"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Left"
+                            TextElement.Foreground="White"/>
+
+                        <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                              Fill="White"
+                              HorizontalAlignment="Right"
+                              Margin="0,0,10,0"
+                              VerticalAlignment="Center"/>
+
+                        <Popup x:Name="PART_Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True">
+                            <Border Background="Black"
+                                    BorderBrush="White"
+                                    BorderThickness="2"
+                                    CornerRadius="5"
+                                    Margin="0,4,0,0">
+                                <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                <Setter Property="BorderBrush" Value="#7FD8FF"/>
+                <Setter Property="BorderThickness" Value="2"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="MainDarkComboBox" TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxBase}">
+        <Setter Property="Height" Value="35"/>
+    </Style>
+
+    <Style x:Key="OverlayDarkComboBox" TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxBase}">
+        <Setter Property="Height" Value="26"/>
+    </Style>
 </ResourceDictionary>

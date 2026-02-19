@@ -15,6 +15,7 @@
 
     <Window.Resources>
         <converters:ActiveColorConverter x:Key="ActiveColorConverter"/>
+        
 
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="White"/>
@@ -22,7 +23,7 @@
 
         <Style TargetType="ComboBoxItem">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#FF000000"/>
+            <Setter Property="Background" Value="{StaticResource PureBlackBrush}"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="FontSize" Value="12"/>
         </Style>
@@ -34,79 +35,29 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
+        <Style x:Key="OverlayWideButton" TargetType="Button" BasedOn="{StaticResource OverlayButton}">
+            <Setter Property="Width" Value="200"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
         <Style x:Key="OverlayTextbox" TargetType="TextBox">
             <Setter Property="Height" Value="26"/>
-            <Setter Property="Foreground" Value="#D8D8D8"/>
-            <Setter Property="Background" Value="#22000000"/>
+            <Setter Property="Foreground" Value="{StaticResource OverlayInputForegroundBrush}"/>
+            <Setter Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
             <Setter Property="BorderBrush" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,4"/>
         </Style>
 
-        <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="White"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <ToggleButton
-                                Background="Transparent"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
-                                Focusable="False">
-                                <ToggleButton.Template>
-                                    <ControlTemplate TargetType="ToggleButton">
-                                        <Border Background="{TemplateBinding Background}"
-                                                BorderBrush="{TemplateBinding BorderBrush}"
-                                                BorderThickness="{TemplateBinding BorderThickness}"/>
-                                    </ControlTemplate>
-                                </ToggleButton.Template>
-                            </ToggleButton>
-
-                            <ContentPresenter
-                                Content="{TemplateBinding SelectionBoxItem}"
-                                Margin="8,2,30,2"
-                                VerticalAlignment="Center"
-                                HorizontalAlignment="Left"
-                                TextElement.Foreground="White"/>
-
-                            <Path Data="M 0 0 L 4 4 L 8 0 Z"
-                                  Fill="White"
-                                  HorizontalAlignment="Right"
-                                  Margin="0,0,10,0"
-                                  VerticalAlignment="Center"/>
-
-                            <Popup x:Name="PART_Popup"
-                                   Placement="Bottom"
-                                   IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   AllowsTransparency="True">
-                                <Border Background="Black"
-                                        BorderBrush="White"
-                                        BorderThickness="2"
-                                        CornerRadius="5"
-                                        Margin="0,4,0,0">
-                                    <ScrollViewer VerticalScrollBarVisibility="Hidden">
-                                        <ItemsPresenter/>
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </Window.Resources>
 
     <Border x:Name="OverlayRoot"
             Margin="6"
             Padding="8"
             CornerRadius="12"
-            Background="#80000000"
+            Background="{StaticResource StrongPanelBackgroundBrush}"
             BorderBrush="Transparent"
             BorderThickness="0">
 
@@ -133,7 +84,7 @@
                                FontSize="16"
                                FontWeight="Bold"
                                Margin="65,0,0,6"/>
-                    <Border Background="#70000000"
+                    <Border Background="{StaticResource CardBackgroundBrush}"
                             CornerRadius="10"
                             Padding="4"
                             Height="250">
@@ -162,37 +113,37 @@
                     <Button x:Name="OverlayLaunchButton"
                             Content="Launch"
                             Width="112"
-                            Background="#1A6F3C"
+                            Background="{StaticResource SuccessGreenBrush}"
                             Style="{StaticResource OverlayButton}"
                             Click="OverlayLaunchButton_Click"/>
                     <Button x:Name="OverlayCloseGameButton"
                             Content="Close Game"
                             Width="112"
-                            Background="#C96A16"
+                            Background="{StaticResource WarningOrangeBrush}"
                             Style="{StaticResource OverlayButton}"
                             Click="OverlayCloseGameButton_Click"/>
                     <Button x:Name="OverlayAddButton"
                             Content="Add"
                             Width="112"
-                            Background="#154966"
+                            Background="{StaticResource AccentBlueBrush}"
                             Style="{StaticResource OverlayButton}"
                             Click="OverlayAddButton_Click"/>
                     <Button x:Name="OverlayEditButton"
                             Content="Edit"
                             Width="112"
-                            Background="#154966"
+                            Background="{StaticResource AccentBlueBrush}"
                             Style="{StaticResource OverlayButton}"
                             Click="OverlayEditButton_Click"/>
                     <Button x:Name="OverlayOpenFolderButton"
                             Content="Open Folder"
                             Width="112"
-                            Background="#154966"
+                            Background="{StaticResource AccentBlueBrush}"
                             Style="{StaticResource OverlayButton}"
                             Click="OverlayOpenFolderButton_Click"/>
                     <Button x:Name="OverlayCloseOverlayButton"
                             Content="Close Overlay"
                             Width="112"
-                            Background="#8B2C2C"
+                            Background="{StaticResource DangerRedBrush}"
                             Style="{StaticResource OverlayButton}"
                             Click="OverlayCloseOverlayButton_Click"/>
                 </StackPanel>
@@ -202,7 +153,7 @@
                                FontSize="16"
                                FontWeight="Bold"
                                Margin="65,0,0,6"/>
-                    <Border Background="#70000000"
+                    <Border Background="{StaticResource CardBackgroundBrush}"
                             CornerRadius="10"
                             Padding="4"
                             Height="250">
@@ -226,7 +177,7 @@
                 </StackPanel>
             </Grid>
 
-            <Border Grid.Column="2" Width="1" Background="#35FFFFFF" Margin="31,0,430,0"/>
+            <Border Grid.Column="2" Width="1" Background="{StaticResource DividerBrush}" Margin="31,0,430,0"/>
 
             <ScrollViewer Grid.Column="2"
                           VerticalScrollBarVisibility="Hidden"
@@ -264,7 +215,7 @@
                         </Grid.ColumnDefinitions>
                         <ComboBox x:Name="OverlayStartupModeDropdown"
                                   Grid.Column="0"
-                                  Style="{StaticResource DarkComboBox}"
+                                  Style="{StaticResource OverlayDarkComboBox}"
                                   SelectionChanged="OverlayStartupModeDropdown_SelectionChanged" Margin="0,0,32,0">
                             <ComboBoxItem Content="Startup as Window"/>
                             <ComboBoxItem Content="Startup as Overlay"/>
@@ -276,7 +227,7 @@
                                 Width="52"
                                 Margin="-20,0,0,0"
                                 Content="Set"
-                                Background="#154966"
+                                Background="{StaticResource AccentBlueBrush}"
                                 Style="{StaticResource OverlayButton}"
                                 Click="OverlaySetHotkeyButton_Click"/>
                     </Grid>
@@ -290,7 +241,7 @@
                         </Grid.ColumnDefinitions>
                         <ComboBox x:Name="OverlayBackgroundDropdown"
                                   Grid.Column="0"
-                                  Style="{StaticResource DarkComboBox}"
+                                  Style="{StaticResource OverlayDarkComboBox}"
                                   SelectionChanged="OverlayBackgroundDropdown_SelectionChanged">
                             <ComboBoxItem Content="Lifepod"/>
                             <ComboBoxItem Content="Safe Shallows"/>
@@ -318,7 +269,7 @@
                         <Button x:Name="OverlayChooseBackgroundButton"
                                 Grid.Column="2"
                                 Content="Choose Custom"
-                                Background="#154966"
+                                Background="{StaticResource AccentBlueBrush}"
                                 Style="{StaticResource OverlayButton}"
                                 Click="OverlayChooseBackgroundButton_Click"/>
                     </Grid>
@@ -354,13 +305,13 @@
                         <Button x:Name="OverlayExplosionDisplayButton"
                                 Grid.Column="0"
                                 Content="Explosion Overlay: Off"
-                                Background="#8B2C2C"
+                                Background="{StaticResource DangerRedBrush}"
                                 Style="{StaticResource OverlayButton}"
                                 Click="OverlayExplosionDisplayButton_Click"/>
                         <Button x:Name="OverlayExplosionTrackButton"
                                 Grid.Column="2"
                                 Content="Track Resets: Off"
-                                Background="#8B2C2C"
+                                Background="{StaticResource DangerRedBrush}"
                                 Style="{StaticResource OverlayButton}"
                                 Click="OverlayExplosionTrackButton_Click"/>
                     </Grid>
@@ -370,7 +321,7 @@
                             Width="300"
                             Margin="0,0,0,2"
                             HorizontalAlignment="Center"
-                            Background="#1A6F3C"
+                            Background="{StaticResource SuccessGreenBrush}"
                             Style="{StaticResource OverlayButton}"
                             Click="OverlayRenameOnCloseButton_Click"/>
                     <TextBlock Text="Keeping this Enabled Prevents the Launcher from Renaming Folders on Close to the Original Folder Name to keep them safe, allowing for there to stay an active version preventing steam from re downloading the latest version on next launch"
@@ -381,7 +332,7 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <Border Grid.Column="3" Width="1" Background="#35FFFFFF" Margin="4,0,1,0"/>
+            <Border Grid.Column="3" Width="1" Background="{StaticResource DividerBrush}" Margin="4,0,1,0"/>
 
             <ScrollViewer Grid.Column="4"
                           VerticalScrollBarVisibility="Hidden"
@@ -398,7 +349,7 @@
                             Content="Reset Macro: Disabled"
                             Width="300"
                             HorizontalAlignment="Center"
-                            Background="#8B2C2C"
+                            Background="{StaticResource DangerRedBrush}"
                             Style="{StaticResource OverlayButton}"
                             Click="OverlayResetMacroButton_Click"/>
 
@@ -414,7 +365,7 @@
                                 Width="52"
                                 Margin="6,5,0,5"
                                 Content="Set"
-                                Background="#154966"
+                                Background="{StaticResource AccentBlueBrush}"
                                 Style="{StaticResource OverlayButton}"
                                 Click="OverlaySetResetHotkeyButton_Click"/>
                     </Grid>
@@ -428,7 +379,7 @@
 
                         <ComboBox x:Name="OverlayResetGamemodeDropdown"
                                   Grid.Column="0"
-                                  Style="{StaticResource DarkComboBox}"
+                                  Style="{StaticResource OverlayDarkComboBox}"
                                   SelectionChanged="OverlayResetGamemodeDropdown_SelectionChanged">
                             <ComboBoxItem Content="Survival"/>
                             <ComboBoxItem Content="Hardcore"/>
@@ -441,7 +392,7 @@
 
                         <ComboBox x:Name="OverlayExplosionPresetDropdown"
                                   Grid.Column="2"
-                                  Style="{StaticResource DarkComboBox}"
+                                  Style="{StaticResource OverlayDarkComboBox}"
                                   SelectionChanged="OverlayExplosionPresetDropdown_SelectionChanged">
                             <ComboBoxItem Content="46:00 to 46:30" Tag="Min46_To_4630"/>
                             <ComboBoxItem Content="46:00 to 47:00" Tag="Min46_To_47"/>
@@ -452,7 +403,7 @@
                         </ComboBox>
                     </Grid>
 
-                    <Grid Margin="0,0,0,5">
+                    <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="6"/>
@@ -461,22 +412,16 @@
                         <Button x:Name="OverlayExplosionResetButton"
                                 Grid.Column="0"
                                 Content="Reset for Explosion: Off"
-                                Background="#8B2C2C"
+                                Background="{StaticResource DangerRedBrush}"
                                 Style="{StaticResource OverlayButton}"
-                                Click="OverlayExplosionResetButton_Click" Margin="-5,0,4,5"/>
+                                Click="OverlayExplosionResetButton_Click"/>
                         <Button x:Name="OverlayHardcoreButton"
-                                Grid.Column="1"
+                                Grid.Column="2"
                                 Content="Hardcore Save Deleter: Off"
-                                Background="#8B2C2C"
+                                Background="{StaticResource DangerRedBrush}"
                                 Style="{StaticResource OverlayButton}"
-                                Click="OverlayHardcoreButton_Click" Margin="3,0,-5,5" Grid.ColumnSpan="2"/>
+                                Click="OverlayHardcoreButton_Click"/>
                     </Grid>
-                    <Button x:Name="OverlayTrackerButton"
-                            Content="100% Speedrun Tracker: Disabled"
-                            Width="300"
-                            Background="#8B2C2C"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayTrackerButton_Click"/>
 
                     <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
@@ -485,20 +430,28 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
-                                Content="Customize Tracker"
-                                Background="#154966"
-                                Style="{StaticResource OverlayButton}"
+                                Content="Edit 100% Tracker"
+                                HorizontalAlignment="Center"
+                                Background="{StaticResource AccentBlueBrush}"
+                                Style="{StaticResource OverlayWideButton}"
                                 Click="OverlayTrackerCustomizeButton_Click"/>
                         <Button Grid.Column="2"
-                                Content="Delete All Hardcore Saves"
-                                Background="#154966"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlayDeleteHardcoreButton_Click"/>
+                                Content="Edit Speedrun Timer"
+                                HorizontalAlignment="Center"
+                                Background="{StaticResource AccentBlueBrush}"
+                                Style="{StaticResource OverlayWideButton}"
+                                Click="OverlaySpeedrunTimerCustomizeButton_Click"/>
                     </Grid>
+
+                    <Button
+                            Content="Delete All Hardcore Saves"
+                            Background="{StaticResource AccentBlueBrush}"
+                            Style="{StaticResource OverlayButton}"
+                            Click="OverlayDeleteHardcoreButton_Click" Width="216"/>
                 </StackPanel>
             </ScrollViewer>
 
-            <Border Grid.Column="4" Width="1" Background="#35FFFFFF" Margin="440,0,34,0"/>
+            <Border Grid.Column="4" Width="1" Background="{StaticResource DividerBrush}" Margin="440,0,34,0"/>
 
             <StackPanel Grid.Column="6">
                 <TextBlock Text="Launcher Info"
@@ -506,7 +459,7 @@
                            FontWeight="Bold"
                            Margin="125,0,0,6"/>
 
-                <Border Background="#70000000"
+                <Border Background="{StaticResource CardBackgroundBrush}"
                         CornerRadius="10"
                         Padding="8"
                         Height="206">
@@ -522,6 +475,7 @@
                             BorderThickness="0"
                             Cursor="Hand"
                             Margin="8,0"
+                            ToolTip="Open GitHub"
                             Click="OverlayGitHubButton_Click">
                         <StackPanel HorizontalAlignment="Center">
                             <Image Source="pack://application:,,,/Assets/Icons/GithubIcon.png"
@@ -539,6 +493,7 @@
                             BorderThickness="0"
                             Cursor="Hand"
                             Margin="8,0"
+                            ToolTip="Open YouTube"
                             Click="OverlayYouTubeButton_Click">
                         <StackPanel HorizontalAlignment="Center">
                             <Image Source="pack://application:,,,/Assets/Icons/YoutubeIcon.png"
@@ -556,6 +511,7 @@
                             BorderThickness="0"
                             Cursor="Hand"
                             Margin="8,0"
+                            ToolTip="Open Discord"
                             Click="OverlayDiscordButton_Click">
                         <StackPanel HorizontalAlignment="Center">
                             <Image Source="pack://application:,,,/Assets/Icons/DiscordIcon.png"
@@ -573,3 +529,8 @@
         </Grid>
     </Border>
 </Window>
+
+
+
+
+
