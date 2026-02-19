@@ -33,6 +33,18 @@ public static class Updates
         
         new UpdateEntry
     {
+        Version = "2.3.4",
+        Title = "Small Fixes",
+        Date = "Feb 18, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Small UI Updates",
+            "Small Code Updates",            
+        }
+    },     
+        
+        new UpdateEntry
+    {
         Version = "2.3.3",
         Title = "Logging Updated",
         Date = "Feb 18, 2026 | Contributors (1) - ItsFrosti.",
