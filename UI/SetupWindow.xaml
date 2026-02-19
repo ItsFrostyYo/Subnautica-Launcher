@@ -9,7 +9,7 @@
         MinHeight="160"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
-        FontFamily="Aileron"
+        FontFamily="{DynamicResource AppFontFamily}"
         WindowStyle="None"
         AllowsTransparency="True">
 
@@ -21,7 +21,7 @@
                     Stretch="UniformToFill"/>
 
         <!-- GLOBAL TEXT -->
-        <Style TargetType="TextBlock">
+        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
@@ -83,7 +83,7 @@
 
                 <!-- CLOSE ONLY -->
                 <Button Grid.Column="2"
-                        Content="✕"
+                        Content="&#x2715;"
                         Width="44"
                         Height="25"
                         Background="#8B2C2C"
@@ -122,3 +122,5 @@
         </Grid>
     </Grid>
 </Window>
+
+

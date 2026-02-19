@@ -6,7 +6,7 @@
         Height="310"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
-        FontFamily="Aileron"
+        FontFamily="{DynamicResource AppFontFamily}"
         WindowStyle="None"
         AllowsTransparency="True">
 
@@ -16,7 +16,7 @@
         <ImageBrush x:Key="BackgroundBrush"
                     Stretch="UniformToFill"/>
 
-        <Style TargetType="TextBlock">
+        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
@@ -75,7 +75,7 @@
 
                 <!-- CLOSE BUTTON (BIG HIT AREA) -->
                 <Button Grid.Column="1"
-                        Content="✕"
+                        Content="&#x2715;"
                         Width="44"
                         Height="28"
                         Margin="4,0,4,0"
@@ -144,3 +144,6 @@
         </Grid>
     </Grid>
 </Window>
+
+
+

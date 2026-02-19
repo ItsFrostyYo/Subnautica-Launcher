@@ -8,7 +8,7 @@
         SizeToContent="Height"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
-        FontFamily="Aileron"
+        FontFamily="{DynamicResource AppFontFamily}"
         WindowStyle="None"
         AllowsTransparency="True">
 
@@ -20,7 +20,7 @@
                     Stretch="UniformToFill"/>
 
         <!-- GLOBAL TEXT -->
-        <Style TargetType="TextBlock">
+        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
@@ -90,7 +90,7 @@
                 <StackPanel Grid.Column="2"
                             Orientation="Horizontal">
 
-                    <Button Content="—"
+                    <Button Content="&#x2014;"
                             Width="44"
                             Height="25"
                             Background="Transparent"
@@ -99,7 +99,7 @@
                             Click="Minimize_Click"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
 
-                    <Button Content="□"
+                    <Button Content="&#x25A1;"
                             Width="44"
                             Height="25"
                             Background="Transparent"
@@ -108,7 +108,7 @@
                             Click="Maximize_Click"
                             shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
 
-                    <Button Content="✕"
+                    <Button Content="&#x2715;"
                             Width="44"
                             Height="25"
                             Background="#8B2C2C"
@@ -178,3 +178,6 @@
         </Grid>
     </Grid>
 </Window>
+
+
+

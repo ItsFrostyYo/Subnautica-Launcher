@@ -52,6 +52,7 @@
 	  <None Remove="Assets\Icons\SNLIcon.png" />
 	  <None Remove="Assets\Icons\SNLIconBZ.png" />
 	  <None Remove="Assets\Icons\YoutubeIcon.png" />
+	  <None Remove="Assets\Subnautica\aller.regular.ttf" />
 	  <None Remove="tools\ExplosionResetHelper2018.exe" />
 	  <None Remove="tools\ExplosionResetHelper2022.exe" />
 	  <None Remove="Updates\Possible Updates.txt" />
@@ -166,6 +167,9 @@
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	  <Resource Include="Assets\Icons\YoutubeIcon.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Assets\Subnautica\aller.regular.ttf">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	</ItemGroup>

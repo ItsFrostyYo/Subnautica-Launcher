@@ -7,7 +7,7 @@
         SizeToContent="Height"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
-        FontFamily="Aileron"
+        FontFamily="{DynamicResource AppFontFamily}"
         WindowStyle="None"
         AllowsTransparency="True">
 
@@ -17,7 +17,7 @@
         <ImageBrush x:Key="BackgroundBrush"
                     Stretch="UniformToFill"/>
 
-        <Style TargetType="TextBlock">
+        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
@@ -135,7 +135,7 @@
 
                 <StackPanel Grid.Column="2"
                             Orientation="Horizontal">
-                    <Button Content="✕"
+                    <Button Content="&#x2715;"
                             Width="44"
                             Height="25"
                             Background="#8B2C2C"
@@ -213,3 +213,6 @@
         </Grid>
     </Grid>
 </Window>
+
+
+
