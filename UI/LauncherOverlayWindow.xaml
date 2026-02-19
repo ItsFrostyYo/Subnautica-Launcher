@@ -35,13 +35,6 @@
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
-        <Style x:Key="OverlayWideButton" TargetType="Button" BasedOn="{StaticResource OverlayButton}">
-            <Setter Property="Width" Value="200"/>
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Margin" Value="0"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-
         <Style x:Key="OverlayTextbox" TargetType="TextBox">
             <Setter Property="Height" Value="26"/>
             <Setter Property="Foreground" Value="{StaticResource OverlayInputForegroundBrush}"/>
@@ -431,15 +424,13 @@
                         </Grid.ColumnDefinitions>
                         <Button Grid.Column="0"
                                 Content="Edit 100% Tracker"
-                                HorizontalAlignment="Center"
                                 Background="{StaticResource AccentBlueBrush}"
-                                Style="{StaticResource OverlayWideButton}"
+                                Style="{StaticResource OverlayButton}"
                                 Click="OverlayTrackerCustomizeButton_Click"/>
                         <Button Grid.Column="2"
                                 Content="Edit Speedrun Timer"
-                                HorizontalAlignment="Center"
                                 Background="{StaticResource AccentBlueBrush}"
-                                Style="{StaticResource OverlayWideButton}"
+                                Style="{StaticResource OverlayButton}"
                                 Click="OverlaySpeedrunTimerCustomizeButton_Click"/>
                     </Grid>
 
