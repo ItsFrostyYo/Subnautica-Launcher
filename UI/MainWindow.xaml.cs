@@ -71,11 +71,18 @@ namespace SubnauticaLauncher.UI
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+        [DllImport("user32.dll")]
+        private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
+
+        private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+
         public MainWindow()
         {
             Logger.Log("MainWindow constructor");
 
             InitializeComponent();
+            SpeedrunTimerController.WarmupCaptureWindow();
+            Subnautica100TrackerOverlayController.WarmupCaptureWindow();
             Loaded += MainWindow_Loaded;
             Closing += MainWindow_Closing;
             StateChanged += MainWindow_StateChanged;
@@ -90,8 +97,24 @@ namespace SubnauticaLauncher.UI
             var source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             source.AddHook(WndProc);
 
+            TryExcludeMainWindowFromCapture();
+
             RegisterResetHotkey();
             RegisterOverlayToggleHotkey();
+        }
+
+        private void TryExcludeMainWindowFromCapture()
+        {
+            try
+            {
+                IntPtr handle = new WindowInteropHelper(this).Handle;
+                if (handle != IntPtr.Zero)
+                    SetWindowDisplayAffinity(handle, WDA_EXCLUDEFROMCAPTURE);
+            }
+            catch
+            {
+                // Best-effort: unsupported OS/driver combinations can fail here.
+            }
         }
 
         private IntPtr WndProc(
@@ -320,6 +343,13 @@ namespace SubnauticaLauncher.UI
 
         private void Minimize_Click(object sender, RoutedEventArgs e)
         {
+            if (_overlayStartupMode)
+            {
+                ShowInTaskbar = true;
+                WindowState = WindowState.Minimized;
+                return;
+            }
+
             Hide();
             ShowInTaskbar = false;
         }
@@ -1598,7 +1628,7 @@ namespace SubnauticaLauncher.UI
 
         private void MainWindow_StateChanged(object? sender, EventArgs e)
         {
-            if (WindowState == WindowState.Minimized)
+            if (WindowState == WindowState.Minimized && !_overlayStartupMode)
             {
                 Hide();
                 ShowInTaskbar = false;
@@ -1641,7 +1671,17 @@ namespace SubnauticaLauncher.UI
             _launcherOverlayWindow.Activate();
 
             if (_overlayStartupMode)
-                Hide();
+                KeepMainWindowInTaskbar();
+        }
+
+        private void KeepMainWindowInTaskbar()
+        {
+            ShowInTaskbar = true;
+            if (!IsVisible)
+                Show();
+
+            if (WindowState != WindowState.Minimized)
+                WindowState = WindowState.Minimized;
         }
 
         private void ToggleOverlayVisibility()
@@ -1941,4 +1981,3 @@ namespace SubnauticaLauncher.UI
         }
     }
 }
-

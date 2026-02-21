@@ -30,6 +30,17 @@ public static class Updates
 
     public static readonly UpdateEntry[] History =
     {
+        new UpdateEntry
+    {
+        Version = "2.4.1",
+        Title = "UI Hotfixes",
+        Date = "Feb 21, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Updated Overlay UI's",
+            "Allowed OBS Captures of the Overlays",
+        }
+    },     
         
         new UpdateEntry
     {

@@ -14,7 +14,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Application = System.Windows.Application;
 using System.Windows;
-using System.Windows.Media.Animation;
 
 namespace SubnauticaLauncher.Gameplay
 {
@@ -22,6 +21,8 @@ namespace SubnauticaLauncher.Gameplay
     {
         private const int OverlayPadding = 12;
         private const int MaxAliasLength = 96;
+        private const double ParkedWindowLeft = -32000;
+        private const double ParkedWindowTop = -32000;
 
         private static readonly object Sync = new();
         private static readonly Regex CookedCuredChecklistRegex = new(@"^Cooked\s*\+\s*Cured\s+(.+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -197,14 +198,12 @@ namespace SubnauticaLauncher.Gameplay
         private static readonly IReadOnlyDictionary<int, string> TechTypeDatabase = TechTypeNames.GetAll();
 
         private static Subnautica100TrackerOverlay? _window;
-        private static SubnauticaBiomeTrackerOverlay? _biomeWindow;
-        private static Subnautica100UnlockToastOverlay? _toastWindow;
         private static CancellationTokenSource? _cts;
         private static CancellationTokenSource? _toastDisplayCts;
         private static Task? _loopTask;
         private static bool _runActive;
         private static bool _rulesLoaded;
-        private static bool _toastVisible;
+        private static string _activeToastMessage = string.Empty;
         private static double _overlayLeft;
         private static double _overlayTop;
         private static bool _runStartedFromCreative;
@@ -249,10 +248,19 @@ namespace SubnauticaLauncher.Gameplay
 
                 EnsureRulesLoaded();
                 ResetRunState();
+                EnsureOverlayWindowsInitialized();
 
                 GameEventDocumenter.BatchEventWritten += OnBatchEventWritten;
                 _cts = new CancellationTokenSource();
                 _loopTask = Task.Run(() => OverlayLoopAsync(_cts.Token));
+            }
+        }
+
+        public static void WarmupCaptureWindow()
+        {
+            lock (Sync)
+            {
+                EnsureOverlayWindowsInitialized();
             }
         }
 
@@ -271,7 +279,7 @@ namespace SubnauticaLauncher.Gameplay
                 _toastDisplayCts = null;
                 _loopTask = null;
                 _runActive = false;
-                _toastVisible = false;
+                _activeToastMessage = string.Empty;
                 _currentBiomeCanonical = string.Empty;
                 _biomeScrollOffset = 0;
                 _lastBiomeScrollUtc = DateTime.MinValue;
@@ -321,11 +329,8 @@ namespace SubnauticaLauncher.Gameplay
             {
                 _window?.Close();
                 _window = null;
-                _biomeWindow?.Close();
-                _biomeWindow = null;
-                _toastWindow?.Close();
-                _toastWindow = null;
             });
+
         }
 
         private static void EnsureRulesLoaded()
@@ -1176,7 +1181,6 @@ namespace SubnauticaLauncher.Gameplay
 
         private static async Task ShowToastSequenceAsync(string message, CancellationToken token)
         {
-            // Keep the full toast lifecycle on the UI thread to avoid cross-thread WPF ownership faults.
             if (!Application.Current.Dispatcher.CheckAccess())
             {
                 await Application.Current.Dispatcher.InvokeAsync(() => ShowToastSequenceAsync(message, token)).Task.Unwrap();
@@ -1199,74 +1203,41 @@ namespace SubnauticaLauncher.Gameplay
 
                 if (!IsUnlockPopupEnabled())
                 {
-                    _toastWindow?.Hide();
-                    _toastVisible = false;
+                    _window?.HideToast();
+                    _activeToastMessage = string.Empty;
                     return;
                 }
 
                 if (ExplosionResetDisplayController.IsActive)
                     return;
 
-                double targetLeft = 0;
-                double targetTop = 0;
-                bool hasAnchor = false;
-
-                _toastWindow ??= new Subnautica100UnlockToastOverlay();
-                if (_window != null)
-                {
-                    double overlayWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
-                    if (overlayWidth > 1)
-                        _toastWindow.Width = overlayWidth;
-                }
-
-                if (_window != null && _window.IsVisible)
-                {
-                    _overlayLeft = _window.Left;
-                    _overlayTop = _window.Top;
-
-                    targetLeft = _overlayLeft;
-                    targetTop = GetToastTop();
-                    hasAnchor = true;
-                }
-
-                if (!hasAnchor)
-                {
-                    if (!TryGetFocusedSubnauticaWindowRect(out var rect))
-                        return;
-
-                    _overlayLeft = rect.Left + OverlayPadding;
-                    _overlayTop = rect.Top + OverlayPadding;
-                    targetLeft = _overlayLeft;
-                    targetTop = _overlayTop + GetOverlayDimensions().Height + 8;
-                }
-
-                if (_toastVisible)
-                    await AnimateToastOutQuickAsync();
-
-                if (token.IsCancellationRequested || !_runActive)
+                if (_window == null && !TryGetOverlayTargetRect(out var rect, out _))
                     return;
 
-                double startLeft = targetLeft + 28;
+                if (_window == null)
+                    _window = new Subnautica100TrackerOverlay();
 
-                if (_toastWindow == null)
-                    return;
+                (double trackerWidth, double trackerHeight) = GetOverlayDimensions();
+                (double biomeWidth, double biomeHeight) = GetBiomeOverlayDimensions();
+                bool biomeEnabled = IsBiomeTrackerEnabled();
 
-                _toastWindow.SetMessage(message);
-                _toastWindow.Left = startLeft;
-                _toastWindow.Top = targetTop;
-                _toastWindow.Opacity = 0;
+                _window.ApplySizePreset(LauncherSettings.Current.Subnautica100TrackerSize);
+                _window.ConfigureCompositeLayout(trackerWidth, trackerHeight, biomeEnabled, biomeWidth, biomeHeight);
 
-                if (!_toastWindow.IsVisible)
-                    _toastWindow.Show();
+                if (TryGetOverlayTargetRect(out var targetRect, out bool gameFocused))
+                {
+                    _overlayLeft = targetRect.Left + OverlayPadding;
+                    _overlayTop = targetRect.Top + OverlayPadding;
+                    _window.Left = _overlayLeft;
+                    _window.Top = _overlayTop;
+                    _window.Topmost = gameFocused;
+                    _window.Opacity = 1;
+                    if (!_window.IsVisible)
+                        _window.Show();
+                }
 
-                _toastVisible = true;
-                await AnimateToastAsync(
-                    fromLeft: startLeft,
-                    toLeft: targetLeft,
-                    fromOpacity: 0,
-                    toOpacity: 1,
-                    durationMs: 300,
-                    easing: new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.35 });
+                _activeToastMessage = message;
+                await _window.ShowToastAnimatedAsync(message);
 
                 try
                 {
@@ -1274,103 +1245,31 @@ namespace SubnauticaLauncher.Gameplay
                 }
                 catch (OperationCanceledException)
                 {
-                    await AnimateToastOutQuickAsync();
+                    await _window.HideToastAnimatedAsync(quick: true);
+                    _activeToastMessage = string.Empty;
                     return;
                 }
 
                 if (!IsUnlockPopupEnabled())
                 {
-                    _toastWindow?.Hide();
-                    _toastVisible = false;
+                    await _window.HideToastAnimatedAsync(quick: true);
+                    _activeToastMessage = string.Empty;
                     return;
                 }
 
-                await AnimateToastAsync(
-                    fromLeft: targetLeft,
-                    toLeft: targetLeft,
-                    fromOpacity: 1,
-                    toOpacity: 0,
-                    durationMs: 1000,
-                    easing: null);
-
-                _toastWindow?.Hide();
-
-                _toastVisible = false;
+                await _window.HideToastAnimatedAsync(quick: false);
+                _activeToastMessage = string.Empty;
             }
             catch (Exception ex)
             {
-                _toastVisible = false;
-                _toastWindow?.Hide();
+                _activeToastMessage = string.Empty;
+                _window?.HideToast();
                 Logger.Exception(ex, "[100Tracker] Unlock toast failed.");
             }
             finally
             {
                 ToastSemaphore.Release();
             }
-        }
-
-        private static async Task AnimateToastOutQuickAsync()
-        {
-            if (!_toastVisible)
-                return;
-
-            if (_toastWindow == null || !_toastWindow.IsVisible)
-            {
-                _toastVisible = false;
-                return;
-            }
-
-            double fromLeft = _toastWindow.Left;
-            double fromOpacity = _toastWindow.Opacity;
-
-            await AnimateToastAsync(
-                fromLeft: fromLeft,
-                toLeft: fromLeft + 24,
-                fromOpacity: fromOpacity <= 0 ? 1 : fromOpacity,
-                toOpacity: 0,
-                durationMs: 140,
-                easing: null);
-
-            _toastWindow?.Hide();
-
-            _toastVisible = false;
-        }
-
-        private static Task AnimateToastAsync(
-            double fromLeft,
-            double toLeft,
-            double fromOpacity,
-            double toOpacity,
-            int durationMs,
-            IEasingFunction? easing)
-        {
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            if (_toastWindow == null)
-            {
-                tcs.TrySetResult(true);
-                return tcs.Task;
-            }
-
-            var storyboard = new Storyboard();
-
-            var leftAnimation = new DoubleAnimation(fromLeft, toLeft, TimeSpan.FromMilliseconds(durationMs))
-            {
-                EasingFunction = easing
-            };
-            Storyboard.SetTarget(leftAnimation, _toastWindow);
-            Storyboard.SetTargetProperty(leftAnimation, new PropertyPath(Window.LeftProperty));
-
-            var opacityAnimation = new DoubleAnimation(fromOpacity, toOpacity, TimeSpan.FromMilliseconds(durationMs));
-            Storyboard.SetTarget(opacityAnimation, _toastWindow);
-            Storyboard.SetTargetProperty(opacityAnimation, new PropertyPath(UIElement.OpacityProperty));
-
-            storyboard.Children.Add(leftAnimation);
-            storyboard.Children.Add(opacityAnimation);
-            storyboard.Completed += (_, _) => tcs.TrySetResult(true);
-            storyboard.Begin();
-
-            return tcs.Task;
         }
 
         private static void ResetRunState()
@@ -1395,7 +1294,7 @@ namespace SubnauticaLauncher.Gameplay
 
             _runActive = false;
             _runStartedFromCreative = false;
-            _toastVisible = false;
+            _activeToastMessage = string.Empty;
             _currentBiomeCanonical = string.Empty;
             _biomeScrollOffset = 0;
             _lastBiomeScrollUtc = DateTime.MinValue;
@@ -1409,15 +1308,16 @@ namespace SubnauticaLauncher.Gameplay
 
             _ = Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                _biomeWindow?.Hide();
-                _toastWindow?.Hide();
+                _window?.HideToast();
             });
+
         }
 
         private static void StartRunState(bool creativeStart)
         {
             _runActive = true;
             _runStartedFromCreative = creativeStart;
+            _activeToastMessage = string.Empty;
             _biomeScrollOffset = 0;
             _lastBiomeScrollUtc = DateTime.MinValue;
             _collectPreRunUnlocks = false;
@@ -1434,6 +1334,28 @@ namespace SubnauticaLauncher.Gameplay
 
             foreach (string name in PreInstalledDatabankEntries)
                 RunDatabankEntries.Add(name);
+        }
+
+        private static void EnsureOverlayWindowsInitialized()
+        {
+            if (Application.Current == null)
+                return;
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                _window ??= new Subnautica100TrackerOverlay();
+                (double trackerWidth, double trackerHeight) = GetOverlayDimensions();
+                (double biomeWidth, double biomeHeight) = GetBiomeOverlayDimensions();
+                _window.ApplySizePreset(LauncherSettings.Current.Subnautica100TrackerSize);
+                _window.ConfigureCompositeLayout(
+                    trackerWidth,
+                    trackerHeight,
+                    biomeVisible: false,
+                    biomeWidth,
+                    biomeHeight);
+                _window.SetProgress(0, RequiredCombinedTotal, 0, RequiredBlueprintTotal, 0, RequiredDatabankTotal);
+                ParkWindowForCapture(_window);
+            }, System.Windows.Threading.DispatcherPriority.Send);
         }
 
         private static void SetCurrentBiome(string displayName)
@@ -1499,28 +1421,6 @@ namespace SubnauticaLauncher.Gameplay
                 Subnautica100TrackerOverlaySize.Large => (620, 104),
                 _ => (420, 80)
             };
-        }
-
-        private static void ApplyOverlaySizePreset()
-        {
-            if (_window == null)
-                return;
-
-            (double width, double height) = GetOverlayDimensions();
-            _window.Width = width;
-            _window.Height = height;
-            _window.ApplySizePreset(LauncherSettings.Current.Subnautica100TrackerSize);
-        }
-
-        private static void ApplyBiomeOverlaySizePreset()
-        {
-            if (_biomeWindow == null)
-                return;
-
-            (double width, double height) = GetBiomeOverlayDimensions();
-            _biomeWindow.Width = width;
-            _biomeWindow.Height = height;
-            _biomeWindow.ApplySizePreset(LauncherSettings.Current.Subnautica100TrackerSize);
         }
 
         private static int GetBiomeScrollIntervalMs()
@@ -1711,15 +1611,6 @@ namespace SubnauticaLauncher.Gameplay
             return (type, name);
         }
 
-        private static double GetToastTop()
-        {
-            double overlayHeight = _window?.ActualHeight ?? 0;
-            if (overlayHeight <= 1)
-                overlayHeight = _window?.Height ?? GetOverlayDimensions().Height;
-
-            return _overlayTop + overlayHeight + 8;
-        }
-
         private static async Task OverlayLoopAsync(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
@@ -1729,10 +1620,16 @@ namespace SubnauticaLauncher.Gameplay
                     bool runActive;
                     bool biomeTrackerEnabled;
                     BiomeDisplayFrame biomeFrame;
+                    int blueprintUnlocked;
+                    int databankUnlocked;
+                    int totalUnlocked;
                     lock (Sync)
                     {
                         runActive = _runActive;
                         biomeTrackerEnabled = IsBiomeTrackerEnabled();
+                        blueprintUnlocked = RunBlueprints.Count;
+                        databankUnlocked = RunDatabankEntries.Count;
+                        totalUnlocked = blueprintUnlocked + databankUnlocked;
                         (int rowCount, int columnsPerRow) = GetBiomeGridLayout();
                         biomeFrame = biomeTrackerEnabled
                             ? BuildBiomeDisplayRows()
@@ -1744,10 +1641,11 @@ namespace SubnauticaLauncher.Gameplay
                                 0);
                     }
 
-                    RECT rect = default;
+                    bool hasRect = TryGetOverlayTargetRect(out RECT rect, out bool gameFocused);
+
                     bool shouldShow = runActive
                         && !ExplosionResetDisplayController.IsActive
-                        && TryGetFocusedSubnauticaWindowRect(out rect);
+                        && hasRect;
 
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
@@ -1756,82 +1654,72 @@ namespace SubnauticaLauncher.Gameplay
                             if (_window == null)
                             {
                                 _window = new Subnautica100TrackerOverlay();
-                                ApplyOverlaySizePreset();
-                                _window.SetProgress(
-                                    RunBlueprints.Count + RunDatabankEntries.Count,
-                                    RequiredCombinedTotal,
-                                    RunBlueprints.Count,
-                                    RequiredBlueprintTotal,
-                                    RunDatabankEntries.Count,
-                                    RequiredDatabankTotal);
                             }
+
+                            _window.ApplySizePreset(LauncherSettings.Current.Subnautica100TrackerSize);
+                            (double trackerWidth, double trackerHeight) = GetOverlayDimensions();
+                            (double biomeWidth, double biomeHeight) = GetBiomeOverlayDimensions();
+                            _window.ConfigureCompositeLayout(
+                                trackerWidth,
+                                trackerHeight,
+                                biomeTrackerEnabled,
+                                biomeWidth,
+                                biomeHeight);
+                            _window.SetProgress(
+                                totalUnlocked,
+                                RequiredCombinedTotal,
+                                blueprintUnlocked,
+                                RequiredBlueprintTotal,
+                                databankUnlocked,
+                                RequiredDatabankTotal);
 
                             _overlayLeft = rect.Left + OverlayPadding;
                             _overlayTop = rect.Top + OverlayPadding;
 
                             _window.Left = _overlayLeft;
                             _window.Top = _overlayTop;
+                            _window.Topmost = gameFocused;
+                            _window.Opacity = 1;
 
                             if (!_window.IsVisible)
                                 _window.Show();
 
                             if (biomeTrackerEnabled)
                             {
-                                bool biomeCreated = _biomeWindow == null;
-                                _biomeWindow ??= new SubnauticaBiomeTrackerOverlay();
-                                if (biomeCreated)
-                                    ApplyBiomeOverlaySizePreset();
-
-                                double trackerWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
-                                _biomeWindow.Left = _overlayLeft + trackerWidth + 8;
-                                _biomeWindow.Top = _overlayTop;
-                                _biomeWindow.SetEntries(
+                                _window.SetBiomeVisible(true);
+                                _window.SetBiomeEntries(
                                     biomeFrame.TopRow,
                                     biomeFrame.BottomRow,
                                     biomeFrame.RowCount,
                                     biomeFrame.ColumnsPerRow,
                                     biomeFrame.ScrollProgress);
-
-                                if (!_biomeWindow.IsVisible)
-                                    _biomeWindow.Show();
                             }
                             else
                             {
-                                _biomeWindow?.Hide();
+                                _window.SetBiomeVisible(false);
                             }
 
-                            if (IsUnlockPopupEnabled() && _toastWindow != null && _toastWindow.IsVisible)
+                            if (!IsUnlockPopupEnabled())
                             {
-                                double overlayWidth = _window.ActualWidth > 1 ? _window.ActualWidth : _window.Width;
-                                if (overlayWidth > 1)
-                                    _toastWindow.Width = overlayWidth;
-
-                                _toastWindow.Left = _overlayLeft;
-                                _toastWindow.Top = GetToastTop();
-                            }
-                            else if (!IsUnlockPopupEnabled())
-                            {
-                                _toastWindow?.Hide();
-                                _toastVisible = false;
+                                _window.HideToast();
+                                _activeToastMessage = string.Empty;
                             }
                         }
                         else
                         {
-                            _window?.Hide();
-                            _biomeWindow?.Hide();
-                            _toastWindow?.Hide();
-                            _toastVisible = false;
+                            ParkTrackerWindowsForCapture();
+                            _window?.HideToast();
+                            _activeToastMessage = string.Empty;
                         }
                     }, System.Windows.Threading.DispatcherPriority.Background);
                 }
                 catch
                 {
-                    _toastVisible = false;
+                    _activeToastMessage = string.Empty;
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
-                        _window?.Hide();
-                        _biomeWindow?.Hide();
-                        _toastWindow?.Hide();
+                        ParkTrackerWindowsForCapture();
+                        _window?.HideToast();
                     }, System.Windows.Threading.DispatcherPriority.Background);
                 }
 
@@ -1870,6 +1758,105 @@ namespace SubnauticaLauncher.Gameplay
                     return false;
 
                 return GetWindowRect(foreground, out rect);
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                process?.Dispose();
+            }
+        }
+
+        private static void ParkTrackerWindowsForCapture()
+        {
+            ParkWindowForCapture(_window);
+        }
+
+        private static void ParkWindowForCapture(Window? window)
+        {
+            if (window == null)
+                return;
+
+            if (!window.IsVisible)
+                window.Show();
+
+            window.Topmost = false;
+            window.Opacity = 1;
+            window.Left = ParkedWindowLeft;
+            window.Top = ParkedWindowTop;
+        }
+
+        private static bool TryGetOverlayTargetRect(out RECT rect, out bool gameFocused)
+        {
+            gameFocused = TryGetFocusedSubnauticaWindowRect(out rect);
+            if (gameFocused)
+                return true;
+
+            if (IsCaptureFriendlyForeground() && TryGetAnySubnauticaWindowRect(out rect))
+                return true;
+
+            return false;
+        }
+
+        private static bool TryGetAnySubnauticaWindowRect(out RECT rect)
+        {
+            rect = default;
+
+            Process[] processes = Process.GetProcessesByName("Subnautica");
+            foreach (Process process in processes)
+            {
+                try
+                {
+                    if (process.HasExited)
+                        continue;
+
+                    IntPtr hwnd = process.MainWindowHandle;
+                    if (hwnd == IntPtr.Zero || IsIconic(hwnd))
+                        continue;
+
+                    if (GetWindowRect(hwnd, out rect))
+                        return true;
+                }
+                catch
+                {
+                    // Process may exit mid-check.
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsCaptureFriendlyForeground()
+        {
+            IntPtr foreground = GetForegroundWindow();
+            if (foreground == IntPtr.Zero)
+                return false;
+
+            _ = GetWindowThreadProcessId(foreground, out uint processId);
+            if (processId == 0)
+                return false;
+
+            if (processId == (uint)Environment.ProcessId)
+                return true;
+
+            Process? process = null;
+            try
+            {
+                process = Process.GetProcessById((int)processId);
+                if (process.HasExited)
+                    return false;
+
+                string name = process.ProcessName;
+                return name.Equals("obs64", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("obs32", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("obs", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("SubnauticaLauncher", StringComparison.OrdinalIgnoreCase);
             }
             catch
             {

@@ -15,6 +15,8 @@ namespace SubnauticaLauncher.Timer
     public static class SpeedrunTimerController
     {
         private static readonly object Sync = new();
+        private const double ParkedWindowLeft = -32000;
+        private const double ParkedWindowTop = -32000;
         private static SpeedrunTimerOverlay? _window;
         private static CancellationTokenSource? _cts;
         private static Task? _loopTask;
@@ -31,8 +33,18 @@ namespace SubnauticaLauncher.Timer
                 _timerRunning = false;
                 _stopwatch.Reset();
                 GameEventDocumenter.EventWritten += OnEventWritten;
+
+                EnsureOverlayWindowInitialized();
                 _cts = new CancellationTokenSource();
                 _loopTask = Task.Run(() => DisplayLoopAsync(_cts.Token));
+            }
+        }
+
+        public static void WarmupCaptureWindow()
+        {
+            lock (Sync)
+            {
+                EnsureOverlayWindowInitialized();
             }
         }
 
@@ -184,6 +196,20 @@ namespace SubnauticaLauncher.Timer
             return sb.ToString();
         }
 
+        private static string FormatRightAligned(TimeSpan t)
+        {
+            return t.TotalHours >= 1
+                ? $"{(int)t.TotalHours}:{t.Minutes:D2}:{t.Seconds:D2}.{t.Milliseconds:D3}"
+                : $"{t.Minutes:D2}:{t.Seconds:D2}.{t.Milliseconds:D3}";
+        }
+
+        private static string FormatLeftAligned(TimeSpan t)
+        {
+            return t.TotalHours >= 1
+                ? $"{t.Milliseconds:D3}.{t.Seconds:D2}:{t.Minutes:D2}:{(int)t.TotalHours}"
+                : $"{t.Milliseconds:D3}.{t.Seconds:D2}:{t.Minutes:D2}";
+        }
+
         private static async Task DisplayLoopAsync(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
@@ -197,18 +223,19 @@ namespace SubnauticaLauncher.Timer
                         elapsed = _stopwatch.Elapsed;
                     }
 
-                    bool subnauticaFocused = TryGetFocusedSubnauticaRect(out var rect);
+                    bool hasRect = TryGetOverlayTargetRect(out RECT rect, out bool gameFocused);
 
+                    LauncherSettings settings = LauncherSettings.Current;
                     _ = Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         try
                         {
-                            if (subnauticaFocused)
+                            if (hasRect)
                             {
                                 if (_window == null)
                                 {
                                     _window = new SpeedrunTimerOverlay();
-                                    _window.ApplyStyle(LauncherSettings.Current);
+                                    _window.ApplyStyle(settings);
                                     _window.SetTime(elapsed);
                                 }
                                 else
@@ -216,6 +243,8 @@ namespace SubnauticaLauncher.Timer
                                     _window.SetTime(elapsed);
                                 }
 
+                                _window.Topmost = gameFocused;
+                                _window.Opacity = 1;
                                 PositionOverlay(rect);
 
                                 if (!_window.IsVisible)
@@ -223,7 +252,7 @@ namespace SubnauticaLauncher.Timer
                             }
                             else
                             {
-                                _window?.Hide();
+                                ParkOverlayForCapture();
                             }
                         }
                         catch { }
@@ -250,6 +279,23 @@ namespace SubnauticaLauncher.Timer
             });
         }
 
+        private static void EnsureOverlayWindowInitialized()
+        {
+            if (Application.Current == null)
+                return;
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_window != null)
+                    return;
+
+                _window = new SpeedrunTimerOverlay();
+                _window.ApplyStyle(LauncherSettings.Current);
+                _window.SetTime(TimeSpan.Zero);
+                ParkOverlayForCapture();
+            });
+        }
+
         private const double EdgeMargin = 10; // Timer can sit within 10px of game window edges
 
         private static void PositionOverlay(RECT rect)
@@ -271,6 +317,42 @@ namespace SubnauticaLauncher.Timer
 
             _window.Left = left;
             _window.Top = top;
+        }
+
+        private static void ParkOverlayForCapture()
+        {
+            if (_window == null)
+                return;
+
+            if (!_window.IsVisible)
+                _window.Show();
+
+            // Ensure WPF measures the size at least once so capture apps can match it reliably.
+            _window.UpdateLayout();
+            if (_window.ActualWidth < 1 || _window.ActualHeight < 1)
+            {
+                if (double.IsNaN(_window.Width) || _window.Width < 1)
+                    _window.Width = 140;
+                if (double.IsNaN(_window.Height) || _window.Height < 1)
+                    _window.Height = 44;
+            }
+
+            _window.Topmost = false;
+            _window.Opacity = 1;
+            _window.Left = ParkedWindowLeft;
+            _window.Top = ParkedWindowTop;
+        }
+
+        private static bool TryGetOverlayTargetRect(out RECT rect, out bool gameFocused)
+        {
+            gameFocused = TryGetFocusedSubnauticaRect(out rect);
+            if (gameFocused)
+                return true;
+
+            if (IsCaptureFriendlyForeground() && TryGetAnySubnauticaRect(out rect))
+                return true;
+
+            return false;
         }
 
         private static bool TryGetFocusedSubnauticaRect(out RECT rect)
@@ -297,6 +379,66 @@ namespace SubnauticaLauncher.Timer
             }
 
             return GetWindowRect(foreground, out rect);
+        }
+
+        private static bool TryGetAnySubnauticaRect(out RECT rect)
+        {
+            rect = default;
+
+            Process[] processes = Process.GetProcessesByName("Subnautica");
+            foreach (Process process in processes)
+            {
+                try
+                {
+                    if (process.HasExited)
+                        continue;
+
+                    IntPtr hwnd = process.MainWindowHandle;
+                    if (hwnd == IntPtr.Zero || IsIconic(hwnd))
+                        continue;
+
+                    if (GetWindowRect(hwnd, out rect))
+                        return true;
+                }
+                catch
+                {
+                    // process exit race, ignore
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsCaptureFriendlyForeground()
+        {
+            IntPtr foreground = GetForegroundWindow();
+            if (foreground == IntPtr.Zero)
+                return false;
+
+            _ = GetWindowThreadProcessId(foreground, out uint processId);
+            if (processId == 0)
+                return false;
+
+            if (processId == (uint)Environment.ProcessId)
+                return true;
+
+            try
+            {
+                using var process = Process.GetProcessById((int)processId);
+                string name = process.ProcessName;
+                return name.Equals("obs64", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("obs32", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("obs", StringComparison.OrdinalIgnoreCase)
+                    || name.Equals("SubnauticaLauncher", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         [DllImport("user32.dll")]

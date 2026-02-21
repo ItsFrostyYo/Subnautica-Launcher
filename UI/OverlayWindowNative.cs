@@ -14,7 +14,7 @@ namespace SubnauticaLauncher.UI
         private const int WsExNoActivate = 0x08000000;
         private const uint WdaNone = 0x00000000;
 
-        public static void MakeClickThrough(Window window)
+        public static void MakeClickThrough(Window window, bool preferPrimaryCaptureTarget = true)
         {
             IntPtr hwnd = new WindowInteropHelper(window).Handle;
             if (hwnd == IntPtr.Zero)
@@ -22,12 +22,19 @@ namespace SubnauticaLauncher.UI
 
             IntPtr exStyle = GetWindowLongPtr(hwnd, GwlExStyle);
             long updated = exStyle.ToInt64()
-                | WsExTransparent
-                | WsExAppWindow;
+                | WsExTransparent;
 
-            // Capture-friendly mode: avoid hidden toolwindow/no-activate flags
-            // that some capture apps ignore, while preserving click-through.
-            updated &= ~WsExToolWindow;
+            if (preferPrimaryCaptureTarget)
+            {
+                updated |= WsExAppWindow;
+                updated &= ~WsExToolWindow;
+            }
+            else
+            {
+                updated |= WsExToolWindow;
+                updated &= ~WsExAppWindow;
+            }
+
             updated &= ~WsExNoActivate;
 
             SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));

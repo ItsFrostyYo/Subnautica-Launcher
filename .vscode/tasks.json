@@ -89,8 +89,26 @@
             "problemMatcher": "$msCompile"
         },
         {
+            "label": "build-overlay-runtime",
+            "type": "process",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/tools/SNLOverlayRuntime/Build-OverlayRuntime.ps1",
+                "-Configuration",
+                "Release"
+            ],
+            "problemMatcher": []
+        },
+        {
             "label": "package-release-win-x64",
             "type": "process",
+            "dependsOn": [
+                "build-overlay-runtime"
+            ],
             "command": "powershell",
             "args": [
                 "-NoProfile",

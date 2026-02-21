@@ -16,8 +16,7 @@
   },
   {
     "key": "f4",
-    "command": "workbench.action.debug.start",
-    "when": "debuggersAvailable && !inDebugMode"
+    "command": "workbench.action.debug.start"
   },
   {
     "key": "f5",

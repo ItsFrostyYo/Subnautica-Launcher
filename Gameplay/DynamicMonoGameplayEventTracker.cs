@@ -107,6 +107,8 @@ namespace SubnauticaLauncher.Gameplay
         private StaticFieldRef _uGuiCraftingMenuMainField;
         private StaticFieldRef _gameModeCurrentField;
         private StaticFieldRef _escapePodMainField;
+        private StaticFieldRef _launchRocketMainField;
+        private StaticFieldRef _launchRocketStartedField;
 
         private bool _hasInventoryContainerOffset;
         private int _inventoryContainerOffset;
@@ -158,6 +160,8 @@ namespace SubnauticaLauncher.Gameplay
         private int _pdaTabOpenOffset;
         private bool _hasCraftingMenuClientOffset;
         private int _craftingMenuClientOffset;
+        private bool _hasLaunchRocketStartedOffset;
+        private int _launchRocketStartedOffset;
 
         private readonly Dictionary<long, int?> _directTechTypeOffsetByClass = new();
         private readonly Dictionary<long, int?> _nestedObjectOffsetByClass = new();
@@ -394,16 +398,25 @@ namespace SubnauticaLauncher.Gameplay
             {
                 _lastRocketLaunchValue = current;
                 _hasRocketLaunchBaseline = true;
+
+                // If launchStarted first becomes readable only after launch has begun on newer builds,
+                // do not miss the split for an already-started run.
+                if (_startedBefore && IsRocketLaunchingState(current))
+                    triggered = true;
+
                 return true;
             }
 
             int old = _lastRocketLaunchValue;
             _lastRocketLaunchValue = current;
 
-            // Exact autosplitter Rocket Split:
-            // current.isRocketLaunching != old.isRocketLaunching &&
-            // (current.isRocketLaunching == 1 || current.isRocketLaunching == 256)
-            if (current != old && (current == 1 || current == 256))
+            // Autosplitter equivalent split is:
+            // current != old && (current == 1 || current == 256)
+            // We preserve that and also normalize bool/int variants seen on newer patches
+            // by triggering on a false->true transition of launch state.
+            bool oldLaunching = IsRocketLaunchingState(old);
+            bool currentLaunching = IsRocketLaunchingState(current);
+            if (!oldLaunching && currentLaunching)
             {
                 triggered = true;
             }
@@ -414,6 +427,10 @@ namespace SubnauticaLauncher.Gameplay
         private bool TryReadRocketLaunchValue(Process proc, out int value)
         {
             value = 0;
+
+            if (TryReadDynamicRocketLaunchValue(proc, out value))
+                return true;
+
             SubnauticaRocketBuild build = ResolveRocketBuild(proc);
 
             if (build == SubnauticaRocketBuild.March2023)
@@ -425,13 +442,67 @@ namespace SubnauticaLauncher.Gameplay
             return TryReadModernRocketLaunchValue(proc, out value) || TryReadLegacyRocketLaunchValue(proc, out value);
         }
 
+        private bool TryReadDynamicRocketLaunchValue(Process proc, out int value)
+        {
+            value = 0;
+
+            if (TryReadStaticIntField(proc, _launchRocketStartedField, out int staticLaunchStarted))
+            {
+                value = staticLaunchStarted;
+                return true;
+            }
+
+            if (_launchRocketMainField.IsValid &&
+                _hasLaunchRocketStartedOffset &&
+                TryReadStaticObject(proc, _launchRocketMainField, out var launchRocketMain) &&
+                launchRocketMain != IntPtr.Zero)
+            {
+                IntPtr fieldAddress = IntPtr.Add(launchRocketMain, _launchRocketStartedOffset);
+                if (TryReadRocketLaunchFieldValue(proc, fieldAddress, out value))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private bool TryReadRocketLaunchFieldValue(Process proc, IntPtr fieldAddress, out int value)
+        {
+            value = 0;
+
+            bool hasInt = MemoryReader.ReadInt32(proc, fieldAddress, out int rawInt);
+            bool hasByte = MemoryReader.ReadByte(proc, fieldAddress, out byte rawByte);
+            if (!hasInt && !hasByte)
+                return false;
+
+            // Prefer exact autosplitter semantics when possible.
+            if (hasInt && (rawInt == 0 || rawInt == 1 || rawInt == 256))
+            {
+                value = rawInt;
+                return true;
+            }
+
+            // launchStarted is often a bool; byte reads avoid garbage from neighboring bytes.
+            if (hasByte)
+            {
+                value = rawByte == 0 ? 0 : 1;
+                return true;
+            }
+
+            value = NormalizeRocketLaunchValue(rawInt);
+            return true;
+        }
+
         private bool TryReadLegacyRocketLaunchValue(Process proc, out int value)
         {
             value = 0;
             if (_legacyRocketLaunch == null)
                 return false;
 
-            return _legacyRocketLaunch.Deref(proc, out IntPtr addr) && MemoryReader.ReadInt32(proc, addr, out value);
+            if (!_legacyRocketLaunch.Deref(proc, out IntPtr addr) || !MemoryReader.ReadInt32(proc, addr, out int raw))
+                return false;
+
+            value = NormalizeRocketLaunchValue(raw);
+            return true;
         }
 
         private bool TryReadModernRocketLaunchValue(Process proc, out int value)
@@ -440,7 +511,24 @@ namespace SubnauticaLauncher.Gameplay
             if (_modernRocketLaunch == null)
                 return false;
 
-            return _modernRocketLaunch.Deref(proc, out IntPtr addr) && MemoryReader.ReadInt32(proc, addr, out value);
+            if (!_modernRocketLaunch.Deref(proc, out IntPtr addr) || !MemoryReader.ReadInt32(proc, addr, out int raw))
+                return false;
+
+            value = NormalizeRocketLaunchValue(raw);
+            return true;
+        }
+
+        private static int NormalizeRocketLaunchValue(int rawValue)
+        {
+            if (rawValue == 0 || rawValue == 1 || rawValue == 256)
+                return rawValue;
+
+            return rawValue > 0 ? 1 : 0;
+        }
+
+        private static bool IsRocketLaunchingState(int value)
+        {
+            return value == 1 || value == 256 || value > 0;
         }
 
         private SubnauticaRocketBuild ResolveRocketBuild(Process proc)
@@ -1275,6 +1363,8 @@ namespace SubnauticaLauncher.Gameplay
             _uGuiCraftingMenuMainField = default;
             _gameModeCurrentField = default;
             _escapePodMainField = default;
+            _launchRocketMainField = default;
+            _launchRocketStartedField = default;
 
             _hasInventoryContainerOffset = false;
             _inventoryContainerOffset = 0;
@@ -1326,6 +1416,8 @@ namespace SubnauticaLauncher.Gameplay
             _pdaTabOpenOffset = 0;
             _hasCraftingMenuClientOffset = false;
             _craftingMenuClientOffset = 0;
+            _hasLaunchRocketStartedOffset = false;
+            _launchRocketStartedOffset = 0;
 
             _directTechTypeOffsetByClass.Clear();
             _nestedObjectOffsetByClass.Clear();
@@ -1362,6 +1454,9 @@ namespace SubnauticaLauncher.Gameplay
             _startedFromCreative = false;
             _awaitingSurvivalAfterCreativeCutscene = false;
             _startedBefore = false;
+            _hasRocketLaunchBaseline = false;
+            _lastRocketLaunchValue = -1;
+            _rocketBuild = SubnauticaRocketBuild.Unknown;
         }
 
         private bool TryInitialize(Process proc)
@@ -1402,6 +1497,14 @@ namespace SubnauticaLauncher.Gameplay
             IntPtr crafterClass = FindClass(proc, mainImage, "CrafterLogic");
             IntPtr craftingMenuClass = FindClass(proc, mainImage, "uGUI_CraftingMenu");
             IntPtr gameModeUtilsClass = FindClass(proc, mainImage, "GameModeUtils");
+            IntPtr launchRocketClass = FindClass(proc, mainImage, "LaunchRocket");
+            if (launchRocketClass == IntPtr.Zero)
+            {
+                launchRocketClass = FindClassByNameContains(proc, mainImage, name =>
+                    name.Contains("launchrocket", StringComparison.OrdinalIgnoreCase) ||
+                    (name.Contains("launch", StringComparison.OrdinalIgnoreCase) &&
+                     name.Contains("rocket", StringComparison.OrdinalIgnoreCase)));
+            }
             IntPtr coreImage = FindFirstAssemblyImage(proc, assembliesList,
                 "mscorlib",
                 "mscorlib.dll",
@@ -1627,6 +1730,27 @@ namespace SubnauticaLauncher.Gameplay
                 TryResolveStaticFieldRef(proc, gameModeUtilsClass,
                     new[] { "currentGameMode", "_currentGameMode", "gameMode", "_gameMode", "mode" },
                     out _gameModeCurrentField);
+            }
+
+            if (launchRocketClass != IntPtr.Zero)
+            {
+                TryResolveStaticFieldRef(proc, launchRocketClass,
+                    new[] { "launchStarted", "_launchStarted", "m_launchStarted" },
+                    out _launchRocketStartedField);
+
+                TryResolveStaticFieldRef(proc, launchRocketClass,
+                    new[] { "main", "_main", "s_main", "<main>k__BackingField" },
+                    out _launchRocketMainField);
+
+                _hasLaunchRocketStartedOffset = TryFindFieldOffsetAny(proc, launchRocketClass,
+                    new[] { "launchStarted", "_launchStarted", "m_launchStarted" },
+                    out _launchRocketStartedOffset);
+
+                if (!_hasLaunchRocketStartedOffset)
+                {
+                    _hasLaunchRocketStartedOffset = TryFindFieldOffsetByContainsAny(proc, launchRocketClass,
+                        new[] { "launch", "started" }, out _launchRocketStartedOffset);
+                }
             }
 
             bool hasStateSource = _playerMainField.IsValid
@@ -2963,6 +3087,16 @@ namespace SubnauticaLauncher.Gameplay
             return MemoryReader.ReadIntPtr(proc, IntPtr.Add(fieldRef.StaticBase, fieldRef.FieldOffset), out value);
         }
 
+        private bool TryReadStaticIntField(Process proc, StaticFieldRef fieldRef, out int value)
+        {
+            value = 0;
+            if (!fieldRef.IsValid)
+                return false;
+
+            IntPtr fieldAddress = IntPtr.Add(fieldRef.StaticBase, fieldRef.FieldOffset);
+            return TryReadRocketLaunchFieldValue(proc, fieldAddress, out value);
+        }
+
         private bool TryResolveStaticFieldRef(Process proc, IntPtr klass, string[] fieldNames, out StaticFieldRef fieldRef)
         {
             fieldRef = default;
@@ -3639,6 +3773,49 @@ namespace SubnauticaLauncher.Gameplay
                     {
                         string currentName = MemoryReader.ReadUtf8String(proc, classNamePtr, 128);
                         if (currentName.Equals(className, StringComparison.Ordinal))
+                            return klass;
+                    }
+
+                    int nextOffset = _flavor == MonoFlavor.MonoV2
+                        ? _layout.ClassDefNextClassCache
+                        : _layout.ClassNextClassCache;
+
+                    if (nextOffset < 0 || !MemoryReader.ReadIntPtr(proc, IntPtr.Add(klass, nextOffset), out klass))
+                        break;
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private IntPtr FindClassByNameContains(Process proc, IntPtr image, Func<string, bool> predicate)
+        {
+            IntPtr classCache = IntPtr.Add(image, _layout.ImageClassCache);
+
+            if (!MemoryReader.ReadInt32(proc, IntPtr.Add(classCache, _layout.HashSize), out int size))
+                return IntPtr.Zero;
+
+            if (size <= 0 || size > 200000)
+                return IntPtr.Zero;
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(classCache, _layout.HashTable), out var table) || table == IntPtr.Zero)
+                return IntPtr.Zero;
+
+            int pointerSize = IntPtr.Size;
+
+            for (int i = 0; i < size; i++)
+            {
+                IntPtr bucketEntryAddress = new IntPtr(table.ToInt64() + (long)i * pointerSize);
+                if (!MemoryReader.ReadIntPtr(proc, bucketEntryAddress, out var klass))
+                    continue;
+
+                int chainGuard = 0;
+                while (klass != IntPtr.Zero && chainGuard++ < 10000)
+                {
+                    if (MemoryReader.ReadIntPtr(proc, IntPtr.Add(klass, _layout.ClassName), out var classNamePtr))
+                    {
+                        string currentName = MemoryReader.ReadUtf8String(proc, classNamePtr, 128);
+                        if (predicate(currentName))
                             return klass;
                     }
 

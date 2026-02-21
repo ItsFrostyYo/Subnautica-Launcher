@@ -1,9 +1,9 @@
 <Window x:Class="SubnauticaLauncher.UI.Subnautica100TrackerOverlay"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SNL Overlay - 100 Tracker"
-        Width="200"
-        Height="80"
+        Title="SNL Overlay - 100% Tracker"
+        Width="628"
+        Height="170"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowActivated="False"
@@ -14,30 +14,96 @@
         Topmost="True"
         ShowInTaskbar="False">
 
-    <Border CornerRadius="12"
-            Background="#55000000"
-            BorderBrush="#40FFFFFF"
-            BorderThickness="0.25"
-            Padding="12">
+    <Canvas x:Name="OverlayCanvas">
 
-        <StackPanel VerticalAlignment="Center">
-            <TextBlock x:Name="StepText"
-                       Text="100% Tracker"
-                       FontSize="15"
-                       FontWeight="SemiBold"
-                       Foreground="#FF4FD38B"
-                       Margin="0,0,0,3"/>
+        <Border x:Name="TrackerCard"
+                Canvas.Left="0"
+                Canvas.Top="0"
+                Width="200"
+                Height="80"
+                CornerRadius="12"
+                Background="#55000000"
+                BorderBrush="#40FFFFFF"
+                BorderThickness="0.25"
+                Padding="12">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock x:Name="StepText"
+                           Text="100% Tracker"
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           Foreground="#FF4FD38B"
+                           Margin="0,0,0,3"/>
 
-            <TextBlock x:Name="ProgressText"
-                       Text="(0/493) 0%"
+                <TextBlock x:Name="ProgressText"
+                           Text="(0/493) 0%"
+                           FontSize="13"
+                           Foreground="White"
+                           Margin="0,0,0,1"/>
+
+                <TextBlock x:Name="BreakdownText"
+                           Text="BP's: 0/201 | Ency: 0/292"
+                           FontSize="12"
+                           Foreground="#CCCCCC"/>
+            </StackPanel>
+        </Border>
+
+        <Border x:Name="BiomeCard"
+                Canvas.Left="208"
+                Canvas.Top="0"
+                Width="420"
+                Height="80"
+                CornerRadius="12"
+                Background="#55000000"
+                BorderBrush="#40FFFFFF"
+                BorderThickness="0.25"
+                Padding="4"
+                Visibility="Collapsed">
+            <Grid x:Name="RootGrid">
+                <Grid.RowDefinitions>
+                    <RowDefinition x:Name="TopRowDefinition" Height="*"/>
+                    <RowDefinition x:Name="BottomRowDefinition" Height="0"/>
+                </Grid.RowDefinitions>
+
+                <Grid x:Name="TopViewport" ClipToBounds="True">
+                    <Canvas x:Name="TopEntriesCanvas">
+                        <Canvas.RenderTransform>
+                            <TranslateTransform x:Name="TopEntriesTranslateTransform"/>
+                        </Canvas.RenderTransform>
+                    </Canvas>
+                </Grid>
+
+                <Grid x:Name="BottomViewport" Grid.Row="1" ClipToBounds="True" Visibility="Collapsed">
+                    <Canvas x:Name="BottomEntriesCanvas">
+                        <Canvas.RenderTransform>
+                            <TranslateTransform x:Name="BottomEntriesTranslateTransform"/>
+                        </Canvas.RenderTransform>
+                    </Canvas>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Border x:Name="ToastCard"
+                Canvas.Left="0"
+                Canvas.Top="88"
+                Width="200"
+                MinHeight="35"
+                CornerRadius="10"
+                Background="#66000000"
+                BorderBrush="#40FFFFFF"
+                BorderThickness="0.25"
+                Padding="12,8"
+                Visibility="Collapsed"
+                Opacity="0">
+            <Border.RenderTransform>
+                <TranslateTransform x:Name="ToastTranslate"/>
+            </Border.RenderTransform>
+
+            <TextBlock x:Name="UnlockText"
+                       Text="Blueprint 'Scanner'"
                        FontSize="13"
                        Foreground="White"
-                       Margin="0,0,0,1"/>
+                       TextWrapping="Wrap"/>
+        </Border>
 
-            <TextBlock x:Name="BreakdownText"
-                       Text="BP's: 0/201 | Ency: 0/292"
-                       FontSize="12"
-                       Foreground="#CCCCCC"/>
-        </StackPanel>
-    </Border>
+    </Canvas>
 </Window>
