@@ -32,6 +32,19 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.5.0",
+        Title = "Reset Macro Detection Update",
+        Date = "Apr 9, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Improved normal Subnautica reset macros to use memory-based Main Menu and In Game detection",
+            "Removed reliance on screen-color checks for normal Subnautica menu and in-game state detection",
+            "Kept black screen detection for loading synchronization where it is still useful"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.4.1",
         Title = "UI Hotfixes",
         Date = "Feb 21, 2026 | Contributors (1) - ItsFrosti.",

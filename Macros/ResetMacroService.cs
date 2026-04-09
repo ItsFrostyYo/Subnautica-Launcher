@@ -35,7 +35,7 @@ namespace SubnauticaLauncher.Macros
                 var display = DisplayInfo.GetPrimary();
                 bool needsGameModeDelay = yearGroup >= 2022;
 
-                var state = GameStateDetector.Detect(profile, display);
+                var state = GameStateDetector.Detect(process, "Subnautica", profile, display);
                 bool startedInGame = state == GameState.InGame;
 
                 ResetMacroLogger.Info(
@@ -110,7 +110,7 @@ namespace SubnauticaLauncher.Macros
 
                     while (menuWait.ElapsedMilliseconds < 5000)
                     {
-                        if (GameStateDetector.Detect(profile, display) == GameState.MainMenu)
+                        if (GameStateDetector.Detect(process, "Subnautica", profile, display) == GameState.MainMenu)
                         {
                             sawMenu = true;
                             break;
