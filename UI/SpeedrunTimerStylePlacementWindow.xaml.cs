@@ -538,7 +538,7 @@ namespace SubnauticaLauncher.UI
         private void Apply_Click(object sender, RoutedEventArgs e)
         {
             SaveSettingsFromUI();
-            DialogResult = true;
+            DialogWindowHelper.Finish(this, true);
         }
 
         private void ResetToDefault_Click(object sender, RoutedEventArgs e)
@@ -566,9 +566,9 @@ namespace SubnauticaLauncher.UI
             PositionTimerPreviewFromNormalized();
         }
 
-        private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+        private void Cancel_Click(object sender, RoutedEventArgs e) => DialogWindowHelper.Finish(this, false);
 
-        private void Close_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+        private void Close_Click(object sender, RoutedEventArgs e) => DialogWindowHelper.Finish(this, false);
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => DragMove();
 

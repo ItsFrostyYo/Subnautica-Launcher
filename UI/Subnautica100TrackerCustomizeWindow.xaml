@@ -205,7 +205,7 @@
                         <Button Content="Save"
                                 Width="160"
                                 Margin="0,0,12,0"
-                                Background="{StaticResource AccentBlueBrush}"
+                                Background="#FF4FD38B"
                                 Style="{StaticResource RoundedButton}"
                                 Click="Save_Click"/>
 
@@ -220,7 +220,6 @@
         </Grid>
     </Grid>
 </Window>
-
 
 
 

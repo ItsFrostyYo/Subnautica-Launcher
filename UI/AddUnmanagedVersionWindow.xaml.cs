@@ -108,21 +108,26 @@ namespace SubnauticaLauncher.UI
 
         private void LoadOriginalDownloads()
         {
+            var allChoices = VersionRegistry.AllVersions
+                .Cast<GameVersionInstallDefinition>()
+                .Concat(BZVersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>())
+                .ToList();
+
             if (_detectedGame == LauncherGame.Subnautica)
             {
                 OriginalDownloadBox.ItemsSource = VersionRegistry.AllVersions
-                    .Select(v => v.Id)
+                    .Cast<GameVersionInstallDefinition>()
                     .ToList();
             }
             else if (_detectedGame == LauncherGame.BelowZero)
             {
                 OriginalDownloadBox.ItemsSource = BZVersionRegistry.AllVersions
-                    .Select(v => v.Id)
+                    .Cast<GameVersionInstallDefinition>()
                     .ToList();
             }
             else
             {
-                OriginalDownloadBox.ItemsSource = Array.Empty<string>();
+                OriginalDownloadBox.ItemsSource = allChoices;
             }
 
             OriginalDownloadBox.SelectedIndex = OriginalDownloadBox.Items.Count > 0 ? 0 : -1;
@@ -250,11 +255,15 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (OriginalDownloadBox.SelectedItem == null)
+            if (OriginalDownloadBox.SelectedValue is not string originalDownloadId ||
+                string.IsNullOrWhiteSpace(originalDownloadId))
             {
                 MessageBox.Show("Please select an original version.");
                 return;
             }
+
+            if (_detectedGame == LauncherGame.Subnautica)
+                SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(FolderPathBox.Text);
 
             string infoFileName = _detectedGame == LauncherGame.Subnautica
                 ? "Version.info"
@@ -266,15 +275,15 @@ namespace SubnauticaLauncher.UI
             {
                 $"DisplayName={displayName}",
                 $"FolderName={folderName}",
-                $"OriginalDownload={OriginalDownloadBox.SelectedItem}"
+                $"OriginalDownload={originalDownloadId}"
             });
 
-            DialogResult = true;
+            DialogWindowHelper.Finish(this, true);
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
+            DialogWindowHelper.Finish(this, false);
         }
     }
 }

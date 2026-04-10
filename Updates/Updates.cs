@@ -32,6 +32,18 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.6.0",
+        Title = "UI Updates and Fixes",
+        Date = "Apr 10, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Updated UI to be slightly more Clean, and Responsive.",
+            "Updated Game Launching to be Faster using Steam APPID for Launching."
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.5.0",
         Title = "Reset Macro Detection Update",
         Date = "Apr 9, 2026 | Contributors (1) - ItsFrosti.",

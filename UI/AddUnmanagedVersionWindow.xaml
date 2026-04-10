@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Add Unmanaged Version"
-        Width="420"
-        Height="420"
-        MinWidth="420"
-        MinHeight="420"
+        Width="470"
+        Height="470"
+        MinWidth="470"
+        MinHeight="470"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         FontFamily="{DynamicResource AppFontFamily}"
@@ -27,19 +27,19 @@
 
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#331B4F72"/>
+            <Setter Property="Background" Value="#22000000"/>
             <Setter Property="BorderBrush" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Padding" Value="8"/>
             <Setter Property="FontSize" Value="14"/>
         </Style>
 
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
             <Setter Property="Height" Value="35"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
@@ -61,22 +61,28 @@
 
                             <ContentPresenter
                                 Content="{TemplateBinding SelectionBoxItem}"
+                                ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
                                 Margin="8,2,30,2"
                                 VerticalAlignment="Center"
                                 HorizontalAlignment="Left"
+                                IsHitTestVisible="False"
                                 TextElement.Foreground="White"/>
 
                             <Path Data="M 0 0 L 4 4 L 8 0 Z"
                                   Fill="White"
                                   HorizontalAlignment="Right"
                                   Margin="0,0,10,0"
+                                  IsHitTestVisible="False"
                                   VerticalAlignment="Center"/>
 
                             <Popup x:Name="PART_Popup"
+                                   PlacementTarget="{Binding RelativeSource={RelativeSource TemplatedParent}}"
                                    Placement="Bottom"
                                    IsOpen="{TemplateBinding IsDropDownOpen}"
                                    AllowsTransparency="True">
-                                <Border Background="Black"
+                                <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        Background="#F0000000"
                                         BorderBrush="White"
                                         BorderThickness="2"
                                         CornerRadius="5"
@@ -176,13 +182,13 @@
                     BorderBrush="#99000000"
                     BorderThickness="1"
                     CornerRadius="14"
-                    Padding="10"
+                    Padding="14"
                     Margin="20">
 
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
@@ -208,10 +214,10 @@
                                      IsReadOnly="True"/>
 
                             <Button Content="Browse"
-                                    Width="80"
+                                    Width="92"
                                     Margin="8,0,0,0"
                                     Grid.Column="1"
-                                    Background="#154966"
+                                    Background="{StaticResource DialogNeutralButtonBrush}"
                                     Style="{StaticResource RoundedButton}"
                                     Click="Browse_Click"/>
                         </Grid>
@@ -233,7 +239,7 @@
                                    Margin="0,0,0,4"/>
 
                         <TextBox x:Name="FolderNameBox"
-                                 Margin="0,0,0,10"/>
+                                 Margin="0,0,0,8"/>
 
                         <TextBlock Text="Original Version"
                                    FontWeight="Heavy"
@@ -242,23 +248,27 @@
                                    Margin="0,0,0,4"/>
 
                         <ComboBox x:Name="OriginalDownloadBox"
+                                  Margin="0,0,0,6"
+                                  DisplayMemberPath="DisplayName"
+                                  SelectedValuePath="Id"
+                                  TextSearch.TextPath="DisplayName"
                                   Style="{StaticResource DarkComboBox}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="2"
                                 Orientation="Horizontal"
                                 HorizontalAlignment="Center"
-                                Margin="0,16,0,0">
+                                Margin="0,8,0,0">
 
                         <Button Content="Add"
-                                Width="100"
+                                Width="112"
                                 Margin="0,0,12,0"
                                 Background="#FF4FD38B"
                                 Style="{StaticResource RoundedButton}"
                                 Click="Add_Click"/>
 
                         <Button Content="Cancel"
-                                Width="100"
+                                Width="112"
                                 Background="#8B2C2C"
                                 Style="{StaticResource RoundedButton}"
                                 Click="Cancel_Click"/>

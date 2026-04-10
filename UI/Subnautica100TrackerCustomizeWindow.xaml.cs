@@ -61,7 +61,7 @@ namespace SubnauticaLauncher.UI
             UnlockPopupEnabled = UnlockPopupCheckBox.IsChecked == true;
             BiomeCycleMode = ReadEnumSelection(BiomeCycleComboBox, SubnauticaBiomeTrackerCycleMode.Databanks);
             BiomeScrollSpeed = ReadEnumSelection(BiomeSpeedComboBox, SubnauticaBiomeTrackerScrollSpeed.Medium);
-            DialogResult = true;
+            DialogWindowHelper.Finish(this, true);
         }
 
         private void GamemodesDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -88,12 +88,12 @@ namespace SubnauticaLauncher.UI
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
+            DialogWindowHelper.Finish(this, false);
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
+            DialogWindowHelper.Finish(this, false);
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

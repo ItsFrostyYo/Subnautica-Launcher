@@ -6,10 +6,10 @@
         xmlns:updates="clr-namespace:SubnauticaLauncher.Updates"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Subnautica Launcher"
-        Width="850"
-        Height="500"
-        MinWidth="850"
-        MinHeight="500"
+        Width="1000"
+        Height="615"
+        MinWidth="1000"
+        MinHeight="615"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
         FontFamily="{DynamicResource AppFontFamily}"
@@ -26,7 +26,19 @@
     <Window.Resources>
 
         <converters:ActiveColorConverter x:Key="ActiveColorConverter"/>
-        
+
+        <SolidColorBrush x:Key="MainShellPanelBrush" Color="#C6141C2C"/>
+        <SolidColorBrush x:Key="MainShellBorderBrush" Color="#6D88A8"/>
+        <SolidColorBrush x:Key="WindowTitleBarBrush" Color="#90000000"/>
+        <SolidColorBrush x:Key="MainShellSidebarBrush" Color="#90000000"/>
+        <SolidColorBrush x:Key="MainShellSidebarTextBrush" Color="#F4F8FF"/>
+        <SolidColorBrush x:Key="MainShellSidebarMutedBrush" Color="#AEBBD6"/>
+        <SolidColorBrush x:Key="MainShellSidebarHoverBrush" Color="#663AA8FF"/>
+        <SolidColorBrush x:Key="MainShellSidebarActiveBrush" Color="#661A6F3C"/>
+        <SolidColorBrush x:Key="MainShellButtonBrush" Color="#C81A2337"/>
+        <SolidColorBrush x:Key="MainShellButtonHoverBrush" Color="#D32A3C58"/>
+        <SolidColorBrush x:Key="MainShellPrimaryHoverBrush" Color="#63BBFF"/>
+        <SolidColorBrush x:Key="MainShellButtonBorderBrush" Color="#7C95BD"/>
 
         <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Foreground" Value="White"/>
@@ -36,8 +48,202 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
-        <Style x:Key="RoundedButton" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
-            <Setter Property="FontSize" Value="16"/>
+        <Style x:Key="SidebarNavButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="214"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource MainShellSidebarTextBrush}"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="22,11"/>
+            <Setter Property="Margin" Value="0,0,0,7"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="NavBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="12">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource MainShellSidebarHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource MainShellSidebarActiveBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="NavBorder" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Active">
+                                <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource MainShellSidebarActiveBrush}"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="Tag" Value="Active"/>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="NavBorder" Property="Background" Value="{StaticResource MainShellSidebarActiveBrush}"/>
+                            </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PrimaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
+            <Setter Property="Background" Value="{StaticResource AccentBlueBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="18,12"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="PrimaryButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="12">
+                            <Grid>
+                                <Border x:Name="PrimaryHoverOverlay"
+                                        Background="#00FFFFFF"
+                                        CornerRadius="12"/>
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PrimaryHoverOverlay" Property="Background" Value="#18FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="PrimaryHoverOverlay" Property="Background" Value="#28FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="PrimaryButtonBorder" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.015" ScaleY="1.015"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SecondaryActionButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
+            <Setter Property="Background" Value="{StaticResource MainShellButtonBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource MainShellButtonBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="SecondaryButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="12">
+                            <Grid>
+                                <Border x:Name="SecondaryHoverOverlay"
+                                        Background="#00FFFFFF"
+                                        CornerRadius="11"/>
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SecondaryHoverOverlay" Property="Background" Value="#16FFFFFF"/>
+                                <Setter TargetName="SecondaryButtonBorder" Property="BorderBrush" Value="#A9BEDD"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="SecondaryHoverOverlay" Property="Background" Value="#24FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="SecondaryButtonBorder" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="RenderTransform">
+                        <Setter.Value>
+                            <ScaleTransform ScaleX="1.012" ScaleY="1.012"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SmallActionButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryActionButtonStyle}">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+        </Style>
+
+        <Style x:Key="ToggleActionButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryActionButtonStyle}">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+
+        <Style x:Key="SidebarLaunchButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryActionButtonStyle}">
+            <Setter Property="Background" Value="{StaticResource LaunchAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="#A8E5C6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Height" Value="46"/>
+            <Setter Property="FontSize" Value="18"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="12,6"/>
+        </Style>
+
+        <Style x:Key="RoundedButton" TargetType="Button" BasedOn="{StaticResource SmallActionButtonStyle}">
+            <Setter Property="FontSize" Value="15"/>
         </Style>
 
     </Window.Resources>
@@ -143,78 +349,80 @@ UseAeroCaptionButtons="False" />
 
             <Border Padding="0">
 
-                <!-- BASE SIZE (DO NOT CHANGE) -->
-                <Grid Width="850"
-                      Height="468"
-                      Margin="10">
+                <Grid Width="1000"
+                      Height="590"
+                      Margin="0">
 
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="220"/>
+                        <ColumnDefinition Width="266"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- ================= LEFT SIDEBAR ================= -->
-                    <Grid Grid.Column="0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                    <Border Grid.Column="0"
+                            Margin="0"
+                            Background="{StaticResource MainShellSidebarBrush}"
+                            CornerRadius="0">
+                        <Grid Margin="18">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0"
-                        VerticalAlignment="Center">
+                            <StackPanel Grid.Row="0"
+                                        Margin="6,10,4,0">
+                                <TextBlock Text="NAVIGATION"
+                                           Margin="8,0,0,12"
+                                           FontSize="10"
+                                           Foreground="{StaticResource MainShellSidebarMutedBrush}"/>
 
-                            <Button Content="Versions List"
-                        Width="210"
-                        Height="60"
-                        Margin="0,5"
-                        FontSize="25"
-                        Background="{StaticResource AccentBlueBrush}"
-                        Style="{StaticResource RoundedButton}"
-                        Click="InstallsTab_Click"/>
+                                <Button x:Name="PlayNavButton"
+                                        Content="Play"
+                                        Style="{StaticResource SidebarNavButtonStyle}"
+                                        Click="InstallsTab_Click"/>
 
-                            <Button Content="Settings"
-                        Width="210"
-                        Height="60"
-                        FontSize="25" 
-                        Margin="0,25,0,0"            
-                        Background="{StaticResource AccentBlueBrush}"
-                        Style="{StaticResource RoundedButton}"
-                        Click="SettingsTab_Click"/>
+                                <Button x:Name="SettingsNavButton"
+                                        Content="Settings"
+                                        Style="{StaticResource SidebarNavButtonStyle}"
+                                        Click="SettingsTab_Click"/>
 
-                            <Button Content="Tools"
-                        Width="210"
-                        Height="60"
-                        FontSize="25"
-                        Margin="0,25,0,0"
-                        Background="{StaticResource AccentBlueBrush}"
-                        Style="{StaticResource RoundedButton}"
-                        Click="ToolsTab_Click"/>
+                                <Button x:Name="ToolsNavButton"
+                                        Content="Tools"
+                                        Style="{StaticResource SidebarNavButtonStyle}"
+                                        Click="ToolsTab_Click"/>
 
-                            <Button Content="Launcher Info"
-                        Width="210"
-                        Height="60"
-                        FontSize="25"
-                        Margin="0,25"
-                        Background="{StaticResource AccentBlueBrush}"
-                        Style="{StaticResource RoundedButton}"
-                        Click="InfoTab_Click"/>
-                        </StackPanel>
+                                <Button x:Name="LauncherInfoNavButton"
+                                        Content="Launcher Info"
+                                        Style="{StaticResource SidebarNavButtonStyle}"
+                                        Click="InfoTab_Click"/>
+                            </StackPanel>
 
-                        <Button x:Name="LaunchButton"
-        Grid.Row="1"
-        Content="Launch"
-        Width="200"
-        Height="80"
-        Margin="0,0,0,25"
-        Background="{StaticResource LaunchAccentBrush}"
-        FontSize="40"
-        Style="{StaticResource RoundedButton}"
-        Click="Launch_Click"
-        Visibility="Hidden"/>
-                    </Grid>
+                            <StackPanel Grid.Row="1"
+                                        Margin="6,18,4,6">
+                                <TextBlock Text="ACTIVE VERSION"
+                                           FontSize="11"
+                                           Foreground="{StaticResource MainShellSidebarMutedBrush}"/>
+                                <TextBlock x:Name="SidebarSelectionTextBlock"
+                                           Margin="0,10,0,14"
+                                           FontSize="12"
+                                           Foreground="{StaticResource MainShellSidebarTextBrush}"
+                                           Text="Select a version to enable launch."
+                                           TextWrapping="Wrap"/>
+
+                                <Button x:Name="LaunchButton"
+                                        Content="Launch"
+                                        Width="192"
+                                        HorizontalAlignment="Left"
+                                        Background="{StaticResource LaunchAccentBrush}"
+                                        Style="{StaticResource SidebarLaunchButtonStyle}"
+                                        Click="Launch_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
 
                     <!-- ================= CONTENT ================= -->
-                    <Grid Grid.Column="1">
+                    <Grid Grid.Column="1"
+                          Margin="18">
 
                         <!-- ===== INSTALLS VIEW ===== -->
                         <Grid x:Name="InstallsView" Margin="16">
@@ -262,6 +470,8 @@ UseAeroCaptionButtons="False" />
                                              FontWeight="UltraLight"
                                              Background="Transparent"
                                              BorderThickness="0"
+                                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                                              SelectionChanged="InstalledVersionsList_SelectionChanged">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
@@ -284,6 +494,8 @@ UseAeroCaptionButtons="False" />
                                              FontWeight="UltraLight"
                                              Background="Transparent"
                                              BorderThickness="0"
+                                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Hidden"
                                              SelectionChanged="BZInstalledVersionsList_SelectionChanged">
                                         <ListBox.ItemTemplate>
                                             <DataTemplate>
@@ -303,7 +515,7 @@ UseAeroCaptionButtons="False" />
                             Margin="0,12,0,0">
 
                                 <Button Content="Close Game"
-Width="130"
+Width="142"
 Height="44"
 Margin="0,0,15,0"
 Background="{StaticResource WarningOrangeBrush}"
@@ -311,26 +523,26 @@ Style="{StaticResource RoundedButton}"
 Click="CloseGame_Click"/>
 
                                 <Button Content="Open Folder"
-Width="140"
+Width="150"
 Height="44"
 Margin="0,0,15,0"
-Background="{StaticResource AccentBlueBrush}"
+Background="{StaticResource MainShellButtonBrush}"
 Style="{StaticResource RoundedButton}"
 Click="OpenInstallFolder_Click"/>
 
                                 <Button Content="Add"
-                            Width="76"
+                            Width="94"
                             Height="44"
                             Margin="0,0,15,0"
-                            Background="{StaticResource AccentBlueBrush}"
+                            Background="{StaticResource MainShellButtonBrush}"
                             Style="{StaticResource RoundedButton}"
                             Click="InstallVersion_Click"/>
 
                                 <Button Content="Edit"
-Width="76"
+Width="94"
 Height="44"
 Margin="0,0,0,0"
-Background="{StaticResource AccentBlueBrush}"
+Background="{StaticResource MainShellButtonBrush}"
 Style="{StaticResource RoundedButton}"
 Click="EditVersion_Click"/>
                             </StackPanel>
@@ -392,11 +604,11 @@ Click="EditVersion_Click"/>
                                     </ComboBox>
 
                                     <Button Content="Choose Custom Background"
-                    Width="250"                    
+                    Width="270"                    
                     Height="35"
                     FontSize="15"
                     Margin="-5,15,-5,0"
-                    Background="{StaticResource AccentBlueBrush}"
+                    Background="{StaticResource MainShellButtonBrush}"
                     Style="{StaticResource RoundedButton}"
                     Click="ChooseCustomBackground_Click"/>
 
@@ -458,15 +670,15 @@ Click="EditVersion_Click"/>
         TextWrapping="Wrap"
         Margin="0,0,0,6"/>
 
-                                        <Button
+        <Button
         x:Name="RenameOnCloseButton"
         Grid.Row="1"
-        Width="110"
-        Height="30"
+        Width="138"
+        Height="38"
         HorizontalAlignment="Center"
         Background="{StaticResource DangerRedBrush}"
         Content="Disabled"
-        Style="{StaticResource RoundedButton}"
+        Style="{StaticResource ToggleActionButtonStyle}"
         Click="RenameOnCloseButton_Click"/>
                                     </Grid>
 
@@ -485,11 +697,11 @@ FontWeight="SemiBold"/>
                                         <Button
 x:Name="ExplosionDisplayToggleButton"
 Grid.Column="1"
-Width="110"
-Height="30"
+Width="138"
+Height="38"
 Background="{StaticResource DangerRedBrush}"
 Content="Disabled"
-Style="{StaticResource RoundedButton}"
+Style="{StaticResource ToggleActionButtonStyle}"
 Click="ExplosionDisplayToggle_Click"/>
                                     </Grid>
 
@@ -508,11 +720,11 @@ FontWeight="SemiBold"/>
                                         <Button
 x:Name="ExplosionTrackToggleButton"
 Grid.Column="1"
-Width="110"
-Height="30"
+Width="138"
+Height="38"
 Background="{StaticResource DangerRedBrush}"
 Content="Disabled"
-Style="{StaticResource RoundedButton}"
+Style="{StaticResource ToggleActionButtonStyle}"
 Click="ExplosionTrackToggle_Click"/>
                                     </Grid>
 
@@ -556,7 +768,7 @@ Click="ExplosionTrackToggle_Click"/>
                                                 Width="70"
                                                 Height="32"
                                                 Margin="8,0,0,0"
-                                                Background="{StaticResource AccentBlueBrush}"
+                                                Background="{StaticResource MainShellButtonBrush}"
                                                 Style="{StaticResource RoundedButton}"
                                                 Click="SetOverlayHotkey_Click"/>
                                     </Grid>
@@ -600,12 +812,12 @@ Click="ExplosionTrackToggle_Click"/>
 
                                         <Button x:Name="ResetMacroToggleButton"
                         Grid.Column="1"
-                        Width="110"
-                        Height="30"
+                        Width="138"
+                        Height="38"
                         Margin="8,0,0,0"
                         Background="{StaticResource DangerRedBrush}"
                         Content="Disabled"
-                        Style="{StaticResource RoundedButton}"
+                        Style="{StaticResource ToggleActionButtonStyle}"
                         Click="ResetMacroToggleButton_Click"/>
                                     </Grid>
 
@@ -635,7 +847,7 @@ Click="ExplosionTrackToggle_Click"/>
                         Width="70"
                         Height="32"
                         Margin="8,0,0,0"
-                        Background="{StaticResource AccentBlueBrush}"
+                        Background="{StaticResource MainShellButtonBrush}"
                         Style="{StaticResource RoundedButton}"
                         Click="SetResetHotkey_Click"/>
                                     </Grid>
@@ -672,11 +884,11 @@ Click="ExplosionTrackToggle_Click"/>
                        Margin="0,0,0,8"/>
 
                                     <Button x:Name="ExplosionResetToggleButton"
-                    Width="160"
-                    Height="32"
+                    Width="188"
+                    Height="38"
                     Background="{StaticResource DangerRedBrush}"
                     Content="Disabled"
-                    Style="{StaticResource RoundedButton}"
+                    Style="{StaticResource ToggleActionButtonStyle}"
                     Click="ExplosionResetToggle_Click"/>
 
                                     <TextBlock Text="Explosion Time Window"
@@ -714,11 +926,11 @@ Click="ExplosionTrackToggle_Click"/>
                                                Margin="0,0,0,12"/>
 
                                     <Button x:Name="HardcoreSaveDeleterToggleButton"
-                                            Width="180"
-                                            Height="32"
+                                            Width="208"
+                                            Height="38"
                                             Background="{StaticResource DangerRedBrush}"
                                             Content="Disabled"
-                                            Style="{StaticResource RoundedButton}"
+                                            Style="{StaticResource ToggleActionButtonStyle}"
                                             Click="HardcoreSaveDeleterToggle_Click"/>
 
                                     <TextBlock Text="Deletes the latest Hardcore save after reset"
@@ -729,10 +941,10 @@ Click="ExplosionTrackToggle_Click"/>
                                                Margin="0,4,0,0"/>
 
                                     <Button x:Name="HardcoreSaveDeleterPurgeButton"
-                                            Width="220"
+                                            Width="240"
                                             Height="32"
                                             Margin="0,10,0,0"
-                                            Background="{StaticResource AccentBlueBrush}"
+                                            Background="{StaticResource MainShellButtonBrush}"
                                             Content="Delete Hardcore Saves"
                                             Style="{StaticResource RoundedButton}"
                                             Click="HardcoreSaveDeleterPurge_Click"/>
@@ -747,19 +959,19 @@ Click="ExplosionTrackToggle_Click"/>
                                                Margin="0,0,0,12"/>
 
                                     <Button x:Name="Subnautica100TrackerCustomizeButton"
-                                            Width="200"
+                                            Width="220"
                                             Height="32"
                                             Margin="0,0,0,0"
-                                            Background="{StaticResource AccentBlueBrush}"
+                                            Background="{StaticResource MainShellButtonBrush}"
                                             Content="Edit 100% Tracker"
                                             Style="{StaticResource RoundedButton}"
                                             Click="Subnautica100TrackerCustomize_Click"/>
 
                                     <Button x:Name="SpeedrunTimerCustomizeButton"
-                                            Width="200"
+                                            Width="220"
                                             Height="32"
                                             Margin="0,8,0,0"
-                                            Background="{StaticResource AccentBlueBrush}"
+                                            Background="{StaticResource MainShellButtonBrush}"
                                             Content="Edit Speedrun Timer"
                                             Style="{StaticResource RoundedButton}"
                                             Click="SpeedrunTimerCustomize_Click"/>
@@ -792,7 +1004,7 @@ Click="ExplosionTrackToggle_Click"/>
                             <!-- HEADER (MOVED UP SLIGHTLY) -->
                             <TextBlock
         Grid.Row="0"
-        Text="Updates"
+        Text="Launcher Info"
         HorizontalAlignment="Center"
         FontSize="26"
         FontWeight="UltraBold"
@@ -897,10 +1109,3 @@ Click="ExplosionTrackToggle_Click"/>
         </Viewbox>
     </Grid>
 </Window>
-
-
-
-
-
-
-

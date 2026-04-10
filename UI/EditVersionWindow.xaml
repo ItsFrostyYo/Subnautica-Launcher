@@ -22,10 +22,10 @@
 
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#331B4F72"/>
+            <Setter Property="Background" Value="#22000000"/>
             <Setter Property="BorderBrush" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Padding" Value="8"/>
         </Style>
 
     </Window.Resources>
@@ -133,7 +133,7 @@
 
                         <Button Content="Cancel"
                                 Width="100"
-                                Background="#154966"
+                                Background="{StaticResource DialogNeutralButtonBrush}"
                                 Style="{StaticResource RoundedButton}"
                                 Click="Cancel_Click"/>
                     </StackPanel>

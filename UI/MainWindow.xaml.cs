@@ -262,6 +262,60 @@ namespace SubnauticaLauncher.UI
             HardcoreSaveDeleterToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
         }
 
+        private void UpdateSidebarState()
+        {
+            UpdateNavButtonState(PlayNavButton, InstallsView.Visibility == Visibility.Visible);
+            UpdateNavButtonState(SettingsNavButton, SettingsView.Visibility == Visibility.Visible);
+            UpdateNavButtonState(ToolsNavButton, ToolsView.Visibility == Visibility.Visible);
+            UpdateNavButtonState(LauncherInfoNavButton, InfoView.Visibility == Visibility.Visible);
+            UpdateLaunchButtonState();
+        }
+
+        private void UpdateNavButtonState(System.Windows.Controls.Button button, bool isActive)
+        {
+            button.Tag = isActive ? "Active" : null;
+            button.Background = isActive
+                ? (System.Windows.Media.Brush)FindResource("MainShellSidebarActiveBrush")
+                : Brushes.Transparent;
+        }
+
+        private void UpdateLaunchButtonState()
+        {
+            bool hasSelection = false;
+            string selectionText = "Select a version to enable launch.";
+            System.Windows.Media.Brush selectionBrush = Brushes.White;
+
+            if (InstalledVersionsList.SelectedItem is InstalledVersion snVersion)
+            {
+                hasSelection = true;
+                selectionText = snVersion.DisplayLabel;
+                selectionBrush = GetStatusBrush(snVersion.Status);
+            }
+            else if (BZInstalledVersionsList.SelectedItem is BZInstalledVersion bzVersion)
+            {
+                hasSelection = true;
+                selectionText = bzVersion.DisplayLabel;
+                selectionBrush = GetStatusBrush(bzVersion.Status);
+            }
+
+            LaunchButton.IsEnabled = hasSelection;
+            SidebarSelectionTextBlock.Text = selectionText;
+            SidebarSelectionTextBlock.Foreground = selectionBrush;
+        }
+
+        private static System.Windows.Media.Brush GetStatusBrush(VersionStatus status)
+        {
+            return status switch
+            {
+                VersionStatus.Active => Brushes.LimeGreen,
+                VersionStatus.Launched => Brushes.Red,
+                VersionStatus.Launching => Brushes.Orange,
+                VersionStatus.Switching => Brushes.Yellow,
+                VersionStatus.Closing => Brushes.OrangeRed,
+                _ => Brushes.White
+            };
+        }
+
         private void UpdateSubnautica100TrackerVisualState()
         {
             // Tracker enable/disable is configured in the tracker customization window.
@@ -646,6 +700,8 @@ namespace SubnauticaLauncher.UI
                 if (!File.Exists(targetExe))
                     throw new FileNotFoundException("Subnautica.exe not found in active folder.", targetExe);
 
+                SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(activePath);
+
                 SetStatus(target, VersionStatus.Launching);
                 await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
 
@@ -653,7 +709,7 @@ namespace SubnauticaLauncher.UI
                 {
                     FileName = targetExe,
                     WorkingDirectory = activePath,
-                    UseShellExecute = true
+                    UseShellExecute = false
                 });
 
                 if (process == null)
@@ -721,7 +777,7 @@ namespace SubnauticaLauncher.UI
                 {
                     FileName = targetExe,
                     WorkingDirectory = activePath,
-                    UseShellExecute = true
+                    UseShellExecute = false
                 });
 
                 if (process == null)
@@ -780,6 +836,7 @@ namespace SubnauticaLauncher.UI
             BZInstalledVersionsList.ItemsSource = bzList;
             BZInstalledVersionsList.Items.Refresh();
             RefreshRunningStatusIndicators();
+            UpdateSidebarState();
             _launcherOverlayWindow?.RefreshFromMain();
         }
 
@@ -996,17 +1053,23 @@ namespace SubnauticaLauncher.UI
         {
             if (InstalledVersionsList.SelectedItem != null && BZInstalledVersionsList.SelectedItem != null)
                 BZInstalledVersionsList.SelectedItem = null;
+
+            UpdateLaunchButtonState();
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void BZInstalledVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (BZInstalledVersionsList.SelectedItem != null && InstalledVersionsList.SelectedItem != null)
                 InstalledVersionsList.SelectedItem = null;
+
+            UpdateLaunchButtonState();
+            _launcherOverlayWindow?.RefreshFromMain();
         }
 
         private void InstallVersion_Click(object sender, RoutedEventArgs e)
         {
-            new AddVersionWindow { Owner = this }.ShowDialog();
+            DialogWindowHelper.ShowDialog(this, new AddVersionWindow());
             LoadInstalledVersions();
         }
 
@@ -1041,8 +1104,8 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
 
-                var win = new EditVersionWindow(snVersion) { Owner = this };
-                if (win.ShowDialog() == true)
+                var win = new EditVersionWindow(snVersion);
+                if (DialogWindowHelper.ShowDialog(this, win) == true)
                     LoadInstalledVersions();
 
                 return;
@@ -1060,8 +1123,8 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
 
-                var win = new EditVersionWindow(bzVersion) { Owner = this };
-                if (win.ShowDialog() == true)
+                var win = new EditVersionWindow(bzVersion);
+                if (DialogWindowHelper.ShowDialog(this, win) == true)
                     LoadInstalledVersions();
             }
         }
@@ -1226,12 +1289,9 @@ namespace SubnauticaLauncher.UI
                 settings.SpeedrunGamemode,
                 settings.SubnauticaBiomeTrackerEnabled,
                 settings.SubnauticaBiomeTrackerCycleMode,
-                settings.SubnauticaBiomeTrackerScrollSpeed)
-            {
-                Owner = this
-            };
+                settings.SubnauticaBiomeTrackerScrollSpeed);
 
-            if (window.ShowDialog() != true)
+            if (DialogWindowHelper.ShowDialog(this, window) != true)
                 return;
 
             settings.Subnautica100TrackerEnabled = window.TrackerEnabled;
@@ -1257,12 +1317,9 @@ namespace SubnauticaLauncher.UI
                 settings.SpeedrunTimerEnabled,
                 settings.SpeedrunGamemode,
                 settings.SpeedrunCategory,
-                settings.SpeedrunRunType)
-            {
-                Owner = this
-            };
+                settings.SpeedrunRunType);
 
-            if (window.ShowDialog() != true)
+            if (DialogWindowHelper.ShowDialog(this, window) != true)
                 return;
 
             settings.SpeedrunTimerEnabled = window.TimerEnabled;
@@ -1279,8 +1336,8 @@ namespace SubnauticaLauncher.UI
 
         private void HardcoreSaveDeleterPurge_Click(object sender, RoutedEventArgs e)
         {
-            var win = new HardcoreSaveDeleterWindow { Owner = this };
-            if (win.ShowDialog() != true)
+            var win = new HardcoreSaveDeleterWindow();
+            if (DialogWindowHelper.ShowDialog(this, win) != true)
                 return;
 
             string[] roots = GetTargetRoots(win.SelectedGame, win.SelectedScope);
@@ -1862,7 +1919,8 @@ namespace SubnauticaLauncher.UI
             InfoView.Visibility = Visibility.Collapsed;
 
             view.Visibility = Visibility.Visible;
-            LaunchButton.Visibility = view == InstallsView ? Visibility.Visible : Visibility.Hidden;
+            LaunchButton.Visibility = Visibility.Visible;
+            UpdateSidebarState();
         }
 
         private void OpenGitHub_Click(object sender, RoutedEventArgs e)

@@ -170,8 +170,8 @@ namespace SubnauticaLauncher.UI
             if (candidate == null)
                 return;
 
-            var login = new DepotDownloaderLoginWindow { Owner = this };
-            bool? result = login.ShowDialog();
+            var login = new DepotDownloaderLoginWindow();
+            bool? result = DialogWindowHelper.ShowDialog(this, login);
 
             if (result != true)
                 return;
@@ -226,12 +226,9 @@ namespace SubnauticaLauncher.UI
 
                 var installWindow = new DepotDownloaderInstallWindow(
                     candidate.DisplayName,
-                    installAction)
-                {
-                    Owner = this
-                };
+                    installAction);
 
-                bool? installResult = installWindow.ShowDialog();
+                bool? installResult = DialogWindowHelper.ShowDialog(this, installWindow);
                 if (installResult != true)
                 {
                     if (installWindow.WasCancelled)
@@ -252,8 +249,7 @@ namespace SubnauticaLauncher.UI
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
 
-                DialogResult = true;
-                Close();
+                DialogWindowHelper.Finish(this, true);
             }
             catch (Exception ex)
             {
@@ -271,22 +267,17 @@ namespace SubnauticaLauncher.UI
 
         private void AddUnmanaged_Click(object sender, RoutedEventArgs e)
         {
-            var win = new AddUnmanagedVersionWindow
-            {
-                Owner = this
-            };
+            var win = new AddUnmanagedVersionWindow();
 
-            if (win.ShowDialog() == true)
+            if (DialogWindowHelper.ShowDialog(this, win) == true)
             {
-                DialogResult = true;
-                Close();
+                DialogWindowHelper.Finish(this, true);
             }
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
-            Close();
+            DialogWindowHelper.Finish(this, false);
         }
 
         private static void TryDeleteCancelledInstallFolder(string installDir, bool existedBeforeInstall)

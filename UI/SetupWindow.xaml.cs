@@ -127,7 +127,7 @@ namespace SubnauticaLauncher.UI
                 StatusText.Text = "Finalizing setup...";
                 await Task.Delay(400);
 
-                DialogResult = true;
+                DialogWindowHelper.Finish(this, true);
                 Close();
             }
             catch (Exception ex)

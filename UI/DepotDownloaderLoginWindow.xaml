@@ -20,19 +20,19 @@
 
         <Style TargetType="TextBox">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#331B4F72"/>
+            <Setter Property="Background" Value="#22000000"/>
             <Setter Property="BorderBrush" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Padding" Value="8"/>
             <Setter Property="FontSize" Value="14"/>
         </Style>
 
         <Style TargetType="PasswordBox">
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="#331B4F72"/>
+            <Setter Property="Background" Value="#22000000"/>
             <Setter Property="BorderBrush" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Padding" Value="8"/>
             <Setter Property="FontSize" Value="14"/>
         </Style>
 
@@ -119,7 +119,7 @@
             </Grid>
 
             <Border Grid.Row="1"
-                    Background="#331B4F72"
+                    Background="#72000000"
                     CornerRadius="14"
                     Padding="16"
                     Margin="12,12,12,16">

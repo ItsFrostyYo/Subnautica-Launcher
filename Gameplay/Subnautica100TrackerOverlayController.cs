@@ -1230,7 +1230,7 @@ namespace SubnauticaLauncher.Gameplay
                     _overlayTop = targetRect.Top + OverlayPadding;
                     _window.Left = _overlayLeft;
                     _window.Top = _overlayTop;
-                    _window.Topmost = gameFocused;
+                    OverlayWindowNative.RefreshTopmost(_window, topmost: true);
                     _window.Opacity = 1;
                     if (!_window.IsVisible)
                         _window.Show();
@@ -1678,7 +1678,7 @@ namespace SubnauticaLauncher.Gameplay
 
                             _window.Left = _overlayLeft;
                             _window.Top = _overlayTop;
-                            _window.Topmost = gameFocused;
+                            OverlayWindowNative.RefreshTopmost(_window, topmost: true);
                             _window.Opacity = 1;
 
                             if (!_window.IsVisible)
@@ -1782,7 +1782,8 @@ namespace SubnauticaLauncher.Gameplay
             if (!window.IsVisible)
                 window.Show();
 
-            window.Topmost = false;
+            window.UpdateLayout();
+            OverlayWindowNative.RefreshTopmost(window, topmost: false);
             window.Opacity = 1;
             window.Left = ParkedWindowLeft;
             window.Top = ParkedWindowTop;

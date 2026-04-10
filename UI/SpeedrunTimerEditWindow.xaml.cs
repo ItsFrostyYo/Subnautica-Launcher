@@ -81,20 +81,19 @@ namespace SubnauticaLauncher.UI
             GamemodeSelection = ReadEnumSelection(GamemodesDropdown, SpeedrunGamemode.SurvivalHardcore);
             CategorySelection = ReadEnumSelection(CategoryDropdown, SpeedrunCategory.AnyPercent);
             RunTypeSelection = ReadEnumSelection(RunTypeDropdown, SpeedrunRunType.Glitched);
-            DialogResult = true;
+            DialogWindowHelper.Finish(this, true);
         }
 
-        private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+        private void Cancel_Click(object sender, RoutedEventArgs e) => DialogWindowHelper.Finish(this, false);
 
-        private void Close_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+        private void Close_Click(object sender, RoutedEventArgs e) => DialogWindowHelper.Finish(this, false);
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => DragMove();
 
         private void EditTimerStyleAndPlacement_Click(object sender, RoutedEventArgs e)
         {
             var window = new SpeedrunTimerStylePlacementWindow();
-            window.Owner = this;
-            window.ShowDialog();
+            DialogWindowHelper.ShowDialog(this, window);
         }
 
         private void ManageSplits_Click(object sender, RoutedEventArgs e)

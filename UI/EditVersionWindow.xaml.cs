@@ -162,8 +162,7 @@ namespace SubnauticaLauncher.UI
 
             if (!displayChanged && !folderChanged)
             {
-                DialogResult = false;
-                Close();
+                DialogWindowHelper.Finish(this, false);
                 return;
             }
 
@@ -209,8 +208,7 @@ namespace SubnauticaLauncher.UI
             else
                 VersionLoader.Save(_snVersion!);
 
-            DialogResult = true;
-            Close();
+            DialogWindowHelper.Finish(this, true);
         }
 
         private static bool IsReservedActiveFolderName(string folderName)
@@ -235,8 +233,8 @@ namespace SubnauticaLauncher.UI
             {
                 if (IsBelowZero)
                 {
-                    var dialog = new DeleteVersionDialog { Owner = this };
-                    dialog.ShowDialog();
+                    var dialog = new DeleteVersionDialog();
+                    DialogWindowHelper.ShowDialog(this, dialog);
 
                     switch (dialog.Choice)
                     {
@@ -256,8 +254,8 @@ namespace SubnauticaLauncher.UI
                 }
                 else
                 {
-                    var dialog = new DeleteVersionDialog { Owner = this };
-                    dialog.ShowDialog();
+                    var dialog = new DeleteVersionDialog();
+                    DialogWindowHelper.ShowDialog(this, dialog);
 
                     switch (dialog.Choice)
                     {
@@ -276,8 +274,7 @@ namespace SubnauticaLauncher.UI
                     }
                 }
 
-                DialogResult = true;
-                Close();
+                DialogWindowHelper.Finish(this, true);
             }
             catch (Exception ex)
             {
@@ -291,8 +288,7 @@ namespace SubnauticaLauncher.UI
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
-            Close();
+            DialogWindowHelper.Finish(this, false);
         }
 
         private bool IsGameCurrentlyRunning()

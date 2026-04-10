@@ -89,8 +89,7 @@ namespace SubnauticaLauncher.UI
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
-            Close();
+            DialogWindowHelper.Finish(this, false);
         }
 
         private void ConfirmCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -111,8 +110,7 @@ namespace SubnauticaLauncher.UI
                 ? HardcoreSaveTargetScope.AllVersions
                 : HardcoreSaveTargetScope.ActiveOnly;
 
-            DialogResult = true;
-            Close();
+            DialogWindowHelper.Finish(this, true);
         }
     }
 }

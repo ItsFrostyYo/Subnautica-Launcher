@@ -166,7 +166,7 @@
                             Grid.Row="4"
                             Margin="0,10,0,0"
                             Padding="10"
-                            Background="#7A1B4F72"
+                            Background="#72000000"
                             BorderBrush="#99FFFFFF"
                             BorderThickness="1"
                             CornerRadius="10"

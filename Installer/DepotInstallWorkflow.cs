@@ -66,6 +66,7 @@ internal static class DepotInstallWorkflow
             throw new Exception("DepotDownloader failed. Check console output.");
 
         CleanupDepotDownloaderFolders(installDir);
+        EnsureLaunchSupportFiles(version, installDir);
         WriteVersionInfo(version, installDir, infoFileName, launcherMarker);
     }
 
@@ -192,6 +193,7 @@ internal static class DepotInstallWorkflow
 
         callbacks?.OnStatus?.Invoke("Finalizing install files...");
         CleanupDepotDownloaderFolders(installDir);
+        EnsureLaunchSupportFiles(version, installDir);
         WriteVersionInfo(version, installDir, infoFileName, launcherMarker);
         callbacks?.OnProgress?.Invoke(100);
         callbacks?.OnStatus?.Invoke("Install complete.");
@@ -480,6 +482,14 @@ internal static class DepotInstallWorkflow
 
             Directory.Delete(depotFolder, true);
         }
+    }
+
+    private static void EnsureLaunchSupportFiles(
+        GameVersionInstallDefinition version,
+        string installDir)
+    {
+        if (version.SteamAppId == VersionInstallDefinition.AppId)
+            SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(installDir);
     }
 
     private static void WriteVersionInfo(

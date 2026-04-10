@@ -151,14 +151,12 @@ namespace SubnauticaLauncher.UI
             LauncherSettings.Current.DepotDownloaderPreferTwoFactorCode = AuthOptions.PreferTwoFactorCode;
             LauncherSettings.Save();
 
-            DialogResult = true;
-            Close();
+            DialogWindowHelper.Finish(this, true);
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
         {
-            DialogResult = false;
-            Close();
+            DialogWindowHelper.Finish(this, false);
         }
     }
 }

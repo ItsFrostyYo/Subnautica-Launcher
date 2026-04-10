@@ -13,6 +13,12 @@ namespace SubnauticaLauncher.UI
         private const int WsExAppWindow = 0x00040000;
         private const int WsExNoActivate = 0x08000000;
         private const uint WdaNone = 0x00000000;
+        private static readonly IntPtr HwndTopmost = new(-1);
+        private static readonly IntPtr HwndNotTopmost = new(-2);
+        private const uint SwpNoSize = 0x0001;
+        private const uint SwpNoMove = 0x0002;
+        private const uint SwpNoActivate = 0x0010;
+        private const uint SwpShowWindow = 0x0040;
 
         public static void MakeClickThrough(Window window, bool preferPrimaryCaptureTarget = true)
         {
@@ -39,6 +45,23 @@ namespace SubnauticaLauncher.UI
 
             SetWindowLongPtr(hwnd, GwlExStyle, new IntPtr(updated));
             SetWindowDisplayAffinity(hwnd, WdaNone);
+        }
+
+        public static void RefreshTopmost(Window window, bool topmost)
+        {
+            IntPtr hwnd = new WindowInteropHelper(window).Handle;
+            if (hwnd == IntPtr.Zero)
+                return;
+
+            window.Topmost = topmost;
+            _ = SetWindowPos(
+                hwnd,
+                topmost ? HwndTopmost : HwndNotTopmost,
+                0,
+                0,
+                0,
+                0,
+                SwpNoMove | SwpNoSize | SwpNoActivate | SwpShowWindow);
         }
 
         private static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex)
@@ -69,5 +92,15 @@ namespace SubnauticaLauncher.UI
 
         [DllImport("user32.dll")]
         private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(
+            IntPtr hWnd,
+            IntPtr hWndInsertAfter,
+            int X,
+            int Y,
+            int cx,
+            int cy,
+            uint uFlags);
     }
 }

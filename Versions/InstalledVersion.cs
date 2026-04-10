@@ -16,15 +16,7 @@ public class InstalledVersion
 
     public bool IsActive => Status == VersionStatus.Active;
 
-    public string DisplayLabel => Status switch
-    {
-        VersionStatus.Switching => "Switching -> " + GetTrimmedDisplayName(DisplayName),
-        VersionStatus.Launching => "Launching -> " + GetTrimmedDisplayName(DisplayName),
-        VersionStatus.Launched => "Launched -> " + GetTrimmedDisplayName(DisplayName),
-        VersionStatus.Active => "Active -> " + GetTrimmedDisplayName(DisplayName),
-        VersionStatus.Closing => "Closing -> " + GetTrimmedDisplayName(DisplayName),
-        _ => GetTrimmedDisplayName(DisplayName)
-    };
+    public string DisplayLabel => GetTrimmedDisplayName(DisplayName);
 
     protected static T? ParseFromInfo<T>(string folderPath, string infoPath)
         where T : InstalledVersion, new()
@@ -63,6 +55,6 @@ public class InstalledVersion
 
         return value.Length <= MaxDisplayNameLength
             ? value
-            : value.Substring(0, MaxDisplayNameLength);
+            : value.Substring(0, MaxDisplayNameLength - 3) + "...";
     }
 }

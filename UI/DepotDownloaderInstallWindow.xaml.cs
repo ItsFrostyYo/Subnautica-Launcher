@@ -191,8 +191,7 @@ namespace SubnauticaLauncher.UI
 
                 await Task.Delay(450);
                 _allowClose = true;
-                DialogResult = true;
-                Close();
+                DialogWindowHelper.Finish(this, true);
             }
             catch (OperationCanceledException)
             {
