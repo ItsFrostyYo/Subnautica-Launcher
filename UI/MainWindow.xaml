@@ -7,9 +7,9 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="Subnautica Launcher"
         Width="1000"
-        Height="615"
+        Height="550"
         MinWidth="1000"
-        MinHeight="615"
+        MinHeight="550"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
         FontFamily="{DynamicResource AppFontFamily}"
@@ -421,7 +421,7 @@ UseAeroCaptionButtons="False" />
             <Border Padding="0">
 
                 <Grid Width="1000"
-                      Height="590"
+                      Height="525"
                       Margin="0">
 
                     <Grid.ColumnDefinitions>

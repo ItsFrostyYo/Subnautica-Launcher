@@ -32,6 +32,17 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.7.2",
+        Title = "Steam Login Fixes",
+        Date = "Apr 11, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Hopefully fixed the steam code prompt issue"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.7.1",
         Title = "Version List and Install Flow Fixes",
         Date = "Apr 11, 2026 | Contributors (1) - ItsFrosti.",

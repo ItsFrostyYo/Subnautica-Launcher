@@ -17,26 +17,46 @@ internal static class DepotInstallWorkflow
         @"(?<!\d)(\d{1,3}(?:\.\d+)?)%",
         RegexOptions.Compiled);
 
-    private static readonly string[] PromptMarkers =
+    private static readonly string[] CodePromptMarkers =
     {
         "enter steam guard code",
         "enter your steam guard code",
         "enter two-factor code",
         "enter two factor code",
+        "enter your 2 factor auth code",
+        "2 factor auth code from your authenticator app",
         "enter authentication code",
         "enter auth code",
         "enter email code",
+        "auth code sent to the email",
+        "authentication code sent to your email",
+        "check your email for a code",
         "code from your email",
         "code sent to your email",
         "enter the code from your email",
         "enter the code sent to your email",
         "enter security code",
         "steam guard code",
-        "enter device code",
+        "enter device code"
+    };
+
+    private static readonly string[] PasswordPromptMarkers =
+    {
         "enter account password",
         "enter your password",
         "please enter your password",
         "password:"
+    };
+
+    private static readonly string[] InfoPromptMarkers =
+    {
+        "this account is protected by steam guard",
+        "use the steam mobile app to confirm your sign in",
+        "confirm your sign in using the steam mobile app",
+        "confirm your sign in from the steam mobile app",
+        "steam mobile app to confirm your sign in",
+        "steam guard",
+        "check your email"
     };
 
     public static async Task InstallAsync(
@@ -90,6 +110,7 @@ internal static class DepotInstallWorkflow
         Directory.CreateDirectory(installDir);
 
         callbacks?.OnStatus?.Invoke("Preparing DepotDownloader...");
+        int loginId = CreateUniqueLoginId();
 
         var psi = new ProcessStartInfo
         {
@@ -122,6 +143,8 @@ internal static class DepotInstallWorkflow
         if (auth.PreferTwoFactorCode)
             psi.ArgumentList.Add("-no-mobile");
 
+        psi.ArgumentList.Add("-loginid");
+        psi.ArgumentList.Add(loginId.ToString());
         psi.ArgumentList.Add("-dir");
         psi.ArgumentList.Add(installDir);
 
@@ -135,6 +158,7 @@ internal static class DepotInstallWorkflow
             throw new Exception("Failed to start DepotDownloader.");
 
         callbacks?.OnOutput?.Invoke($"DepotDownloader started (PID {process.Id}).");
+        callbacks?.OnOutput?.Invoke($"Using Steam LoginID {loginId} for this install session.");
         callbacks?.OnStatus?.Invoke("DepotDownloader started.");
 
         using var cancelRegistration = cancellationToken.Register(() =>
@@ -145,6 +169,9 @@ internal static class DepotInstallWorkflow
         var recentLines = new List<string>();
         string lastPromptKey = "";
         DateTime lastPromptAtUtc = DateTime.MinValue;
+        DateTime lastOutputAtUtc = DateTime.UtcNow;
+        bool steamLoginPending = false;
+        bool fallbackPromptShown = false;
         var promptLock = new SemaphoreSlim(1, 1);
 
         Task outputTask = PumpStreamAsync(
@@ -158,6 +185,12 @@ internal static class DepotInstallWorkflow
             value => lastPromptKey = value,
             () => lastPromptAtUtc,
             value => lastPromptAtUtc = value,
+            () => lastOutputAtUtc,
+            value => lastOutputAtUtc = value,
+            () => steamLoginPending,
+            value => steamLoginPending = value,
+            () => fallbackPromptShown,
+            value => fallbackPromptShown = value,
             cancellationToken);
 
         Task errorTask = PumpStreamAsync(
@@ -171,6 +204,28 @@ internal static class DepotInstallWorkflow
             value => lastPromptKey = value,
             () => lastPromptAtUtc,
             value => lastPromptAtUtc = value,
+            () => lastOutputAtUtc,
+            value => lastOutputAtUtc = value,
+            () => steamLoginPending,
+            value => steamLoginPending = value,
+            () => fallbackPromptShown,
+            value => fallbackPromptShown = value,
+            cancellationToken);
+
+        Task loginMonitorTask = MonitorSteamLoginStallAsync(
+            process,
+            callbacks,
+            promptLock,
+            () => lastPromptKey,
+            value => lastPromptKey = value,
+            () => lastPromptAtUtc,
+            value => lastPromptAtUtc = value,
+            () => lastOutputAtUtc,
+            value => lastOutputAtUtc = value,
+            () => steamLoginPending,
+            value => steamLoginPending = value,
+            () => fallbackPromptShown,
+            value => fallbackPromptShown = value,
             cancellationToken);
 
         try
@@ -183,7 +238,7 @@ internal static class DepotInstallWorkflow
             throw;
         }
 
-        await Task.WhenAll(outputTask, errorTask);
+        await Task.WhenAll(outputTask, errorTask, loginMonitorTask);
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -216,6 +271,12 @@ internal static class DepotInstallWorkflow
         Action<string> setLastPromptKey,
         Func<DateTime> getLastPromptAtUtc,
         Action<DateTime> setLastPromptAtUtc,
+        Func<DateTime> getLastOutputAtUtc,
+        Action<DateTime> setLastOutputAtUtc,
+        Func<bool> getSteamLoginPending,
+        Action<bool> setSteamLoginPending,
+        Func<bool> getFallbackPromptShown,
+        Action<bool> setFallbackPromptShown,
         CancellationToken cancellationToken)
     {
         var buffer = new char[256];
@@ -236,6 +297,8 @@ internal static class DepotInstallWorkflow
                     string? emittedLine = EmitLine(lineBuilder, isError, callbacks, recentLines);
                     if (!string.IsNullOrWhiteSpace(emittedLine))
                     {
+                        setLastOutputAtUtc(DateTime.UtcNow);
+                        UpdateSteamLoginState(emittedLine, getSteamLoginPending, setSteamLoginPending, setFallbackPromptShown);
                         await TryHandlePromptAsync(
                             process,
                             callbacks,
@@ -255,6 +318,8 @@ internal static class DepotInstallWorkflow
                     string? emittedLine = EmitLine(lineBuilder, isError, callbacks, recentLines);
                     if (!string.IsNullOrWhiteSpace(emittedLine))
                     {
+                        setLastOutputAtUtc(DateTime.UtcNow);
+                        UpdateSteamLoginState(emittedLine, getSteamLoginPending, setSteamLoginPending, setFallbackPromptShown);
                         await TryHandlePromptAsync(
                             process,
                             callbacks,
@@ -294,6 +359,8 @@ internal static class DepotInstallWorkflow
         string? finalLine = EmitLine(lineBuilder, isError, callbacks, recentLines);
         if (!string.IsNullOrWhiteSpace(finalLine))
         {
+            setLastOutputAtUtc(DateTime.UtcNow);
+            UpdateSteamLoginState(finalLine, getSteamLoginPending, setSteamLoginPending, setFallbackPromptShown);
             await TryHandlePromptAsync(
                 process,
                 callbacks,
@@ -363,7 +430,7 @@ internal static class DepotInstallWorkflow
         if (callbacks?.RequestInputAsync == null)
             return;
 
-        if (!TryClassifyPrompt(lineText, out string promptMessage, out bool isSecret))
+        if (!TryClassifyPrompt(lineText, out string promptMessage, out bool isSecret, out bool requiresInput))
             return;
 
         string promptKey = promptMessage.Trim().ToLowerInvariant();
@@ -390,6 +457,9 @@ internal static class DepotInstallWorkflow
             callbacks.OnOutput?.Invoke("[auth] " + promptMessage);
             callbacks.OnStatus?.Invoke(promptMessage);
 
+            if (!requiresInput)
+                return;
+
             string? response = await callbacks.RequestInputAsync(new DepotInstallPromptRequest
             {
                 Prompt = promptMessage,
@@ -410,50 +480,169 @@ internal static class DepotInstallWorkflow
         }
     }
 
-    private static bool TryClassifyPrompt(string rawText, out string promptMessage, out bool isSecret)
+    private static bool TryClassifyPrompt(
+        string rawText,
+        out string promptMessage,
+        out bool isSecret,
+        out bool requiresInput)
     {
         string lower = rawText.Trim().ToLowerInvariant();
 
-        // Mobile-app confirmation is informational and does not require input.
-        if (lower.Contains("use the steam mobile app to confirm your sign in", StringComparison.Ordinal))
-        {
-            promptMessage = "";
-            isSecret = false;
-            return false;
-        }
-
-        foreach (string marker in PromptMarkers)
+        foreach (string marker in CodePromptMarkers)
         {
             if (!lower.Contains(marker))
                 continue;
 
-            isSecret = marker.Contains("password", StringComparison.Ordinal);
+            promptMessage = "Steam authentication code required. Enter the code from Steam Guard, your email, or your authenticator app to continue.";
+            isSecret = false;
+            requiresInput = true;
+            return true;
+        }
 
-            if (marker.Contains("steam guard", StringComparison.Ordinal) ||
-                marker.Contains("two-factor", StringComparison.Ordinal) ||
-                marker.Contains("two factor", StringComparison.Ordinal) ||
-                marker.Contains("auth code", StringComparison.Ordinal) ||
-                marker.Contains("authentication code", StringComparison.Ordinal) ||
-                marker.Contains("email code", StringComparison.Ordinal) ||
-                marker.Contains("security code", StringComparison.Ordinal) ||
-                marker.Contains("code from your email", StringComparison.Ordinal) ||
-                marker.Contains("code sent to your email", StringComparison.Ordinal) ||
-                marker.Contains("device code", StringComparison.Ordinal))
+        foreach (string marker in PasswordPromptMarkers)
+        {
+            if (!lower.Contains(marker))
+                continue;
+
+            promptMessage = "Steam password input required by DepotDownloader. Enter your Steam password to continue.";
+            isSecret = true;
+            requiresInput = true;
+            return true;
+        }
+
+        foreach (string marker in InfoPromptMarkers)
+        {
+            if (!lower.Contains(marker))
+                continue;
+
+            if (lower.Contains("mobile app", StringComparison.Ordinal))
             {
-                promptMessage = "Steam authentication code required. Enter the code from Steam Guard, email, or your authenticator to continue.";
-                return true;
+                promptMessage = "Steam mobile confirmation required. Approve the sign-in in the Steam mobile app. If Steam sends an email or authenticator code instead, enter that code when prompted.";
+            }
+            else if (lower.Contains("check your email", StringComparison.Ordinal))
+            {
+                promptMessage = "Steam may have sent a verification code to your email. Check your email for the code and enter it when prompted.";
+            }
+            else
+            {
+                promptMessage = "Steam Guard protection detected. A Steam Guard, email, or authenticator code may be required to finish logging in.";
             }
 
-            if (marker.Contains("password", StringComparison.Ordinal))
-            {
-                promptMessage = "Steam password input required by DepotDownloader. Enter password to continue.";
-                return true;
-            }
+            isSecret = false;
+            requiresInput = false;
+            return true;
         }
 
         promptMessage = "";
         isSecret = false;
+        requiresInput = false;
         return false;
+    }
+
+    private static void UpdateSteamLoginState(
+        string line,
+        Func<bool> getSteamLoginPending,
+        Action<bool> setSteamLoginPending,
+        Action<bool> setFallbackPromptShown)
+    {
+        string lower = line.Trim().ToLowerInvariant();
+
+        if (lower.Contains("logging ", StringComparison.Ordinal) &&
+            lower.Contains("into steam3", StringComparison.Ordinal))
+        {
+            if (!getSteamLoginPending())
+                setSteamLoginPending(true);
+
+            setFallbackPromptShown(false);
+            return;
+        }
+
+        if (lower.Contains("connected to steam3", StringComparison.Ordinal) ||
+            lower.Contains("done!", StringComparison.Ordinal) ||
+            lower.Contains("got appinfo", StringComparison.Ordinal) ||
+            lower.Contains("got depot key", StringComparison.Ordinal) ||
+            lower.Contains("downloaded manifest", StringComparison.Ordinal))
+        {
+            setSteamLoginPending(false);
+            setFallbackPromptShown(false);
+        }
+    }
+
+    private static async Task MonitorSteamLoginStallAsync(
+        Process process,
+        DepotInstallCallbacks? callbacks,
+        SemaphoreSlim promptLock,
+        Func<string> getLastPromptKey,
+        Action<string> setLastPromptKey,
+        Func<DateTime> getLastPromptAtUtc,
+        Action<DateTime> setLastPromptAtUtc,
+        Func<DateTime> getLastOutputAtUtc,
+        Action<DateTime> setLastOutputAtUtc,
+        Func<bool> getSteamLoginPending,
+        Action<bool> setSteamLoginPending,
+        Func<bool> getFallbackPromptShown,
+        Action<bool> setFallbackPromptShown,
+        CancellationToken cancellationToken)
+    {
+        if (callbacks?.RequestInputAsync == null)
+            return;
+
+        while (!cancellationToken.IsCancellationRequested && !process.HasExited)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+
+            if (!getSteamLoginPending() || getFallbackPromptShown())
+                continue;
+
+            if ((DateTime.UtcNow - getLastOutputAtUtc()).TotalSeconds < 8)
+                continue;
+
+            string promptKey = "steam login stalled waiting for authentication";
+            if (promptKey == getLastPromptKey() &&
+                (DateTime.UtcNow - getLastPromptAtUtc()).TotalSeconds < 10)
+            {
+                continue;
+            }
+
+            await promptLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (process.HasExited)
+                    return;
+
+                if (!getSteamLoginPending() || getFallbackPromptShown())
+                    continue;
+
+                setFallbackPromptShown(true);
+                setLastPromptKey(promptKey);
+                setLastPromptAtUtc(DateTime.UtcNow);
+
+                string promptMessage =
+                    "Steam login appears to be waiting for authentication. Enter a Steam Guard, email, or authenticator code if Steam asked for one. If Steam is asking for mobile approval instead, approve it in the Steam app and then press Cancel Prompt here.";
+
+                callbacks.OnOutput?.Invoke("[auth] Login stalled at Steam3. Offering fallback authentication prompt.");
+                callbacks.OnStatus?.Invoke(promptMessage);
+
+                string? response = await callbacks.RequestInputAsync(new DepotInstallPromptRequest
+                {
+                    Prompt = promptMessage,
+                    IsSecret = false
+                });
+
+                if (!string.IsNullOrWhiteSpace(response))
+                {
+                    await process.StandardInput.WriteLineAsync(response.Trim());
+                    await process.StandardInput.FlushAsync();
+                    callbacks.OnOutput?.Invoke("[input submitted]");
+                    callbacks.OnStatus?.Invoke("Fallback authentication input submitted. Waiting for DepotDownloader...");
+                    setLastOutputAtUtc(DateTime.UtcNow);
+                }
+            }
+            finally
+            {
+                promptLock.Release();
+            }
+        }
     }
 
     private static bool ShouldInspectPartialPrompt(StringBuilder lineBuilder, char latestChar)
@@ -482,6 +671,14 @@ internal static class DepotInstallWorkflow
 
         if (!auth.UseRememberedLoginOnly && string.IsNullOrWhiteSpace(auth.Password))
             throw new ArgumentException("Password is required unless using remembered login.");
+    }
+
+    private static int CreateUniqueLoginId()
+    {
+        int processId = Environment.ProcessId;
+        int tickSeed = Environment.TickCount & 0x3FFFFFFF;
+        int loginId = ((processId & 0x7FFF) << 16) ^ tickSeed;
+        return loginId == 0 ? 1 : Math.Abs(loginId);
     }
 
     private static void TryKillProcess(Process process)
