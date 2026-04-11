@@ -4,10 +4,10 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:local="clr-namespace:SubnauticaLauncher"
         Title="Delete Version"
-        Width="520"
-        Height="225"
-        MinWidth="520"
-        MinHeight="225"
+        Width="560"
+        Height="235"
+        MinWidth="560"
+        MinHeight="235"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         FontFamily="{DynamicResource AppFontFamily}"
@@ -161,7 +161,7 @@
                                 Click="Delete_Click"/>
 
                         <Button Content="Remove From Launcher"
-                                Width="172"
+                                Width="188"
                                 Margin="0,0,12,0"
                                 Background="{StaticResource DialogNeutralButtonBrush}"
                                 Style="{StaticResource RoundedButton}"

@@ -7,6 +7,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -16,7 +17,6 @@ namespace SubnauticaLauncher.UI
 {
     public partial class AddUnmanagedVersionWindow : Window
     {
-        private const int MaxDisplayNameLength = 25;
         private const string DefaultBg = "Lifepod";
 
         private LauncherGame? _detectedGame;
@@ -108,26 +108,25 @@ namespace SubnauticaLauncher.UI
 
         private void LoadOriginalDownloads()
         {
-            var allChoices = VersionRegistry.AllVersions
-                .Cast<GameVersionInstallDefinition>()
-                .Concat(BZVersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>())
-                .ToList();
+            var choices = _detectedGame switch
+            {
+                LauncherGame.Subnautica => VersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>(),
+                LauncherGame.BelowZero => BZVersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>(),
+                _ => VersionRegistry.AllVersions
+                    .Cast<GameVersionInstallDefinition>()
+                    .Concat(BZVersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>())
+            };
 
-            if (_detectedGame == LauncherGame.Subnautica)
+            OriginalDownloadBox.Items.Clear();
+
+            foreach (GameVersionInstallDefinition choice in choices)
             {
-                OriginalDownloadBox.ItemsSource = VersionRegistry.AllVersions
-                    .Cast<GameVersionInstallDefinition>()
-                    .ToList();
-            }
-            else if (_detectedGame == LauncherGame.BelowZero)
-            {
-                OriginalDownloadBox.ItemsSource = BZVersionRegistry.AllVersions
-                    .Cast<GameVersionInstallDefinition>()
-                    .ToList();
-            }
-            else
-            {
-                OriginalDownloadBox.ItemsSource = allChoices;
+                OriginalDownloadBox.Items.Add(new ComboBoxItem
+                {
+                    Content = choice.DisplayName,
+                    Tag = choice.Id,
+                    ToolTip = choice.DisplayName
+                });
             }
 
             OriginalDownloadBox.SelectedIndex = OriginalDownloadBox.Items.Count > 0 ? 0 : -1;
@@ -205,9 +204,7 @@ namespace SubnauticaLauncher.UI
 
             FolderPathBox.Text = folder;
             FolderNameBox.Text = folderName;
-            DisplayNameBox.Text = folderName.Length <= MaxDisplayNameLength
-                ? folderName
-                : folderName.Substring(0, MaxDisplayNameLength);
+            DisplayNameBox.Text = InstalledVersionNaming.NormalizeSavedDisplayName(folderName);
 
             LoadOriginalDownloads();
         }
@@ -226,8 +223,9 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            string displayName = DisplayNameBox.Text.Trim();
+            string displayName = InstalledVersionNaming.NormalizeSavedDisplayName(DisplayNameBox.Text);
             string folderName = FolderNameBox.Text.Trim();
+            DisplayNameBox.Text = displayName;
 
             if (string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(folderName))
             {
@@ -235,10 +233,10 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (displayName.Length > MaxDisplayNameLength)
+            if (displayName.Length > InstalledVersionNaming.MaxDisplayNameLength)
             {
                 MessageBox.Show(
-                    $"Display name must be {MaxDisplayNameLength} characters or fewer.",
+                    $"Display name must be {InstalledVersionNaming.MaxDisplayNameLength} characters or fewer.",
                     "Invalid Display Name",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -255,7 +253,8 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (OriginalDownloadBox.SelectedValue is not string originalDownloadId ||
+            if (OriginalDownloadBox.SelectedItem is not ComboBoxItem selectedItem ||
+                selectedItem.Tag is not string originalDownloadId ||
                 string.IsNullOrWhiteSpace(originalDownloadId))
             {
                 MessageBox.Show("Please select an original version.");
@@ -270,13 +269,17 @@ namespace SubnauticaLauncher.UI
                 : "BZVersion.info";
 
             string infoPath = Path.Combine(FolderPathBox.Text, infoFileName);
+            string launcherMarker = _detectedGame == LauncherGame.Subnautica
+                ? "IsSubnauticaLauncherVersion"
+                : "IsBelowZeroLauncherVersion";
 
-            File.WriteAllLines(infoPath, new[]
-            {
-                $"DisplayName={displayName}",
-                $"FolderName={folderName}",
-                $"OriginalDownload={originalDownloadId}"
-            });
+            InstalledVersionFileService.WriteInfoFile(
+                infoPath,
+                launcherMarker,
+                displayName,
+                folderName,
+                originalDownloadId,
+                isModded: false);
 
             DialogWindowHelper.Finish(this, true);
         }

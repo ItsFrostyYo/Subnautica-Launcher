@@ -1,5 +1,6 @@
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Versions;
 using System;
@@ -15,7 +16,6 @@ namespace SubnauticaLauncher.UI
 {
     public partial class EditVersionWindow : Window
     {
-        private const int MaxDisplayNameLength = 25;
         private const string DefaultBg = "GrassyPlateau";
 
         private readonly InstalledVersion? _snVersion;
@@ -29,7 +29,7 @@ namespace SubnauticaLauncher.UI
 
             _snVersion = version;
             TitleBarText.Text = $"Editing Subnautica Version \"{version.DisplayLabel}\"";
-            DisplayNameBox.Text = version.DisplayName;
+            DisplayNameBox.Text = InstalledVersionNaming.NormalizeSavedDisplayName(version.DisplayName);
             FolderNameBox.Text = version.FolderName;
 
             Loaded += EditVersionWindow_Loaded;
@@ -41,7 +41,7 @@ namespace SubnauticaLauncher.UI
 
             _bzVersion = version;
             TitleBarText.Text = $"Editing Below Zero Version \"{version.DisplayLabel}\"";
-            DisplayNameBox.Text = version.DisplayName;
+            DisplayNameBox.Text = InstalledVersionNaming.NormalizeSavedDisplayName(version.DisplayName);
             FolderNameBox.Text = version.FolderName;
 
             Loaded += EditVersionWindow_Loaded;
@@ -123,8 +123,9 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            string newDisplay = DisplayNameBox.Text.Trim();
+            string newDisplay = InstalledVersionNaming.NormalizeSavedDisplayName(DisplayNameBox.Text);
             string newFolder = FolderNameBox.Text.Trim();
+            DisplayNameBox.Text = newDisplay;
 
             if (string.IsNullOrWhiteSpace(newDisplay) || string.IsNullOrWhiteSpace(newFolder))
             {
@@ -136,10 +137,10 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (newDisplay.Length > MaxDisplayNameLength)
+            if (newDisplay.Length > InstalledVersionNaming.MaxDisplayNameLength)
             {
                 MessageBox.Show(
-                    $"Display name must be {MaxDisplayNameLength} characters or fewer.",
+                    $"Display name must be {InstalledVersionNaming.MaxDisplayNameLength} characters or fewer.",
                     "Invalid Display Name",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -284,6 +285,16 @@ namespace SubnauticaLauncher.UI
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
             }
+        }
+
+        private void Mods_Click(object sender, RoutedEventArgs e)
+        {
+            InstalledVersion version = IsBelowZero ? _bzVersion! : _snVersion!;
+            LauncherGame game = IsBelowZero ? LauncherGame.BelowZero : LauncherGame.Subnautica;
+            var win = new VersionModsWindow(version, game);
+
+            if (DialogWindowHelper.ShowDialog(this, win) == true)
+                DialogWindowHelper.Finish(this, true);
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)

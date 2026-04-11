@@ -7,26 +7,30 @@ namespace SubnauticaLauncher.UI
     {
         public static bool? ShowDialog(Window owner, Window dialog)
         {
-            if (owner is MainWindow)
-            {
-                dialog.Owner = owner;
-                return dialog.ShowDialog();
-            }
+            Window modalOwner = owner is MainWindow ? owner : owner.Owner ?? owner;
+            dialog.Owner = modalOwner;
+            dialog.WindowStartupLocation = WindowStartupLocation.Manual;
+            PositionDialogOver(owner, dialog);
 
-            dialog.Owner = owner.Owner ?? owner;
-            dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            if (owner is MainWindow)
+                return dialog.ShowDialog();
 
             bool ownerWasVisible = owner.Visibility == Visibility.Visible;
+            void HideOwnerOnRender(object? sender, EventArgs args)
+            {
+                dialog.ContentRendered -= HideOwnerOnRender;
+                if (ownerWasVisible && owner.Visibility == Visibility.Visible)
+                    owner.Visibility = Visibility.Hidden;
+            }
 
+            dialog.ContentRendered += HideOwnerOnRender;
             try
             {
-                if (ownerWasVisible)
-                    owner.Visibility = Visibility.Hidden;
-
                 return dialog.ShowDialog();
             }
             finally
             {
+                dialog.ContentRendered -= HideOwnerOnRender;
                 if (ownerWasVisible)
                 {
                     owner.Visibility = Visibility.Visible;
@@ -50,6 +54,35 @@ namespace SubnauticaLauncher.UI
             }
 
             window.Close();
+        }
+
+        private static void PositionDialogOver(Window anchor, Window dialog)
+        {
+            double dialogWidth = GetWindowDimension(dialog.Width, dialog.MinWidth, dialog.ActualWidth, fallback: 520);
+            double dialogHeight = GetWindowDimension(dialog.Height, dialog.MinHeight, dialog.ActualHeight, fallback: 360);
+
+            double anchorWidth = GetWindowDimension(anchor.Width, anchor.MinWidth, anchor.ActualWidth, fallback: 800);
+            double anchorHeight = GetWindowDimension(anchor.Height, anchor.MinHeight, anchor.ActualHeight, fallback: 600);
+
+            double left = anchor.Left + Math.Max(0, (anchorWidth - dialogWidth) / 2);
+            double top = anchor.Top + Math.Max(0, (anchorHeight - dialogHeight) / 2);
+
+            dialog.Left = left;
+            dialog.Top = top;
+        }
+
+        private static double GetWindowDimension(double requested, double min, double actual, double fallback)
+        {
+            if (!double.IsNaN(actual) && actual > 1)
+                return actual;
+
+            if (!double.IsNaN(requested) && requested > 1)
+                return requested;
+
+            if (!double.IsNaN(min) && min > 1)
+                return min;
+
+            return fallback;
         }
     }
 }

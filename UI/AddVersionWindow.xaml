@@ -225,6 +225,7 @@
                       Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="Auto"/>
@@ -237,10 +238,18 @@
                             Style="{StaticResource RoundedButton}"
                             Click="AddUnmanaged_Click"/>
 
+                    <Button Content="Install Mods"
+                            Width="150"
+                            Grid.Column="1"
+                            Margin="12,0,0,0"
+                            Background="{StaticResource DialogNeutralButtonBrush}"
+                            Style="{StaticResource RoundedButton}"
+                            Click="InstallMods_Click"/>
+
                     <Button x:Name="InstallButton"
                             Content="Install"
                             Width="110"
-                            Grid.Column="2"
+                            Grid.Column="3"
                             Margin="0,0,12,0"
                             Background="#FF4FD38B"
                             Style="{StaticResource RoundedButton}"
@@ -248,7 +257,7 @@
 
                     <Button Content="Cancel"
                             Width="110"
-                            Grid.Column="3"
+                            Grid.Column="4"
                             Background="#8B2C2C"
                             Style="{StaticResource RoundedButton}"
                             Click="Cancel_Click"/>

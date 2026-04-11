@@ -81,7 +81,7 @@ namespace SubnauticaLauncher.Settings
 
         // DepotDownloader install preferences
         public string DepotDownloaderLastUsername { get; set; } = "";
-        public bool DepotDownloaderRememberPassword { get; set; } = false;
+        public bool DepotDownloaderRememberPassword { get; set; } = true;
         public bool DepotDownloaderUseRememberedLoginOnly { get; set; } = false;
         public bool DepotDownloaderPreferTwoFactorCode { get; set; } = true;
         public bool DepotDownloaderRememberedLoginSeeded { get; set; } = false;

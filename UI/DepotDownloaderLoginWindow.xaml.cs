@@ -13,6 +13,7 @@ namespace SubnauticaLauncher.UI
     public partial class DepotDownloaderLoginWindow : Window
     {
         private const string DefaultBg = "GrassyPlateau";
+        private bool _hasRememberedLoginSeeded;
 
         public DepotInstallAuthOptions? AuthOptions { get; private set; }
 
@@ -38,10 +39,12 @@ namespace SubnauticaLauncher.UI
             ApplyBackground(bg);
 
             UsernameBox.Text = LauncherSettings.Current.DepotDownloaderLastUsername;
-            RememberPasswordCheck.IsChecked = LauncherSettings.Current.DepotDownloaderRememberPassword;
-            UseRememberedLoginCheck.IsChecked = LauncherSettings.Current.DepotDownloaderUseRememberedLoginOnly;
+            _hasRememberedLoginSeeded = LauncherSettings.Current.DepotDownloaderRememberedLoginSeeded;
+            UseRememberedLoginCheck.IsChecked = _hasRememberedLoginSeeded &&
+                                               LauncherSettings.Current.DepotDownloaderUseRememberedLoginOnly;
             PreferTwoFactorCodeCheck.IsChecked = LauncherSettings.Current.DepotDownloaderPreferTwoFactorCode;
 
+            UpdateRememberedLoginUi();
             SyncPasswordState();
             Logger.Log("DepotDownloader login window opened.");
         }
@@ -81,8 +84,36 @@ namespace SubnauticaLauncher.UI
         private void SyncPasswordState()
         {
             bool usingRemembered = UseRememberedLoginCheck.IsChecked == true;
-            PasswordBox.IsEnabled = true;
-            PasswordHintText.Visibility = usingRemembered ? Visibility.Visible : Visibility.Collapsed;
+            PasswordBox.IsEnabled = !usingRemembered;
+            PasswordBox.Opacity = usingRemembered ? 0.65 : 1.0;
+
+            if (usingRemembered)
+            {
+                PasswordHintText.Text = "Using remembered login for this install. Password entry is disabled unless you turn that option off.";
+            }
+            else if (_hasRememberedLoginSeeded)
+            {
+                PasswordHintText.Text = "Enter your password if you want to sign in normally and refresh the remembered login cache.";
+            }
+            else
+            {
+                PasswordHintText.Text = "Enter your password once to seed remembered login for future installs.";
+            }
+        }
+
+        private void UpdateRememberedLoginUi()
+        {
+            if (_hasRememberedLoginSeeded)
+            {
+                RememberedLoginStateText.Text = "Remembered Steam login is available on this PC. You can use it now or sign in normally again.";
+                UseRememberedLoginCheck.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                RememberedLoginStateText.Text = "Remembered Steam login is not saved yet. Complete one normal sign-in first, then you can use remembered login later.";
+                UseRememberedLoginCheck.Visibility = Visibility.Collapsed;
+                UseRememberedLoginCheck.IsChecked = false;
+            }
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -121,12 +152,18 @@ namespace SubnauticaLauncher.UI
         {
             string username = UsernameBox.Text.Trim();
             bool useRemembered = UseRememberedLoginCheck.IsChecked == true;
-            string password = PasswordBox.Password;
+            string password = useRemembered ? "" : PasswordBox.Password;
             bool hasPassword = !string.IsNullOrWhiteSpace(password);
 
             if (string.IsNullOrWhiteSpace(username))
             {
                 StatusText.Text = "Steam username is required.";
+                return;
+            }
+
+            if (useRemembered && !_hasRememberedLoginSeeded)
+            {
+                StatusText.Text = "Remembered login is not ready yet. Sign in once with your password first.";
                 return;
             }
 
@@ -140,13 +177,13 @@ namespace SubnauticaLauncher.UI
             {
                 Username = username,
                 Password = password,
-                RememberPassword = RememberPasswordCheck.IsChecked == true,
+                RememberPassword = true,
                 UseRememberedLoginOnly = useRemembered,
                 PreferTwoFactorCode = PreferTwoFactorCodeCheck.IsChecked == true
             };
 
             LauncherSettings.Current.DepotDownloaderLastUsername = username;
-            LauncherSettings.Current.DepotDownloaderRememberPassword = AuthOptions.RememberPassword;
+            LauncherSettings.Current.DepotDownloaderRememberPassword = true;
             LauncherSettings.Current.DepotDownloaderUseRememberedLoginOnly = useRemembered;
             LauncherSettings.Current.DepotDownloaderPreferTwoFactorCode = AuthOptions.PreferTwoFactorCode;
             LauncherSettings.Save();

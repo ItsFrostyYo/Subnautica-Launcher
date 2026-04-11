@@ -32,13 +32,44 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.7.1",
+        Title = "Version List and Install Flow Fixes",
+        Date = "Apr 11, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Fixed version row actions so Edit and Open Folder stay visible for both Subnautica and Below Zero",
+            "Improved version list refresh so installs and edits show up immediately",
+            "Fixed dropdown rendering and Steam code or email authentication prompts during installs",
+            "Improved remembered Steam login flow and launcher side install UX polish"
+        }
+    },
+
+        new UpdateEntry
+    {
+        Version = "2.7.0",
+        Title = "Mod Support and Version Management",
+        Date = "Apr 11, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Added launcher managed Speedrun RNG Mod support for compatible Subnautica 2018 versions",
+            "Added Install Mods flow for new modded installs and existing version mod installs",
+            "Split installed version lists into Modded and Vanilla sections",
+            "Added mod management from Edit Version, including managed mod removal",
+            "Updated launcher dialogs to open centered over the launcher and parent windows"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.6.0",
-        Title = "UI Updates and Fixes",
+        Title = "UI and Launching Improvements",
         Date = "Apr 10, 2026 | Contributors (1) - ItsFrosti.",
         Changes = new[]
         {
-            "Updated UI to be slightly more Clean, and Responsive.",
-            "Updated Game Launching to be Faster using Steam APPID for Launching."
+            "Updated the main launcher UI and dialog styling to be cleaner and more responsive",
+            "Improved normal Subnautica launching by ensuring steam_appid.txt is present before launch",
+            "Installed and unmanaged Subnautica versions now get steam_appid.txt automatically",
+            "Fixed the 100% Tracker overlay so it stays on top of the game like the speedrun timer"
         }
     },
 

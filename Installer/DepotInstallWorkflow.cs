@@ -16,20 +16,26 @@ internal static class DepotInstallWorkflow
     private static readonly Regex PercentRegex = new(
         @"(?<!\d)(\d{1,3}(?:\.\d+)?)%",
         RegexOptions.Compiled);
-    private static readonly Regex InstalledNameFromIdRegex = new(
-        @"^(SubnauticaZero|Subnautica)_?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly string[] PromptMarkers =
     {
         "enter steam guard code",
         "enter your steam guard code",
         "enter two-factor code",
+        "enter two factor code",
         "enter authentication code",
         "enter auth code",
         "enter email code",
+        "code from your email",
+        "code sent to your email",
+        "enter the code from your email",
+        "enter the code sent to your email",
+        "enter security code",
+        "steam guard code",
         "enter device code",
         "enter account password",
+        "enter your password",
+        "please enter your password",
         "password:"
     };
 
@@ -264,6 +270,24 @@ internal static class DepotInstallWorkflow
                 }
 
                 lineBuilder.Append(ch);
+
+                if (!char.IsControl(ch) && ShouldInspectPartialPrompt(lineBuilder, ch))
+                {
+                    string partialLine = lineBuilder.ToString().Trim();
+                    if (!string.IsNullOrWhiteSpace(partialLine))
+                    {
+                        await TryHandlePromptAsync(
+                            process,
+                            callbacks,
+                            partialLine,
+                            promptLock,
+                            getLastPromptKey,
+                            setLastPromptKey,
+                            getLastPromptAtUtc,
+                            setLastPromptAtUtc,
+                            cancellationToken);
+                    }
+                }
             }
         }
 
@@ -363,6 +387,7 @@ internal static class DepotInstallWorkflow
             setLastPromptKey(promptKey);
             setLastPromptAtUtc(DateTime.UtcNow);
 
+            callbacks.OnOutput?.Invoke("[auth] " + promptMessage);
             callbacks.OnStatus?.Invoke(promptMessage);
 
             string? response = await callbacks.RequestInputAsync(new DepotInstallPromptRequest
@@ -406,12 +431,16 @@ internal static class DepotInstallWorkflow
 
             if (marker.Contains("steam guard", StringComparison.Ordinal) ||
                 marker.Contains("two-factor", StringComparison.Ordinal) ||
+                marker.Contains("two factor", StringComparison.Ordinal) ||
                 marker.Contains("auth code", StringComparison.Ordinal) ||
                 marker.Contains("authentication code", StringComparison.Ordinal) ||
                 marker.Contains("email code", StringComparison.Ordinal) ||
+                marker.Contains("security code", StringComparison.Ordinal) ||
+                marker.Contains("code from your email", StringComparison.Ordinal) ||
+                marker.Contains("code sent to your email", StringComparison.Ordinal) ||
                 marker.Contains("device code", StringComparison.Ordinal))
             {
-                promptMessage = "Steam authentication code required. Enter the code to continue.";
+                promptMessage = "Steam authentication code required. Enter the code from Steam Guard, email, or your authenticator to continue.";
                 return true;
             }
 
@@ -425,6 +454,17 @@ internal static class DepotInstallWorkflow
         promptMessage = "";
         isSecret = false;
         return false;
+    }
+
+    private static bool ShouldInspectPartialPrompt(StringBuilder lineBuilder, char latestChar)
+    {
+        if (lineBuilder.Length < 8 || lineBuilder.Length > 220)
+            return false;
+
+        if (latestChar == ':' || latestChar == '?' || latestChar == '>' || latestChar == ')')
+            return true;
+
+        return lineBuilder.Length % 12 == 0;
     }
 
     private static void ValidateBasicAuth(string username, string password)
@@ -499,50 +539,14 @@ internal static class DepotInstallWorkflow
         string launcherMarker)
     {
         string infoPath = Path.Combine(installDir, infoFileName);
-
-        File.WriteAllText(infoPath,
-$@"{launcherMarker}=true
-DisplayName={BuildInstalledDisplayName(version)}
-FolderName={version.Id}
-OriginalDownload={version.Id}
-Manifest={version.ManifestId}
-");
-    }
-
-    private static string BuildInstalledDisplayName(GameVersionInstallDefinition version)
-    {
-        Match match = InstalledNameFromIdRegex.Match(version.Id);
-        if (match.Success)
-        {
-            string gameName = match.Groups[1].Value.Equals("SubnauticaZero", StringComparison.OrdinalIgnoreCase)
-                ? "Below Zero"
-                : "Subnautica";
-            string month = NormalizeMonth(match.Groups[2].Value);
-            string year = match.Groups[3].Value;
-            return $"{gameName} {month} {year}";
-        }
-
-        return version.DisplayName;
-    }
-
-    private static string NormalizeMonth(string month)
-    {
-        return month.ToLowerInvariant() switch
-        {
-            "january" => "Jan",
-            "february" => "Feb",
-            "march" => "Mar",
-            "april" => "Apr",
-            "june" => "Jun",
-            "july" => "Jul",
-            "august" => "Aug",
-            "september" => "Sep",
-            "october" => "Oct",
-            "november" => "Nov",
-            "december" => "Dec",
-            _ => month.Length <= 3
-                ? char.ToUpperInvariant(month[0]) + month[1..].ToLowerInvariant()
-                : char.ToUpperInvariant(month[0]) + month[1..3].ToLowerInvariant()
-        };
+        InstalledVersionFileService.WriteInfoFile(
+            infoPath,
+            launcherMarker,
+            InstalledVersionNaming.BuildInstalledDisplayName(version.Id, version.DisplayName),
+            version.Id,
+            version.Id,
+            isModded: false,
+            installedModId: string.Empty,
+            manifestId: version.ManifestId);
     }
 }

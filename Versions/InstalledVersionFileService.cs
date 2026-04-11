@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Versioning;
+using System.Text;
 
 namespace SubnauticaLauncher.Versions;
 
@@ -52,12 +53,39 @@ internal static class InstalledVersionFileService
         string launcherMarker)
     {
         string infoPath = Path.Combine(version.HomeFolder, infoFileName);
+        WriteInfoFile(
+            infoPath,
+            launcherMarker,
+            version.DisplayName,
+            version.FolderName,
+            version.OriginalDownload,
+            version.IsModded,
+            version.InstalledModId);
+    }
 
-        File.WriteAllText(infoPath,
-$@"{launcherMarker}=true
-DisplayName={version.DisplayName}
-FolderName={version.FolderName}
-OriginalDownload={version.OriginalDownload}
-");
+    public static void WriteInfoFile(
+        string infoPath,
+        string launcherMarker,
+        string displayName,
+        string folderName,
+        string originalDownload,
+        bool isModded = false,
+        string installedModId = "",
+        long? manifestId = null)
+    {
+        var builder = new StringBuilder()
+            .AppendLine($"{launcherMarker}=true")
+            .AppendLine($"DisplayName={InstalledVersionNaming.NormalizeSavedDisplayName(displayName)}")
+            .AppendLine($"FolderName={folderName}")
+            .AppendLine($"OriginalDownload={originalDownload}")
+            .AppendLine($"Modded={isModded}");
+
+        if (!string.IsNullOrWhiteSpace(installedModId))
+            builder.AppendLine($"InstalledMod={installedModId}");
+
+        if (manifestId.HasValue)
+            builder.AppendLine($"Manifest={manifestId.Value}");
+
+        File.WriteAllText(infoPath, builder.ToString());
     }
 }

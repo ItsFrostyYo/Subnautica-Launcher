@@ -249,9 +249,6 @@
 
                         <ComboBox x:Name="OriginalDownloadBox"
                                   Margin="0,0,0,6"
-                                  DisplayMemberPath="DisplayName"
-                                  SelectedValuePath="Id"
-                                  TextSearch.TextPath="DisplayName"
                                   Style="{StaticResource DarkComboBox}"/>
                     </StackPanel>
 

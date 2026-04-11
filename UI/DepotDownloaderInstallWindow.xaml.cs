@@ -73,6 +73,8 @@ namespace SubnauticaLauncher.UI
 
             Loaded += DepotDownloaderInstallWindow_Loaded;
             Closing += DepotDownloaderInstallWindow_Closing;
+            PromptInputTextBox.KeyDown += PromptInput_KeyDown;
+            PromptInputPasswordBox.KeyDown += PromptInput_KeyDown;
         }
 
         private ImageBrush GetBackgroundBrush()
@@ -348,6 +350,11 @@ namespace SubnauticaLauncher.UI
                 _promptIsSecret = request.IsSecret;
                 PromptText.Text = request.Prompt;
                 PromptPanel.Visibility = Visibility.Visible;
+                ResultText.Foreground = Brushes.Gold;
+                ResultText.Text = "Waiting for Steam authentication input...";
+                Activate();
+                Topmost = true;
+                Topmost = false;
 
                 PromptInputTextBox.Text = "";
                 PromptInputPasswordBox.Password = "";
@@ -403,6 +410,15 @@ namespace SubnauticaLauncher.UI
             PromptPanel.Visibility = Visibility.Collapsed;
             _promptTcs.TrySetResult(null);
             _promptTcs = null;
+        }
+
+        private void PromptInput_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+                return;
+
+            SubmitPrompt_Click(sender, new RoutedEventArgs());
+            e.Handled = true;
         }
 
         private void CancelInstall_Click(object sender, RoutedEventArgs e)

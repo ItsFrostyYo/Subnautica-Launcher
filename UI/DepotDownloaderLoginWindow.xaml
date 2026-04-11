@@ -129,18 +129,23 @@
 
                     <TextBlock Text="Steam Password" FontWeight="SemiBold"/>
                     <PasswordBox x:Name="PasswordBox" Margin="0,4,0,2"/>
+                    <TextBlock x:Name="RememberedLoginStateText"
+                               Margin="0,6,0,0"
+                               FontSize="12"
+                               Foreground="#D0E7F2"
+                               TextWrapping="Wrap"
+                               MaxWidth="410"/>
                     <TextBlock x:Name="PasswordHintText"
-                               Visibility="Collapsed"
+                               Visibility="Visible"
                                FontSize="12"
                                Foreground="#D0E7F2"
                                TextWrapping="Wrap"
                                MaxWidth="410"
-                               Text="If this is your first remembered login setup, enter password once so DepotDownloader can save a sentry cache."/>
+                               Margin="0,4,0,0"
+                               Text="Enter your password once to seed remembered login for future installs."/>
 
-                    <CheckBox x:Name="RememberPasswordCheck"
-                              Content="Remember password in DepotDownloader (Steam sentry cache)"/>
                     <CheckBox x:Name="UseRememberedLoginCheck"
-                              Content="Use remembered login only when cache already exists"
+                              Content="Use remembered login for this install"
                               Click="UseRememberedLoginCheck_Click"/>
                     <CheckBox x:Name="PreferTwoFactorCodeCheck"
                               Content="Prefer code entry over mobile confirmation (-no-mobile)"

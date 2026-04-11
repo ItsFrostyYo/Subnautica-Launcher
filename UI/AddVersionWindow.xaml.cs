@@ -237,11 +237,9 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
 
-                if (login.AuthOptions.RememberPassword || login.AuthOptions.UseRememberedLoginOnly)
-                {
-                    LauncherSettings.Current.DepotDownloaderRememberedLoginSeeded = true;
-                    LauncherSettings.Save();
-                }
+                LauncherSettings.Current.DepotDownloaderRememberedLoginSeeded = true;
+                LauncherSettings.Current.DepotDownloaderRememberPassword = true;
+                LauncherSettings.Save();
 
                 MessageBox.Show(
                     "Installation complete.",
@@ -273,6 +271,14 @@ namespace SubnauticaLauncher.UI
             {
                 DialogWindowHelper.Finish(this, true);
             }
+        }
+
+        private void InstallMods_Click(object sender, RoutedEventArgs e)
+        {
+            var win = new InstallModsWindow();
+
+            if (DialogWindowHelper.ShowDialog(this, win) == true)
+                DialogWindowHelper.Finish(this, true);
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
