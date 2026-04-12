@@ -10,15 +10,23 @@ namespace SubnauticaLauncher
 {
     public static class NewInstaller
     {
-        private static readonly (string FileName, string Url)[] RequiredHelperTools =
+        private static readonly (string FileName, string[] Urls)[] RequiredHelperTools =
         {
             (
                 "ExplosionResetHelper2018.exe",
-                "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/tools/ExplosionResetHelper2018.exe"
+                new[]
+                {
+                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/master/tools/ExplosionResetHelper2018.exe",
+                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/tools/ExplosionResetHelper2018.exe"
+                }
             ),
             (
                 "ExplosionResetHelper2022.exe",
-                "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/tools/ExplosionResetHelper2022.exe"
+                new[]
+                {
+                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/master/tools/ExplosionResetHelper2022.exe",
+                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/tools/ExplosionResetHelper2022.exe"
+                }
             )
         };
 
@@ -102,11 +110,37 @@ namespace SubnauticaLauncher
                 status?.Report($"Downloading {tool.FileName}...");
                 Logger.Warn($"[Installer] Missing {tool.FileName}, downloading...");
 
-                byte[] data = await http.GetByteArrayAsync(tool.Url);
+                byte[] data = await DownloadRequiredToolAsync(http, tool.FileName, tool.Urls);
                 await File.WriteAllBytesAsync(targetPath, data);
 
                 Logger.Log($"[Installer] Installed {tool.FileName}");
             }
+        }
+
+        private static async Task<byte[]> DownloadRequiredToolAsync(
+            HttpClient http,
+            string fileName,
+            IReadOnlyList<string> urls)
+        {
+            Exception? lastError = null;
+
+            foreach (string url in urls)
+            {
+                try
+                {
+                    Logger.Log($"[Installer] Trying download for {fileName}: {url}");
+                    return await http.GetByteArrayAsync(url);
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    Logger.Warn($"[Installer] Failed to download {fileName} from {url}: {ex.Message}");
+                }
+            }
+
+            throw new InvalidOperationException(
+                $"Could not download required setup file '{fileName}'.",
+                lastError);
         }
     }
 }
