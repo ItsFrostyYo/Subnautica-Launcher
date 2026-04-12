@@ -6,6 +6,7 @@ using SubnauticaLauncher.Versions;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -42,13 +43,26 @@ namespace SubnauticaLauncher.UI
 
         private void RefreshDisplay()
         {
-            if (_version.IsModded)
+            if (_version.HasBepInEx)
             {
-                string modName = string.IsNullOrWhiteSpace(_version.InstalledModDisplayName)
-                    ? "Unknown Mod"
-                    : _version.InstalledModDisplayName;
-                StatusText.Text = "Mods Installed";
-                DescriptionText.Text = $"{modName} is installed for this version. Removing mods will delete the managed BepInEx and mod files and leave the game as a clean launcher version.";
+                if (_version.HasDetectedPlugins)
+                {
+                    StatusText.Text = "Mods Installed";
+                    string pluginList = string.Join(Environment.NewLine, _version.DetectedModNames.Select(name => $"• {name}"));
+                    DescriptionText.Text =
+                        $"Detected plugin(s):{Environment.NewLine}{pluginList}{Environment.NewLine}{Environment.NewLine}" +
+                        "Removing mods will delete BepInEx and the installed plugin files, leaving the game as a clean launcher version.";
+                    RemoveModsButton.Content = "Remove Mods";
+                }
+                else
+                {
+                    StatusText.Text = "BepInEx Installed";
+                    DescriptionText.Text =
+                        "BepInEx is installed, but no plugin DLLs were detected in the plugins folder." +
+                        $"{Environment.NewLine}{Environment.NewLine}You can still remove BepInEx if you want this version clean again.";
+                    RemoveModsButton.Content = "Remove BepInEx";
+                }
+
                 RemoveModsButton.IsEnabled = true;
                 RemoveModsButton.Opacity = 1;
             }
@@ -56,6 +70,7 @@ namespace SubnauticaLauncher.UI
             {
                 StatusText.Text = "No Mods Installed";
                 DescriptionText.Text = "This version is currently vanilla. There are no launcher-managed mods to remove.";
+                RemoveModsButton.Content = "Remove Mods";
                 RemoveModsButton.IsEnabled = false;
                 RemoveModsButton.Opacity = 0.55;
             }
@@ -93,7 +108,7 @@ namespace SubnauticaLauncher.UI
 
         private void RemoveMods_Click(object sender, RoutedEventArgs e)
         {
-            if (!_version.IsModded)
+            if (!_version.HasBepInEx)
                 return;
 
             string processName = _game == LauncherGame.Subnautica ? "Subnautica" : "SubnauticaZero";

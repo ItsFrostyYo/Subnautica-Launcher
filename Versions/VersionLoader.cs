@@ -9,6 +9,7 @@ public static class VersionLoader
     public static List<InstalledVersion> LoadInstalled()
         => InstalledVersionFileService.LoadInstalled(
             "Version.info",
+            "IsSubnauticaLauncherVersion",
             InstalledVersion.FromInfo);
 
     public static void Save(InstalledVersion version)

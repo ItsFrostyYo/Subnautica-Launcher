@@ -270,24 +270,14 @@ namespace SubnauticaLauncher.UI
                         installVersion,
                         login.AuthOptions,
                         installDir,
-                        "Version.info",
-                        "IsSubnauticaLauncherVersion",
+                        GetInfoFileName(candidate.Game),
+                        GetLauncherMarker(candidate.Game),
                         callbacks,
                         cancellationToken);
 
                     callbacks?.OnStatus?.Invoke($"Applying {mod.DisplayName}...");
-                    await ModInstallerService.InstallBundleAsync(mod, LauncherGame.Subnautica, installDir, callbacks, cancellationToken);
-
-                    var installed = new InstalledVersion
-                    {
-                        HomeFolder = installDir,
-                        FolderName = folderName,
-                        DisplayName = displayName,
-                        OriginalDownload = candidate.Id,
-                        IsModded = true,
-                        InstalledModId = mod.Id
-                    };
-                    VersionLoader.Save(installed);
+                    await ModInstallerService.InstallBundleAsync(mod, candidate.Game, installDir, callbacks, cancellationToken);
+                    SaveInstalledModdedVersion(candidate.Game, installDir, folderName, displayName, candidate.Id, mod.Id);
                 };
 
                 var installWindow = new DepotDownloaderInstallWindow(displayName, installAction);
@@ -391,6 +381,45 @@ namespace SubnauticaLauncher.UI
 
                 instance++;
             }
+        }
+
+        private static string GetInfoFileName(LauncherGame game) =>
+            game == LauncherGame.BelowZero ? "BZVersion.info" : "Version.info";
+
+        private static string GetLauncherMarker(LauncherGame game) =>
+            game == LauncherGame.BelowZero ? "IsBelowZeroLauncherVersion" : "IsSubnauticaLauncherVersion";
+
+        private static void SaveInstalledModdedVersion(
+            LauncherGame game,
+            string installDir,
+            string folderName,
+            string displayName,
+            string originalDownload,
+            string modId)
+        {
+            if (game == LauncherGame.BelowZero)
+            {
+                BZVersionLoader.Save(new BZInstalledVersion
+                {
+                    HomeFolder = installDir,
+                    FolderName = folderName,
+                    DisplayName = displayName,
+                    OriginalDownload = originalDownload,
+                    IsModded = true,
+                    InstalledModId = modId
+                });
+                return;
+            }
+
+            VersionLoader.Save(new InstalledVersion
+            {
+                HomeFolder = installDir,
+                FolderName = folderName,
+                DisplayName = displayName,
+                OriginalDownload = originalDownload,
+                IsModded = true,
+                InstalledModId = modId
+            });
         }
 
         private static System.Windows.Controls.ComboBoxItem CreateComboItem(string content, object tag, bool isPlaceholder = false)

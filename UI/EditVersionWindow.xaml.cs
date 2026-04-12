@@ -243,9 +243,7 @@ namespace SubnauticaLauncher.UI
                             return;
 
                         case DeleteChoice.RemoveFromLauncher:
-                            string bzInfoPath = Path.Combine(_bzVersion!.HomeFolder, "BZVersion.info");
-                            if (File.Exists(bzInfoPath))
-                                File.Delete(bzInfoPath);
+                            DeleteLauncherInfoFiles(_bzVersion!.HomeFolder);
                             break;
 
                         case DeleteChoice.DeleteGame:
@@ -264,9 +262,7 @@ namespace SubnauticaLauncher.UI
                             return;
 
                         case DeleteChoice.RemoveFromLauncher:
-                            string infoPath = Path.Combine(_snVersion!.HomeFolder, "Version.info");
-                            if (File.Exists(infoPath))
-                                File.Delete(infoPath);
+                            DeleteLauncherInfoFiles(_snVersion!.HomeFolder);
                             break;
 
                         case DeleteChoice.DeleteGame:
@@ -284,6 +280,16 @@ namespace SubnauticaLauncher.UI
                     "Delete Failed",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
+            }
+        }
+
+        private static void DeleteLauncherInfoFiles(string homeFolder)
+        {
+            foreach (string fileName in new[] { "Version.info", "BZVersion.info" })
+            {
+                string path = Path.Combine(homeFolder, fileName);
+                if (File.Exists(path))
+                    File.Delete(path);
             }
         }
 

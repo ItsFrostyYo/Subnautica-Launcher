@@ -10,6 +10,7 @@ public static class BZVersionLoader
     public static List<BZInstalledVersion> LoadInstalled()
         => InstalledVersionFileService.LoadInstalled(
             "BZVersion.info",
+            "IsBelowZeroLauncherVersion",
             BZInstalledVersion.FromInfo);
 
     public static void Save(BZInstalledVersion version)

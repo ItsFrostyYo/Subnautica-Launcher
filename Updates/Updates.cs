@@ -32,6 +32,21 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.7.3",
+        Title = "Mod Management Fixes",
+        Date = "Apr 11, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Cleaned up mod management so it detects mods correctly",
+            "Fixed Below Zero version metadata so it stays separated from Subnautica correctly",
+            "Improved startup and version loading behavior",
+            "Updated the public README to be a real user guide",
+            "Updated RNG Mod for 2018 and 2.0+ Versions"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.7.2",
         Title = "Steam Login Fixes",
         Date = "Apr 11, 2026 | Contributors (1) - ItsFrosti.",

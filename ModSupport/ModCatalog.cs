@@ -44,7 +44,7 @@ public static class ModCatalog
 
     public static async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<CatalogEntry> files = await FetchEntriesAsync(cancellationToken);
+        IReadOnlyList<CatalogEntry> files = await FetchEntriesAsync(cancellationToken).ConfigureAwait(false);
 
         var resolvedMods = new List<ModDefinition>(2);
 
@@ -78,7 +78,7 @@ public static class ModCatalog
                 return;
         }
 
-        RefreshAsync().GetAwaiter().GetResult();
+        RefreshAsync().ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
     public static ModDefinition? GetById(string? modId)
@@ -92,26 +92,34 @@ public static class ModCatalog
 
     public static string GetDisplayName(string? modId)
     {
+        if (string.IsNullOrWhiteSpace(modId))
+            return string.Empty;
+
+        string? knownName = modId switch
+        {
+            "SpeedrunRng" => "Speedrun RNG Mod",
+            "SpeedrunRng20Plus" => "Speedrun RNG Mod 2.0+",
+            _ => null
+        };
+
+        if (!string.IsNullOrWhiteSpace(knownName))
+            return knownName;
+
         ModDefinition? mod = GetById(modId);
         if (mod != null)
             return mod.DisplayName;
 
-        return modId switch
-        {
-            "SpeedrunRng" => "Speedrun RNG Mod",
-            "SpeedrunRng20Plus" => "Speedrun RNG Mod 2.0+",
-            _ => string.Empty
-        };
+        return string.Empty;
     }
 
     private static async Task<IReadOnlyList<CatalogEntry>> FetchEntriesAsync(CancellationToken cancellationToken)
     {
         string apiUrl = $"https://api.github.com/repos/{Owner}/{Repo}/contents/Mods?ref={Branch}";
-        using HttpResponseMessage response = await Http.GetAsync(apiUrl, cancellationToken);
+        using HttpResponseMessage response = await Http.GetAsync(apiUrl, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
-        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
 
         var entries = new List<CatalogEntry>();
         foreach (JsonElement item in document.RootElement.EnumerateArray())
@@ -178,6 +186,7 @@ public static class ModCatalog
     private static HttpClient BuildClient()
     {
         var client = new HttpClient();
+        client.Timeout = TimeSpan.FromSeconds(8);
         client.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
         return client;
     }

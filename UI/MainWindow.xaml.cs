@@ -207,7 +207,6 @@ namespace SubnauticaLauncher.UI
             SyncThemeDropdown(bg);
 
             LoadInstalledVersions();
-            await CheckForModUpdatesOnStartupAsync();
             StartStatusRefreshTimer();
             LoadMacroSettings();
 
@@ -262,6 +261,9 @@ namespace SubnauticaLauncher.UI
                 ShowOverlayWindow();
 
             StartUpdateCheckTimer();
+            _ = Dispatcher.BeginInvoke(
+                new Action(async () => await CheckForModUpdatesOnStartupAsync()),
+                DispatcherPriority.Background);
         }
 
         private void UpdateResetMacroVisualState()
@@ -1421,7 +1423,11 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            DialogWindowHelper.ShowDialog(this, new EditVersionWindow(version));
+            Window editWindow = version is BZInstalledVersion bzVersion
+                ? new EditVersionWindow(bzVersion)
+                : new EditVersionWindow(version);
+
+            DialogWindowHelper.ShowDialog(this, editWindow);
             NotifyActionCompleted(reloadVersions: true);
         }
 

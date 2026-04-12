@@ -151,11 +151,7 @@ public static class ModInstallerService
         InstalledVersion version,
         LauncherGame game)
     {
-        ModDefinition? mod = ModCatalog.GetById(version.InstalledModId);
-        if (mod == null)
-            return;
-
-        foreach (string relativePath in mod.RemovalTargets)
+        foreach (string relativePath in GetGenericRemovalTargets())
         {
             string fullPath = Path.Combine(version.HomeFolder, relativePath);
             if (Directory.Exists(fullPath))
@@ -164,6 +160,8 @@ public static class ModInstallerService
                 File.Delete(fullPath);
         }
 
+        version.HasBepInEx = false;
+        version.DetectedModNames.Clear();
         version.IsModded = false;
         version.InstalledModId = string.Empty;
 
@@ -192,20 +190,10 @@ public static class ModInstallerService
     {
         ModCatalog.EnsureLoaded();
 
-        if (!string.IsNullOrWhiteSpace(version.InstalledModId))
-        {
-            ModDefinition? explicitMatch = ModCatalog.GetById(version.InstalledModId);
-            if (explicitMatch != null)
-                return explicitMatch;
-        }
+        if (string.IsNullOrWhiteSpace(version.InstalledModId))
+            return null;
 
-        IReadOnlyList<ModDefinition> available = GetAvailableModsForVersion(
-            game,
-            version.OriginalDownload,
-            version.DisplayName,
-            version.FolderName);
-
-        return available.FirstOrDefault();
+        return ModCatalog.GetById(version.InstalledModId);
     }
 
     public static Version? TryReadInstalledModVersion(InstalledVersion version)
@@ -231,6 +219,22 @@ public static class ModInstallerService
         return Version.TryParse(match.Groups["version"].Value, out Version? versionValue)
             ? versionValue
             : null;
+    }
+
+    public static void ApplyInstalledModDetection(InstalledVersion version)
+    {
+        string bepinexFolder = Path.Combine(version.HomeFolder, "BepInEx");
+        version.HasBepInEx = Directory.Exists(bepinexFolder);
+        version.DetectedModNames = DetectInstalledPluginNames(version).ToList();
+        version.IsModded = version.HasBepInEx;
+
+        if (!version.HasBepInEx)
+        {
+            version.InstalledModId = string.Empty;
+            return;
+        }
+
+        version.InstalledModId = DetectKnownManagedModId(version);
     }
 
     private static HttpClient BuildClient()
@@ -298,5 +302,76 @@ public static class ModInstallerService
     private static string NormalizeRelativePath(string path)
     {
         return path.Replace('/', '\\').TrimStart('\\');
+    }
+
+    private static IEnumerable<string> DetectInstalledPluginNames(InstalledVersion version)
+    {
+        string pluginRoot = Path.Combine(version.HomeFolder, "BepInEx", "plugins");
+        if (!Directory.Exists(pluginRoot))
+            return Array.Empty<string>();
+
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string dllPath in Directory.GetFiles(pluginRoot, "*.dll", SearchOption.AllDirectories))
+        {
+            string fileName = Path.GetFileNameWithoutExtension(dllPath);
+            string? friendlyName = TryMapKnownPluginName(version, fileName);
+
+            if (string.IsNullOrWhiteSpace(friendlyName))
+            {
+                string relativeDir = Path.GetRelativePath(pluginRoot, Path.GetDirectoryName(dllPath)!);
+                friendlyName = string.Equals(relativeDir, ".", StringComparison.Ordinal)
+                    ? fileName
+                    : Path.GetFileName(relativeDir);
+            }
+
+            names.Add(friendlyName);
+        }
+
+        return names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static string DetectKnownManagedModId(InstalledVersion version)
+    {
+        string pluginRoot = Path.Combine(version.HomeFolder, "BepInEx", "plugins");
+        if (!Directory.Exists(pluginRoot))
+            return string.Empty;
+
+        bool hasAssemblyCheatSharp = Directory
+            .GetFiles(pluginRoot, "*.dll", SearchOption.AllDirectories)
+            .Any(path => Path.GetFileName(path).Contains("Assembly-CheatSharp", StringComparison.OrdinalIgnoreCase));
+
+        if (!hasAssemblyCheatSharp)
+            return string.Empty;
+
+        if (SupportsLegacySpeedrunRng(LauncherGame.Subnautica, version.OriginalDownload, version.DisplayName, version.FolderName))
+            return "SpeedrunRng";
+
+        if (SupportsModernSpeedrunRng(LauncherGame.Subnautica, version.OriginalDownload, version.DisplayName, version.FolderName))
+            return "SpeedrunRng20Plus";
+
+        return string.Empty;
+    }
+
+    private static string? TryMapKnownPluginName(InstalledVersion version, string fileName)
+    {
+        if (!fileName.Contains("Assembly-CheatSharp", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        string modId = DetectKnownManagedModId(version);
+        return string.IsNullOrWhiteSpace(modId)
+            ? "Assembly-CheatSharp"
+            : ModCatalog.GetDisplayName(modId);
+    }
+
+    private static IReadOnlyList<string> GetGenericRemovalTargets()
+    {
+        return new[]
+        {
+            "BepInEx",
+            ".doorstop_version",
+            "doorstop_config.ini",
+            "winhttp.dll",
+            "changelog.txt"
+        };
     }
 }

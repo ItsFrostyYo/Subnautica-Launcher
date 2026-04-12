@@ -1,352 +1,344 @@
 # Subnautica + Below Zero Launcher
 
-Advanced Windows Launcher for Installing, Managing, Switching, and Launching many Versions of **Subnautica** and **Subnautica: Below Zero**, with Integrated Speedrun Tooling, Overlays, and Automatic Self-Update Support.
+The Subnautica + Below Zero Launcher is a Windows launcher for installing, organizing, switching, and launching multiple versions of **Subnautica** and **Subnautica: Below Zero** from one place.
+
+It is built for players and speedrunners who want an easier way to:
+
+- keep many versions installed at once
+- swap between versions without manually renaming folders
+- launch older versions cleanly
+- use built-in reset tools and overlays
+- manage supported mods
+- stay up to date through the launcher itself
 
 Repository:
 - https://github.com/ItsFrostyYo/Subnautica-Launcher
 
-## Quick Start
+## What The Launcher Does
 
-### 1. Download
+This launcher helps you manage both games without having to manually move folders around every time you want to switch versions.
 
-From GitHub Releases, download the latest release package zip and extract it.
+For Subnautica and Below Zero, it can:
 
-Recommended package layout after extract:
+- download supported public versions
+- add an already-installed version into the launcher
+- keep Subnautica and Below Zero separated correctly
+- let you rename versions so your list stays readable
+- launch the selected version directly
+- close the currently running game and switch to another version
+- remove a version from the launcher without deleting the game files
+- fully delete a version if you want to clean it up
 
-- `SubnauticaLauncher.exe`
-- `SNLUpdater.exe`
-- `tools/`
+## What You Need
 
-### 2. Run
+- Windows 10 or Windows 11
+- Steam installed
+- enough disk space for the versions you want to keep
+- Internet access for downloading versions, updates, or supported mods
 
-Start `SubnauticaLauncher.exe`.
+## First-Time Setup
 
-On first launch, setup checks required folders/tools and installs missing runtime pieces automatically.
+1. Download the latest release from GitHub Releases.
+2. Extract the zip somewhere you want to keep the launcher.
+3. Run `SubnauticaLauncher.exe`.
+4. Let the launcher finish its startup checks.
 
-### 3. Add a Version
+On first launch, the launcher will make sure its required folders and helper files exist. If something is missing, it will set that up for you.
 
-1. Click `Add` on Version List Tab.
-2. Pick a Subnautica or Below Zero version or press "Add Existing Version" if you already have a subnautica version installed.
-3. Enter Steam login details (and Steam Guard code if requested).
-4. Wait for install to complete.
+## Main Window Overview
 
-### 4. Launch a Version
+The main window is split into a few simple areas:
 
-1. Select a version from either game list.
-2. Click `Launch`.
+- Left sidebar:
+  - `Play`
+  - `Settings`
+  - `Tools`
+  - `Launcher Info`
+- Center area:
+  - your installed Subnautica versions
+  - your installed Below Zero versions
+- Sidebar status area:
+  - the currently selected version
+  - the current version status
+  - the main `Launch` or `Close Game` button
 
-The launcher handles active-folder switching for you.
+There is also a `Switch` button next to the selected version display so you can close the currently running game and launch the selected version right away.
 
-## What This Project Does
+## Installing A Version
 
-This Launcher is an app built for Subnautica Players and Speedrunners and Includes:
+To install a normal version:
 
-- Multi Version Managing.
-- Version Launching & Swapping.
-- Any Public Version Downloading using DepotDownloader.
-- Auto Launcher Update Detection & Downloading.
-- Custom Tools for Speedrunning Subnautica & Below Zero.
-  - Reset Macros for Any Gamemode, Version & Even Explosion Time.
-  - Automatic Hardcore Save Deleters for Deleting unused new Hardcore Saves.
-  - Button to delete all Hardcore Saves from Active Version, all Versions & select Subnautica, Below Zero or Both
-- Custom Overlays and Trackers for Speedrunning
-  - Can Toggle an Overlay to display Explosion Time, Resets per Session and Display for Current Reset Macro Step.
-  - Can Toggle Fully Customizable Tracker for the 100% Speedrun, Tracks Blueprints & Databank Entry Unlocks and % to completion of 100%
-  - Can Toggle Per Biome Unlocks Display to see what you are missing in the current biome you are in.
+1. Open the launcher.
+2. Go to `Play`.
+3. Press `Install Version`.
+4. Pick the game and version you want.
+5. Enter your Steam login when asked.
+6. If Steam requests a code, email code, or Steam Guard input, enter it in the launcher prompt.
+7. Wait for the install to finish.
 
-Target platform:
+After the install finishes, the version should appear in the correct game list.
 
-- Windows (`net8.0-windows`, WPF).
+## Adding An Existing Version
 
-## Core Features
+If you already have a version installed manually:
 
-### Version Management
+1. Open `Install Version`.
+2. Choose `Add Existing Version`.
+3. Pick the folder that contains the game exe.
+4. Enter the display name you want.
+5. Pick the original version from the dropdown.
+6. Save it.
 
-- Tracks installed managed versions using marker files:
-  - `Version.info` for Subnautica
-  - `BZVersion.info` for Below Zero
-- Supports managed install + unmanaged import.
-- Edit display name/folder name, remove from launcher, or delete full game folder.
+The launcher will detect whether the folder is:
 
-### Safe Active-Folder Switching
+- Subnautica
+- Below Zero
 
-When launching, the launcher:
+and it will create the correct launcher info file for that game.
 
-1. Closes running game processes.
-2. Restores current active folder (`Subnautica` / `SubnauticaZero`) back to a managed folder name.
-3. Moves selected target folder into active game name.
-4. Starts the game executable from the active folder.
+## Launching A Version
 
-This is handled by `Versions/LaunchCoordinator.cs`.
+To launch a version:
 
-### DepotDownloader Install Flow
+1. Select a version from the Subnautica or Below Zero list.
+2. Press `Launch`.
 
-- Uses `SteamRE/DepotDownloader` for manifest installs.
-- Custom install window streams output, tracks progress, handles auth prompts, and supports cancellation.
-- Supports:
-  - remembered login (sentry cache)
-  - remember-password flag
-  - optional prefer-email/2FA input mode (`-no-mobile`)
-- Cancelling a fresh install attempt can remove newly created target folders.
+The launcher will:
 
-Key files:
+- close the currently running game if needed
+- move the selected version into the active Steam game folder name
+- start the correct game exe
 
-- `Installer/DepotInstallWorkflow.cs`
-- `UI/DepotDownloaderLoginWindow.xaml.cs`
-- `UI/DepotDownloaderInstallWindow.xaml.cs`
+If a game is already open, the main button changes to `Close Game`.
 
-### Automatic Update System
+## Switching Between Versions
 
-On startup, launcher checks latest GitHub release (`ItsFrostyYo/Subnautica-Launcher`) and if newer:
+If one version is running and you want another:
 
-1. Verifies/downloads latest `SNLUpdater.exe`.
-2. Downloads latest `SubnauticaLauncher.exe`.
-3. Launches updater with staged exe + current exe path + current PID.
-4. Updater waits for launcher exit, replaces executable with retry logic, relaunches launcher.
+1. Select the version you want.
+2. Press `Switch`.
 
-Key files:
+The launcher will close the current game and launch the selected one.
 
-- `Updates/UpdateChecker.cs`
-- `Updates/UpdaterChecker.cs`
-- `Updates/UpdateDownloader.cs`
-- `Updates/UpdateHelper.cs`
-- `tools/SNLUpdater/Program.cs`
+## Editing A Version
 
-### Runtime Bootstrap
+Each version row has small action buttons on the right:
 
-At startup, launcher verifies required runtime layout:
+- folder button: opens that version’s folder
+- cog button: opens the edit window
 
-- `tools/`
-- `data/`
-- `logs/`
-- `ExplosionResetHelper2018.exe`
-- `ExplosionResetHelper2022.exe`
-- `DepotDownloader.exe`
+In the edit window you can:
 
-If missing, setup/bootstrap restores them.
+- change the display name
+- change the folder name
+- delete the version from the launcher
+- delete the full game folder
+- open the mods window for that version
 
-Key files:
+## Mod Support
 
-- `Installer/NewInstaller.cs`
-- `UI/SetupWindow.xaml.cs`
+The launcher supports managed mod installs for supported versions.
 
-### Overlay Mode
+Right now:
 
-Launcher can run as a overlay window on the top of the screen:
+- Subnautica 2018 versions support `Speedrun RNG Mod`
+- Subnautica 2022 to 2025 versions support `Speedrun RNG Mod 2.0+`
+- Below Zero currently has no launcher-managed mods
 
-- Startup mode: Window or Overlay. Choose either to Startup as Launcher Window or Launcher Overlay for Gaming.
-- Global Overlay Visability Toggle Hotkey (default: `Ctrl+Shift+Tab`)
-- Adjustable overlay Transparency
+To install mods:
 
-Key files:
+1. Open `Install Version`.
+2. Press `Install Mods`.
+3. Choose whether you want to:
+   - install a new modded version
+   - install a mod into an existing version
+4. Pick the game, version, and mod.
+5. Finish the install.
 
-- `UI/LauncherOverlayWindow.xaml.cs`
-- `UI/OverlayWindowNative.cs`
-- `Enums/LauncherStartupMode.cs`
+The launcher marks modded versions automatically.
 
-### Reset Macros
+It also auto-detects versions that already have:
 
-- Standard Reset Macro for both Subnautica and Below Zero, detects Version and Uses Set Gamemode to Reset out of or into a new Save File for Speedrunning.
-- Explosion Reset Macro for Subnautica, uses Version Detection and dynamically reads for explosion time, automatically resets bad explosion times until a good one has been found (Set a Range for Good Explosion time)
+- `BepInEx`
+- plugins inside the `BepInEx\plugins` folder
 
-Key files:
+So if you manually add a modded version, the launcher can still recognize that it is modded.
 
-- `Macros/ResetMacroService.cs`
-- `Macros/BZResetMacroService.cs`
-- `Explosion/ExplosionResetService.cs`
-- `Macros/MacroRegistry.cs`
-- `Macros/GameStateDetectorRegistry.cs`
+### Removing Mods
 
-### Explosion Reset Overlays and Helpers
+From the version edit window, press `Mods`.
 
-- Optional on-game overlay showing explosion timer and reset count.
-- Uses helper exes (`ExplosionResetHelper2018.exe`, `ExplosionResetHelper2022.exe`) to skip cutscene/reset flow.
-- Optional reset result tracking written to data log.
+The mods window will tell you if the version has:
 
-Key files:
+- launcher-managed mods
+- manually detected plugins
+- only BepInEx with no plugin dlls detected
 
-- `Explosion/ExplosionDisplayController.cs`
-- `UI/ExplosionResetDisplay.xaml.cs`
-- `Explosion/ExplosionResetTracker.cs`
+From there you can remove the mod setup and return the version to a clean state.
 
-### Gameplay Event Tracking
+## Auto Mod Detection
 
-- Dynamic Event Documenter Tracks, Item Pickups/Drops, Blueprint Unlocks, Databank Entry Unlocks, Biome Swapping, Coordinates, Explosion Time, Specific Run Start Logic, and Writes to (`jsonl`).
-- 100% Tracker Uses the Dynamic Event Documenter to accurately Track Gameplay to help Track 100% Speedrun Progression.
-- Launcher Tracks all Subnautica, TechTypes, Biomes, Databank Entires, Blueprints, Bluprints and Databank Entries per Biome, and more.
+The launcher checks each version folder and can detect:
 
-Key files:
+- whether `BepInEx` is installed
+- whether plugin dlls exist
+- known supported RNG mod installs
+- multiple plugins at once
 
-- `Gameplay/GameEventDocumenter.cs`
-- `Gameplay/Subnautica100TrackerOverlayController.cs`
-- `UI/Subnautica100TrackerCustomizeWindow.xaml.cs`
-- `Gameplay/SubnauticaBiomeCatalog.cs`
-- `Gameplay/SubnauticaUnlockPairingCatelog.cs`
+If a version has BepInEx but no detected plugins, the launcher will still show that BepInEx is installed.
 
-## Settings Reference
+## Updates
 
-Settings file:
+The launcher can check for:
 
-- `data/launcher_settings.json`
+- launcher updates
+- supported mod updates
 
-Key settings (selected):
+Launcher updates are checked on startup.
 
-- `BackgroundPreset`
-- `ResetMacroEnabled`
-- `ResetHotkey`
-- `ResetGameMode`
-- `RenameOnCloseEnabled`
-- `HardcoreSaveDeleterEnabled`
-- `Subnautica100TrackerEnabled`
-- `Subnautica100TrackerUnlockPopupEnabled`
-- `Subnautica100TrackerSurvivalStartsEnabled` (default `true`)
-- `Subnautica100TrackerCreativeStartsEnabled` (default `false`)
-- `SubnauticaBiomeTrackerEnabled` (default `true`)
-- `ExplosionResetEnabled`
-- `ExplosionPreset`
-- `ExplosionOverlayEnabled`
-- `ExplosionTrackResets`
-- `StartupMode`
-- `OverlayToggleKey`
-- `OverlayToggleModifiers`
-- `OverlayPanelOpacity`
-- `DepotDownloaderLastUsername`
-- `DepotDownloaderRememberPassword`
-- `DepotDownloaderUseRememberedLoginOnly`
-- `DepotDownloaderPreferTwoFactorCode`
-- `DepotDownloaderRememberedLoginSeeded`
+Mod updates are checked after startup once the launcher finishes loading. If a supported installed mod has a newer version available, the launcher can offer to update it.
 
-## Logging
+When updating supported RNG mods, the launcher preserves these user files:
 
-Global logger:
+- `Options.txt`
+- `Custom.preset`
+- `Custom.SpawnLoc`
 
-- `Core/Logger.cs`
+## Steam Login And Version Downloads
 
-Behavior:
+Version downloads use DepotDownloader through the launcher.
 
-- Timestamped log lines
-- Thread-safe writes
-- Path-safe multi-file logging
-- Throttled log helpers
+The launcher supports:
 
-Macro logs are separated by channel:
+- remembered login state
+- password entry
+- Steam Guard / email code prompts
+- retrying code input when Steam asks for it
 
-- Subnautica reset
-- Below Zero reset
-- Explosion reset
+If Steam asks for a code, the launcher should now show a prompt window for it instead of leaving the install stuck.
 
-Display logging is cached and only emits on display-change/no-primary-screen conditions to reduce startup/runtime spam.
+## Steam AppID File
 
-## Project Structure
+For Subnautica installs, the launcher makes sure `steam_appid.txt` exists next to `Subnautica.exe` with the correct app id.
 
-Folders:
+This helps the game launch faster and more reliably when launched directly from the launcher.
 
-- `UI/` WPF windows and view logic.
-- `Versions/` Subnautica version metadata + launch coordination.
-- `BelowZero/` Below Zero equivalents.
-- `Installer/` DepotDownloader install pipeline + runtime bootstrap.
-- `Updates/` Update check/download/apply workflow.
-- `Explosion/` Explosion resolver, presets, overlay, reset service.
-- `Macros/` Input automation, game-state detection, reset flows.
-- `Gameplay/` Event capture + tracker/biome logic.
-- `Settings/` JSON settings model.
-- `Core/` app paths and shared logger.
-- `scripts/` packaging and utility scripts.
-- `tools/` helper executables + updater project.
+## Reset Macros
 
-## Runtime Files and Folders
+The launcher includes reset tools for speedrunning.
 
-Runtime root is the launcher executable directory (`AppContext.BaseDirectory`).
+### Normal Reset Macro
 
-Expected folders:
+Available for:
 
-- `tools/`
-- `data/`
-- `logs/`
+- Subnautica
+- Below Zero
 
-Common runtime files:
+It helps automate resetting runs depending on the selected gamemode and current game state.
 
-- `data/launcher_settings.json`
-- `data/gameplay_events.jsonl`
-- `data/biome_catalog.json`
-- `data/biome_unlock_pairing_catalog.json`
-- `data/biomes_observed.jsonl`
-- `data/LastExplosionReset.log` (if tracking enabled)
-- `logs/launcher.log`
-- `logs/updater.log` (written by updater)
-- `logs/reset-macro/subnautica-reset-macro.log`
-- `logs/reset-macro/below-zero-reset-macro.log`
-- `logs/reset-macro/explosion-reset-macro.log`
+### Explosion Reset Macro
 
-Managed version marker files inside Steam `common` folders:
+Available for:
 
-- `Version.info`
-- `BZVersion.info`
+- Subnautica
 
-## Build and Run (Source)
+It can automatically reset runs based on explosion timing ranges.
 
-### Prerequisites
+The launcher also includes an explosion overlay and tracking support for that workflow.
 
-- Windows 10/11
-- .NET 8 SDK
-- Steam installed (for real install/switch workflows)
+## Overlays And Speedrun Tools
 
-## GitHub Release
+The launcher includes optional speedrun-focused tools such as:
 
-Auto update logic expects release assets named:
+- explosion overlay
+- speedrun timer
+- 100% tracker
+- biome tracker
+- hardcore save deleter
 
-- `SubnauticaLauncher.exe`
-- `SNLUpdater.exe`
+These can be turned on or off from the launcher settings and tools pages.
 
-Repository used by updater:
+## Backgrounds And Launcher Appearance
 
-- Owner: `ItsFrostyYo`
-- Repo: `Subnautica-Launcher`
-- Endpoint: `/releases/latest`
+You can customize the launcher background from the settings page.
 
-If GitHub digest metadata is missing for updater asset, launcher intentionally refreshes updater download to avoid stale updater usage.
+The launcher keeps the same style across the main window and helper windows, and it supports both normal window mode and overlay mode.
 
-## Operational Assumptions
+## Overlay Mode
 
-- Reset macros use predefined 1920x1080 logical click/pixel profiles and scale them to your primary display.
-- Macro state detection relies on game focus + screen pixel sampling.
-- Steam library discovery is based on default Steam paths, registry Steam path, and `libraryfolders.vdf`.
-- Launcher expects managed version folders to contain valid `Version.info` / `BZVersion.info`.
+The launcher can also run in an overlay-style mode for gameplay sessions.
 
-## Safety and Migration Behavior
+Useful overlay features include:
 
-- `Installer/OldRemover.cs` migrates legacy settings/files and cleans updater residue files.
-- Startup performs runtime verification and repair via `NewInstaller`.
-- Update flow fails safe: if update fails, launcher continues startup on current version.
-- Many operations are best-effort and non-fatal by design to prevent hard startup failure.
+- startup as normal window or overlay
+- adjustable transparency
+- hotkey to show or hide the overlay
+
+## Version Status Meanings
+
+The launcher shows status information for versions such as:
+
+- idle
+- active version
+- launching game
+- game running
+- closing game
+
+The sidebar shows the selected version separately from the live version status so it is easier to tell what is currently selected versus what is currently running.
 
 ## Troubleshooting
 
-### Update not applying
+### A version does not show up
 
-- Check:
-  - `logs/launcher.log`
-  - `logs/updater.log`
-- Verify Internet Connection or Github Connection
+Try:
 
-### DepotDownloader install issues
+- restarting the launcher
+- checking that the correct game exe is in the version folder
+- checking that the folder was added as the correct game
 
-- Confirm Steam credentials and Steam Guard code entry.
-- Try disabling "Use remembered login only" for first seeding run.
-- Check install window log and `logs/launcher.log`.
-- Ensure `tools/DepotDownloader.exe` exists.
+The launcher now tries to repair mixed version metadata automatically if it finds a Below Zero folder with the wrong launcher info file, or a Subnautica folder with the wrong one.
 
-### Helpers or tools missing
+### A download gets stuck on Steam login
 
-- Restart launcher and let setup/bootstrap run.
-- Or run setup path by deleting missing tool and relaunching.
+Try:
 
-## Current Limitations
+- waiting a moment for the auth prompt to appear
+- entering the requested Steam code in the launcher prompt
+- using a normal login once before relying on remembered login
 
-- Windows-only application (`net8.0-windows` WPF).
-- Install/update flows depend on GitHub availability and valid release asset naming.
-- Reset macros are automation based and can be affected by unexpected UI/game-state changes. Updates to later versions of the game, or going back to Early Access Versions of the Game will break Reset Macros or possibly not allow for Game State Detection.
+### A modded version is not detected correctly
 
-## Important Disclaimer
+Make sure the version still contains:
 
-This project automates inputs and interactions, does not change or alter game memory only reads it for the use of speedrun tooling, it prevents the output of coordinates for legality of speedrunning. any problems check logs, or reach out to Developers.
+- `BepInEx`
+- plugin dlls inside `BepInEx\plugins`
+
+If the version has BepInEx, the launcher should treat it as modded. If BepInEx is removed, it should go back to vanilla.
+
+### A version opens as the wrong game
+
+The launcher keeps Subnautica and Below Zero metadata separate:
+
+- Subnautica uses `Version.info`
+- Below Zero uses `BZVersion.info`
+
+If an older broken folder had the wrong file, the launcher should repair it automatically on load.
+
+## Logs
+
+If something goes wrong, check:
+
+- `logs/launcher.log`
+- `logs/updater.log`
+- the install log shown inside the install window
+
+## Important Notes
+
+- This launcher is Windows-only.
+- Some features depend on GitHub being available.
+- Version installs depend on Steam login working correctly.
+- Reset tools and overlays are automation tools and can still be affected by unusual game behavior or unexpected UI changes.
+
+## Disclaimer
+
+This launcher is built for version management, speedrun tooling, and overlay support. It reads game state where needed for tooling, but it is intended to stay within the launcher’s speedrun-focused utility purpose.

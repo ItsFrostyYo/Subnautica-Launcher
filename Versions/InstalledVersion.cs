@@ -1,3 +1,4 @@
+using SubnauticaLauncher.Mods;
 using SubnauticaLauncher.Enums;
 using System.IO;
 
@@ -10,13 +11,20 @@ public class InstalledVersion
     public string OriginalDownload { get; set; } = "";
     public bool IsModded { get; set; }
     public string InstalledModId { get; set; } = "";
+    public bool HasBepInEx { get; set; }
+    public List<string> DetectedModNames { get; set; } = new();
     public string HomeFolder { get; set; } = "";
 
     public VersionStatus Status { get; set; } = VersionStatus.Idle;
 
     public bool IsActive => Status == VersionStatus.Active;
     public string GroupLabel => IsModded ? "Modded" : "Vanilla";
-    public string InstalledModDisplayName => SubnauticaLauncher.Mods.ModCatalog.GetDisplayName(InstalledModId);
+    public bool HasDetectedPlugins => DetectedModNames.Count > 0;
+    public string InstalledModDisplayName => HasDetectedPlugins
+        ? string.Join(", ", DetectedModNames)
+        : HasBepInEx
+            ? "BepInEx (No plugins detected)"
+            : string.Empty;
 
     public string DisplayLabel => GetTrimmedDisplayName(DisplayName);
 
@@ -49,6 +57,8 @@ public class InstalledVersion
 
         if (string.IsNullOrWhiteSpace(version.FolderName))
             version.FolderName = Path.GetFileName(folderPath);
+
+        ModInstallerService.ApplyInstalledModDetection(version);
 
         return version;
     }
