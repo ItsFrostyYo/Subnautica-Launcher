@@ -9,7 +9,9 @@ artifacts/
 data/
 logs/
 depots/
+scripts/
 Assets/Subnautica/Texture2D/
+Properties/PublishProfiles/
 
 *.zip
 tools/**/bin/
