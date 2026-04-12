@@ -5,6 +5,7 @@ using SubnauticaLauncher.Explosion;
 using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Macros;
+using SubnauticaLauncher.Mods;
 using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Timer;
 using SubnauticaLauncher.Updates;
@@ -206,6 +207,7 @@ namespace SubnauticaLauncher.UI
             SyncThemeDropdown(bg);
 
             LoadInstalledVersions();
+            await CheckForModUpdatesOnStartupAsync();
             StartStatusRefreshTimer();
             LoadMacroSettings();
 
@@ -540,6 +542,46 @@ namespace SubnauticaLauncher.UI
         private async Task CheckForUpdatesOnStartup()
         {
             await CheckForUpdatesIfIdleAsync(startupPrompt: true);
+        }
+
+        private async Task CheckForModUpdatesOnStartupAsync()
+        {
+            try
+            {
+                await ModCatalog.RefreshAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Mod catalog refresh failed on startup");
+                return;
+            }
+
+            var updates = ModUpdateService.GetAvailableUpdates(_subnauticaInstalledVersions, _belowZeroInstalledVersions);
+            if (updates.Count == 0 || !CanPromptForUpdate())
+                return;
+
+            string summary = updates.Count == 1
+                ? $"{updates[0].Mod.DisplayName} update {updates[0].InstalledVersion} -> {updates[0].LatestVersion} is available for {updates[0].Version.DisplayName}.{Environment.NewLine}{Environment.NewLine}Update now?"
+                : $"{updates.Count} mod updates are available.{Environment.NewLine}{Environment.NewLine}Update them now?";
+
+            MessageBoxResult choice = MessageBox.Show(
+                summary,
+                "Mod Update Available",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (choice != MessageBoxResult.Yes)
+                return;
+
+            await ModUpdateService.ApplyUpdatesAsync(
+                updates,
+                (title, installAction) =>
+                {
+                    var window = new DepotDownloaderInstallWindow(title, installAction);
+                    return DialogWindowHelper.ShowDialog(this, window);
+                });
+
+            LoadInstalledVersions();
         }
 
         private void StartUpdateCheckTimer()

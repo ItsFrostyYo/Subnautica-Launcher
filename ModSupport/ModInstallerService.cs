@@ -5,12 +5,15 @@ using SubnauticaLauncher.Versions;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 
 namespace SubnauticaLauncher.Mods;
 
 public static class ModInstallerService
 {
     private static readonly HttpClient Http = BuildClient();
+    private static readonly Regex ModVersionRegex = new(@"v(?<version>\d+\.\d+\.\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private const string VersionMarkerRelativePath = @"BepInEx\plugins\Assembly-CheatSharp\Presets\version.txt";
 
     public static IReadOnlyList<ModDefinition> GetAvailableModsForVersion(
         LauncherGame game,
@@ -18,13 +21,26 @@ public static class ModInstallerService
         string? displayName,
         string? folderName)
     {
-        if (SupportsSpeedrunRng(game, originalDownload, displayName, folderName))
-            return new[] { ModCatalog.SpeedrunRng };
+        ModCatalog.EnsureLoaded();
 
-        return Array.Empty<ModDefinition>();
+        var mods = new List<ModDefinition>(1);
+        if (SupportsLegacySpeedrunRng(game, originalDownload, displayName, folderName))
+        {
+            ModDefinition? legacy = ModCatalog.GetById("SpeedrunRng");
+            if (legacy != null)
+                mods.Add(legacy);
+        }
+        else if (SupportsModernSpeedrunRng(game, originalDownload, displayName, folderName))
+        {
+            ModDefinition? modern = ModCatalog.GetById("SpeedrunRng20Plus");
+            if (modern != null)
+                mods.Add(modern);
+        }
+
+        return mods;
     }
 
-    public static bool SupportsSpeedrunRng(
+    public static bool SupportsLegacySpeedrunRng(
         LauncherGame game,
         string? originalDownload,
         string? displayName,
@@ -37,6 +53,20 @@ public static class ModInstallerService
             return originalDownload.Contains("2018", StringComparison.OrdinalIgnoreCase);
 
         return Contains2018(displayName) || Contains2018(folderName);
+    }
+
+    public static bool SupportsModernSpeedrunRng(
+        LauncherGame game,
+        string? originalDownload,
+        string? displayName,
+        string? folderName)
+    {
+        if (game != LauncherGame.Subnautica)
+            return false;
+
+        return MatchesYearRange(originalDownload, 2022, 2025) ||
+               MatchesYearRange(displayName, 2022, 2025) ||
+               MatchesYearRange(folderName, 2022, 2025);
     }
 
     public static async Task InstallBundleAsync(
@@ -95,7 +125,7 @@ public static class ModInstallerService
             callbacks?.OnStatus?.Invoke($"Installing {mod.DisplayName}...");
             callbacks?.OnOutput?.Invoke($"Copying mod bundle into {targetFolder}");
 
-            CopyDirectoryContents(contentRoot, targetFolder);
+            CopyDirectoryContents(contentRoot, targetFolder, mod.PreservedRelativePaths);
 
             if (game == LauncherGame.Subnautica)
                 SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(targetFolder);
@@ -158,6 +188,51 @@ public static class ModInstallerService
                value.Contains("2018", StringComparison.OrdinalIgnoreCase);
     }
 
+    public static ModDefinition? GetInstalledModDefinition(LauncherGame game, InstalledVersion version)
+    {
+        ModCatalog.EnsureLoaded();
+
+        if (!string.IsNullOrWhiteSpace(version.InstalledModId))
+        {
+            ModDefinition? explicitMatch = ModCatalog.GetById(version.InstalledModId);
+            if (explicitMatch != null)
+                return explicitMatch;
+        }
+
+        IReadOnlyList<ModDefinition> available = GetAvailableModsForVersion(
+            game,
+            version.OriginalDownload,
+            version.DisplayName,
+            version.FolderName);
+
+        return available.FirstOrDefault();
+    }
+
+    public static Version? TryReadInstalledModVersion(InstalledVersion version)
+    {
+        string versionFilePath = Path.Combine(version.HomeFolder, VersionMarkerRelativePath);
+        if (!File.Exists(versionFilePath))
+            return null;
+
+        string text;
+        try
+        {
+            text = File.ReadAllText(versionFilePath).Trim();
+        }
+        catch
+        {
+            return null;
+        }
+
+        Match match = ModVersionRegex.Match(text);
+        if (!match.Success)
+            return null;
+
+        return Version.TryParse(match.Groups["version"].Value, out Version? versionValue)
+            ? versionValue
+            : null;
+    }
+
     private static HttpClient BuildClient()
     {
         var client = new HttpClient();
@@ -176,9 +251,16 @@ public static class ModInstallerService
         return extractDir;
     }
 
-    private static void CopyDirectoryContents(string sourceDir, string targetDir)
+    private static void CopyDirectoryContents(
+        string sourceDir,
+        string targetDir,
+        IReadOnlyList<string> preservedRelativePaths)
     {
         Directory.CreateDirectory(targetDir);
+
+        var preserved = new HashSet<string>(
+            preservedRelativePaths.Select(NormalizeRelativePath),
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (string directory in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
         {
@@ -191,7 +273,30 @@ public static class ModInstallerService
             string relative = Path.GetRelativePath(sourceDir, file);
             string destination = Path.Combine(targetDir, relative);
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+
+            if (preserved.Contains(NormalizeRelativePath(relative)) && File.Exists(destination))
+                continue;
+
             File.Copy(file, destination, overwrite: true);
         }
+    }
+
+    private static bool MatchesYearRange(string? value, int minYear, int maxYear)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        for (int year = minYear; year <= maxYear; year++)
+        {
+            if (value.Contains(year.ToString(), StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static string NormalizeRelativePath(string path)
+    {
+        return path.Replace('/', '\\').TrimStart('\\');
     }
 }
