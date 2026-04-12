@@ -2,34 +2,12 @@ using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Installer;
 using System;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace SubnauticaLauncher
 {
     public static class NewInstaller
     {
-        private static readonly (string FileName, string[] Urls)[] RequiredHelperTools =
-        {
-            (
-                "ExplosionResetHelper2018.exe",
-                new[]
-                {
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/master/tools/ExplosionResetHelper2018.exe",
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/tools/ExplosionResetHelper2018.exe"
-                }
-            ),
-            (
-                "ExplosionResetHelper2022.exe",
-                new[]
-                {
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/master/tools/ExplosionResetHelper2022.exe",
-                    "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/tools/ExplosionResetHelper2022.exe"
-                }
-            )
-        };
-
         public static bool IsBootstrapRequired()
         {
             if (!Directory.Exists(AppPaths.ToolsPath) ||
@@ -37,13 +15,6 @@ namespace SubnauticaLauncher
                 !Directory.Exists(AppPaths.LogsPath))
             {
                 return true;
-            }
-
-            foreach (var tool in RequiredHelperTools)
-            {
-                string targetPath = Path.Combine(AppPaths.ToolsPath, tool.FileName);
-                if (!File.Exists(targetPath))
-                    return true;
             }
 
             if (!File.Exists(DepotDownloaderInstaller.DepotDownloaderExe))
@@ -64,20 +35,6 @@ namespace SubnauticaLauncher
                 Directory.CreateDirectory(AppPaths.DataPath);
                 Directory.CreateDirectory(AppPaths.LogsPath);
 
-                bool missingExplosionHelpers = RequiredHelperTools.Any(tool =>
-                    !File.Exists(Path.Combine(AppPaths.ToolsPath, tool.FileName)));
-
-                if (missingExplosionHelpers)
-                {
-                    using HttpClient http = new HttpClient
-                    {
-                        Timeout = TimeSpan.FromSeconds(45)
-                    };
-
-                    http.DefaultRequestHeaders.UserAgent.ParseAdd("SubnauticaLauncher");
-                    await EnsureExplosionHelpersAsync(http, status);
-                }
-
                 status?.Report("Checking DepotDownloader...");
                 await DepotDownloaderInstaller.EnsureInstalledAsync();
 
@@ -91,56 +48,6 @@ namespace SubnauticaLauncher
                 if (throwOnFailure)
                     throw;
             }
-        }
-
-        private static async Task EnsureExplosionHelpersAsync(
-            HttpClient http,
-            IProgress<string>? status)
-        {
-            foreach (var tool in RequiredHelperTools)
-            {
-                string targetPath = Path.Combine(AppPaths.ToolsPath, tool.FileName);
-
-                if (File.Exists(targetPath))
-                {
-                    Logger.Log($"[Installer] Found {tool.FileName}");
-                    continue;
-                }
-
-                status?.Report($"Downloading {tool.FileName}...");
-                Logger.Warn($"[Installer] Missing {tool.FileName}, downloading...");
-
-                byte[] data = await DownloadRequiredToolAsync(http, tool.FileName, tool.Urls);
-                await File.WriteAllBytesAsync(targetPath, data);
-
-                Logger.Log($"[Installer] Installed {tool.FileName}");
-            }
-        }
-
-        private static async Task<byte[]> DownloadRequiredToolAsync(
-            HttpClient http,
-            string fileName,
-            IReadOnlyList<string> urls)
-        {
-            Exception? lastError = null;
-
-            foreach (string url in urls)
-            {
-                try
-                {
-                    Logger.Log($"[Installer] Trying download for {fileName}: {url}");
-                    return await http.GetByteArrayAsync(url);
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex;
-                    Logger.Warn($"[Installer] Failed to download {fileName} from {url}: {ex.Message}");
-                }
-            }
-
-            throw new InvalidOperationException(
-                $"Could not download required setup file '{fileName}'.",
-                lastError);
         }
     }
 }

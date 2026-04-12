@@ -26,10 +26,24 @@ namespace SubnauticaLauncher.Core
                     _cachedWriter?.Dispose();
                     _cachedWriter = null;
                     _cachedWriterPath = null;
+                    Directory.CreateDirectory(LogDirectory);
 
-                    string logFile = DefaultLogFile;
-                    if (File.Exists(logFile))
-                        File.WriteAllText(logFile, string.Empty);
+                    foreach (string logFile in Directory.EnumerateFiles(LogDirectory, "*.log", SearchOption.AllDirectories))
+                    {
+                        try
+                        {
+                            File.WriteAllText(logFile, string.Empty);
+                        }
+                        catch
+                        {
+                            // Best effort only.
+                        }
+                    }
+                }
+
+                lock (ThrottleLock)
+                {
+                    LastWriteByThrottleKey.Clear();
                 }
             }
             catch

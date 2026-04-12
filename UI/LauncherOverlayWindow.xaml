@@ -310,19 +310,6 @@
                                 Click="OverlayExplosionTrackButton_Click"/>
                     </Grid>
 
-                    <Button x:Name="OverlayRenameOnCloseButton"
-                            Content="Allow Launching through Steam: Enabled"
-                            Width="328"
-                            Margin="0,0,0,2"
-                            HorizontalAlignment="Center"
-                            Background="{StaticResource SuccessGreenBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayRenameOnCloseButton_Click"/>
-                    <TextBlock Text="Keeping this Enabled Prevents the Launcher from Renaming Folders on Close to the Original Folder Name to keep them safe, allowing for there to stay an active version preventing steam from re downloading the latest version on next launch"
-                               FontSize="10"
-                               Opacity="0.85"
-                               TextWrapping="Wrap"
-                               Margin="2,0,2,0"/>
                 </StackPanel>
             </ScrollViewer>
 
@@ -523,7 +510,6 @@
         </Grid>
     </Border>
 </Window>
-
 
 
 

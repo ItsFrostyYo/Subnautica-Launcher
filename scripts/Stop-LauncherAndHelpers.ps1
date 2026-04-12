@@ -65,8 +65,6 @@ if ($stopLauncher) {
 }
 
 if ($stopHelpers) {
-    Stop-TargetProcess -Name "ExplosionResetHelper2018"
-    Stop-TargetProcess -Name "ExplosionResetHelper2022"
     Stop-TargetProcess -Name "DepotDownloader"
 }
 

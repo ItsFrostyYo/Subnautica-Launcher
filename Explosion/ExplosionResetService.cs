@@ -15,9 +15,6 @@ namespace SubnauticaLauncher.Explosion
         private static readonly string ToolsDir =
             Path.Combine(AppContext.BaseDirectory, "tools");
 
-        private static readonly string SignalFile =
-            Path.Combine(ToolsDir, "explode.signal");
-
         private static volatile bool _abortRequested;
 
         private const ResetMacroLogChannel LogChannel = ResetMacroLogChannel.Explosion;
@@ -29,29 +26,11 @@ namespace SubnauticaLauncher.Explosion
 
             try
             {
-                bool deletedSignal = false;
-                if (File.Exists(SignalFile))
-                {
-                    File.Delete(SignalFile);
-                    deletedSignal = true;
-                }
-
-                int killedHelpers = 0;
-                foreach (Process p in Process.GetProcessesByName("ExplosionResetHelper2018"))
-                {
-                    p.Kill();
-                    killedHelpers++;
-                }
-
-                foreach (Process p in Process.GetProcessesByName("ExplosionResetHelper2022"))
-                {
-                    p.Kill();
-                    killedHelpers++;
-                }
+                NativeInput.StopHoldingAllKeys();
 
                 ResetMacroLogger.Info(
                     LogChannel,
-                    $"Abort cleanup complete. SignalDeleted={deletedSignal}, HelpersKilled={killedHelpers}.");
+                    "Abort cleanup complete. Native input holds released.");
             }
             catch (Exception ex)
             {
@@ -187,33 +166,23 @@ namespace SubnauticaLauncher.Explosion
 
                     ExplosionResetDisplayController.SetStep("Bad Time - Skipping Cutscene");
 
-                    if (!TriggerExplosionHelper(yearGroup))
-                    {
-                        ResetMacroLogger.Error(
-                            LogChannel,
-                            $"Cycle {cycle}: failed to start explosion helper.");
-                        break;
-                    }
-
                     var helperWait = Stopwatch.StartNew();
-                    while (File.Exists(SignalFile))
+                    int holdDurationMs = GetCutsceneSkipDurationMs(yearGroup);
+
+                    try
                     {
-                        if (_abortRequested || token.IsCancellationRequested)
-                        {
-                            canceled = true;
-                            break;
-                        }
-
-                        await Task.Delay(50, token);
+                        await NativeInput.HoldEscAsync(process, holdDurationMs, token);
                     }
-
-                    if (canceled)
+                    catch (OperationCanceledException)
+                    {
+                        canceled = true;
                         break;
+                    }
 
                     ExplosionResetDisplayController.IncrementResetCount();
                     ResetMacroLogger.Info(
                         LogChannel,
-                        $"Cycle {cycle}: helper completed in {helperWait.ElapsedMilliseconds}ms, reset count incremented.");
+                        $"Cycle {cycle}: native hold skip completed in {helperWait.ElapsedMilliseconds}ms, hold={holdDurationMs}ms, reset count incremented.");
                 }
             }
             catch (OperationCanceledException)
@@ -244,53 +213,9 @@ namespace SubnauticaLauncher.Explosion
             }
         }
 
-        private static bool TriggerExplosionHelper(int yearGroup)
+        private static int GetCutsceneSkipDurationMs(int yearGroup)
         {
-            string exe = Path.Combine(
-                ToolsDir,
-                yearGroup == 2018
-                    ? "ExplosionResetHelper2018.exe"
-                    : "ExplosionResetHelper2022.exe");
-
-            if (!File.Exists(exe))
-            {
-                ResetMacroLogger.Error(
-                    LogChannel,
-                    $"Explosion helper missing: {exe}");
-                return false;
-            }
-
-            try
-            {
-                if (File.Exists(SignalFile))
-                    File.Delete(SignalFile);
-
-                Process? started = Process.Start(new ProcessStartInfo
-                {
-                    FileName = exe,
-                    WorkingDirectory = ToolsDir,
-                    UseShellExecute = true
-                });
-
-                if (started == null)
-                {
-                    ResetMacroLogger.Error(
-                        LogChannel,
-                        $"Failed to start explosion helper: {exe}");
-                    return false;
-                }
-
-                File.WriteAllText(SignalFile, "go");
-                ResetMacroLogger.Info(
-                    LogChannel,
-                    $"Started helper {Path.GetFileName(exe)} (PID={started.Id}).");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                ResetMacroLogger.Exception(LogChannel, ex, "TriggerExplosionHelper failed.");
-                return false;
-            }
+            return yearGroup == 2018 ? 1050 : 1550;
         }
     }
 }

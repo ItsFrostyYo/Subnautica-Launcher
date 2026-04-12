@@ -6,11 +6,17 @@ namespace SubnauticaLauncher.Core;
 internal static class SteamAppIdFileHelper
 {
     public const string SubnauticaAppId = "264710";
+    public const string BelowZeroAppId = "848450";
     private const string SteamAppIdFileName = "steam_appid.txt";
 
     public static void EnsureSubnauticaSteamAppIdFile(string gameFolder)
     {
         EnsureSteamAppIdFile(gameFolder, SubnauticaAppId);
+    }
+
+    public static void EnsureBelowZeroSteamAppIdFile(string gameFolder)
+    {
+        EnsureSteamAppIdFile(gameFolder, BelowZeroAppId);
     }
 
     private static void EnsureSteamAppIdFile(string gameFolder, string appId)

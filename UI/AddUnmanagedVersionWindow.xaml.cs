@@ -263,6 +263,8 @@ namespace SubnauticaLauncher.UI
 
             if (_detectedGame == LauncherGame.Subnautica)
                 SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(FolderPathBox.Text);
+            else
+                SteamAppIdFileHelper.EnsureBelowZeroSteamAppIdFile(FolderPathBox.Text);
 
             string infoFileName = _detectedGame == LauncherGame.Subnautica
                 ? "Version.info"

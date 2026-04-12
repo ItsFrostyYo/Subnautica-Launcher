@@ -106,8 +106,8 @@ To launch a version:
 The launcher will:
 
 - close the currently running game if needed
-- move the selected version into the active Steam game folder name
-- start the correct game exe
+- launch the selected version directly from its own folder
+- keep a usable `Subnautica` Steam-visible folder around automatically so Steam does not try to replace your managed versions
 
 If a game is already open, the main button changes to `Close Game`.
 
@@ -219,7 +219,10 @@ If Steam asks for a code, the launcher should now show a prompt window for it in
 
 ## Steam AppID File
 
-For Subnautica installs, the launcher makes sure `steam_appid.txt` exists next to `Subnautica.exe` with the correct app id.
+The launcher makes sure `steam_appid.txt` exists with the correct app id for each game:
+
+- Subnautica uses `264710`
+- Below Zero uses `848450`
 
 This helps the game launch faster and more reliably when launched directly from the launcher.
 

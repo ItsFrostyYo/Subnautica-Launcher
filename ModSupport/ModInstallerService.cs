@@ -129,6 +129,8 @@ public static class ModInstallerService
 
             if (game == LauncherGame.Subnautica)
                 SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(targetFolder);
+            else if (game == LauncherGame.BelowZero)
+                SteamAppIdFileHelper.EnsureBelowZeroSteamAppIdFile(targetFolder);
 
             callbacks?.OnProgress?.Invoke(100);
             callbacks?.OnStatus?.Invoke($"{mod.DisplayName} installed.");
@@ -167,6 +169,8 @@ public static class ModInstallerService
 
         if (game == LauncherGame.Subnautica)
             SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(version.HomeFolder);
+        else if (game == LauncherGame.BelowZero)
+            SteamAppIdFileHelper.EnsureBelowZeroSteamAppIdFile(version.HomeFolder);
     }
 
     public static string BuildModdedDisplayName(string baseDisplayName, int instanceNumber = 1)

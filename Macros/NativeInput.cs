@@ -35,51 +35,24 @@ namespace SubnauticaLauncher.Macros
             KeyController.HoldStop(VK_ESCAPE);
         }
 
-        public static void HoldEsc2022(Process proc)
-        {
-            HoldEscFor(1550, proc);
-        }
-
-        public static void HoldEsc2018(Process proc)
-        {
-            HoldEscFor(1050, proc);
-        }
-
-        // ================= NATIVE =================
-
-        public static async Task HoldEscExactAsync(Process proc, int durationMs)
+        public static async Task HoldEscAsync(Process proc, int durationMs, CancellationToken cancellationToken = default)
         {
             FocusGame(proc);
-
             await Task.Delay(50); // Unity input sync
-
-            keybd_event(VK_ESCAPE, 0, 0, UIntPtr.Zero); // key down
-            await Task.Delay(durationMs);
-            keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero); // key up
-        }
-
-        public static void ForceReleaseEsc()
-        {
-            KeyController.HoldStop(VK_ESCAPE);
-        }
-
-        public static void HoldEscFor(int durationMs, Process proc)
-        {
-            FocusGame(proc);
-
-            // key down
-            keybd_event(VK_ESCAPE, 0, 0, UIntPtr.Zero);
-
-            Thread.Sleep(durationMs);
-
-            // key up
-            keybd_event(VK_ESCAPE, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            KeyController.HoldStart(VK_ESCAPE);
+            try
+            {
+                await Task.Delay(durationMs, cancellationToken);
+            }
+            finally
+            {
+                KeyController.HoldStop(VK_ESCAPE);
+            }
         }
 
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
         private const uint MOUSEEVENTF_LEFTUP = 0x0004;
-        private const uint KEYEVENTF_KEYUP = 0x0002;
-        private const byte VK_ESCAPE = 0x1B;
+        private const ushort VK_ESCAPE = 0x1B;
 
         [DllImport("user32.dll")]
         private static extern bool SetCursorPos(int X, int Y);
@@ -87,10 +60,6 @@ namespace SubnauticaLauncher.Macros
         [DllImport("user32.dll")]
         private static extern void mouse_event(
             uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
-
-        [DllImport("user32.dll")]
-        private static extern void keybd_event(
-            byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -110,6 +79,9 @@ namespace SubnauticaLauncher.Macros
 
         private static void MouseUp()
             => mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
+
+        public static void StopHoldingAllKeys()
+            => KeyController.StopHoldingAllKeys();
     }
 
     class KeyController

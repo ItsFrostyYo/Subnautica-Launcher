@@ -101,11 +101,6 @@ namespace SubnauticaLauncher.UI
                 _syncingBackground = false;
             }
 
-            OverlayRenameOnCloseButton.Content =
-                $"Allow Launching through Steam: {(_main.IsRenameOnCloseEnabledForOverlay() ? "Enabled" : "Disabled")}";
-            OverlayRenameOnCloseButton.Background =
-                _main.IsRenameOnCloseEnabledForOverlay() ? Brushes.Green : Brushes.DarkRed;
-
             OverlayExplosionDisplayButton.Content =
                 $"Explosion Overlay: {(_main.IsExplosionOverlayEnabledForOverlay() ? "On" : "Off")}";
             OverlayExplosionDisplayButton.Background =
@@ -390,12 +385,6 @@ namespace SubnauticaLauncher.UI
                 return;
 
             _main.SetOverlayOpacityFromOverlay(e.NewValue);
-        }
-
-        private void OverlayRenameOnCloseButton_Click(object sender, RoutedEventArgs e)
-        {
-            _main.ToggleRenameOnCloseFromOverlay();
-            RefreshFromMain();
         }
 
         private void OverlayExplosionDisplayButton_Click(object sender, RoutedEventArgs e)

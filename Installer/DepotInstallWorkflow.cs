@@ -727,6 +727,8 @@ internal static class DepotInstallWorkflow
     {
         if (version.SteamAppId == VersionInstallDefinition.AppId)
             SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(installDir);
+        else if (version.SteamAppId == BelowZero.BZVersionInstallDefinition.AppId)
+            SteamAppIdFileHelper.EnsureBelowZeroSteamAppIdFile(installDir);
     }
 
     private static void WriteVersionInfo(

@@ -103,12 +103,6 @@ namespace SubnauticaLauncher.Installer
                         }
                     }
 
-                    if (dict.TryGetValue("RenameOnClose", out var roc))
-                    {
-                        settings.RenameOnCloseEnabled = bool.Parse(roc);
-                        updated = true;
-                    }
-
                     TryDelete(macroSettingsPath);
                 }
 

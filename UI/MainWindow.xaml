@@ -825,31 +825,6 @@ UseAeroCaptionButtons="False" />
                FontWeight="Bold"
                Margin="0,0,0,12"/>
 
-                                    <!-- RENAME ON CLOSE -->
-                                    <Grid Margin="0,8,0,0">
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                        </Grid.RowDefinitions>
-
-                                        <TextBlock
-        Text="Disable Renaming Folders on Close (Fixes Steam Replacing/Updating the Version or Deleting it.) Disable this if you only use the Launcher."
-        FontWeight="SemiBold"
-        TextWrapping="Wrap"
-        Margin="0,0,0,6"/>
-
-        <Button
-        x:Name="RenameOnCloseButton"
-        Grid.Row="1"
-        Width="138"
-        Height="38"
-        HorizontalAlignment="Center"
-        Background="{StaticResource DangerRedBrush}"
-        Content="Disabled"
-        Style="{StaticResource ToggleActionButtonStyle}"
-        Click="RenameOnCloseButton_Click"/>
-                                    </Grid>
-
                                     <!-- EXPLOSION RESET DISPLAY -->
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>

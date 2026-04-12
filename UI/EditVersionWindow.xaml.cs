@@ -111,7 +111,7 @@ namespace SubnauticaLauncher.UI
             Close();
         }
 
-        private void SaveRename_Click(object sender, RoutedEventArgs e)
+        private async void SaveRename_Click(object sender, RoutedEventArgs e)
         {
             if (IsGameCurrentlyRunning())
             {
@@ -182,7 +182,7 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
 
-                Directory.Move(HomeFolder, newPath);
+                await LaunchCoordinator.MoveFolderWithRetryAsync(HomeFolder, newPath);
 
                 if (IsBelowZero)
                 {

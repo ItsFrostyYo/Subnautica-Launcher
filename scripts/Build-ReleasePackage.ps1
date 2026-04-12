@@ -102,6 +102,7 @@ Invoke-Publish -Project $updaterProject -Output $updaterPublishDir
 $launcherExe = Join-Path $launcherPublishDir "SubnauticaLauncher.exe"
 $updaterExe = Join-Path $updaterPublishDir "SNLUpdater.exe"
 $toolsDir = Join-Path $launcherPublishDir "tools"
+$readmePath = Join-Path $repoRoot "README.md"
 
 if (-not (Test-Path $launcherExe)) {
     throw "Missing published launcher executable: $launcherExe"
@@ -115,9 +116,8 @@ if (-not (Test-Path $toolsDir)) {
     throw "Missing tools folder in publish output: $toolsDir"
 }
 
-$helperExeCount = (Get-ChildItem -Path $toolsDir -Filter "ExplosionResetHelper*.exe" -File -ErrorAction Stop).Count
-if ($helperExeCount -eq 0) {
-    throw "No ExplosionResetHelper executables found in published tools folder."
+if (-not (Test-Path $readmePath)) {
+    throw "Missing README file: $readmePath"
 }
 
 $version = Get-LauncherVersion -ProjectFile $launcherProject
@@ -141,6 +141,7 @@ New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
 Copy-Item -Path $launcherExe -Destination (Join-Path $packageDir "SubnauticaLauncher.exe") -Force
 Copy-Item -Path $updaterExe -Destination (Join-Path $packageDir "SNLUpdater.exe") -Force
 Copy-Item -Path $toolsDir -Destination (Join-Path $packageDir "tools") -Recurse -Force
+Copy-Item -Path $readmePath -Destination (Join-Path $packageDir "README.md") -Force
 
 $packageToolsDir = Join-Path $packageDir "tools"
 Install-DepotDownloaderToTools -ToolsDir $packageToolsDir

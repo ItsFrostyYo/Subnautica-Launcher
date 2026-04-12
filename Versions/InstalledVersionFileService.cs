@@ -159,6 +159,11 @@ internal static class InstalledVersionFileService
                 if (hasSubnauticaExe == hasBelowZeroExe)
                     continue;
 
+                if (hasBelowZeroExe)
+                    SteamAppIdFileHelper.EnsureBelowZeroSteamAppIdFile(dir);
+                else
+                    SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(dir);
+
                 string expectedInfoName = hasBelowZeroExe ? "BZVersion.info" : "Version.info";
                 string expectedMarker = hasBelowZeroExe ? "IsBelowZeroLauncherVersion" : "IsSubnauticaLauncherVersion";
                 string conflictingInfoName = hasBelowZeroExe ? "Version.info" : "BZVersion.info";

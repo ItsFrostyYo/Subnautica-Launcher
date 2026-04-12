@@ -32,6 +32,20 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.7.4",
+        Title = "Steam Launch Safety Fixes",
+        Date = "Apr 12, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Made Steam-safe Subnautica folder handling always enabled by default",
+            "Stopped relying on folder swapping for normal launches when direct launch is safer",
+            "Fixed Below Zero steam_appid.txt handling to use the correct app id",
+            "Updated the README with the current launch and Steam behavior"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.7.3",
         Title = "Mod Management Fixes",
         Date = "Apr 11, 2026 | Contributors (1) - ItsFrosti.",

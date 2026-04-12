@@ -6,7 +6,7 @@
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 
-		<Version>2.7.3</Version>
+		<Version>2.7.4</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 
@@ -57,22 +57,7 @@
 	  <None Remove="Assets\Icons\SNLIconBZ.png" />
 	  <None Remove="Assets\Icons\YoutubeIcon.png" />
 	  <None Remove="Assets\Subnautica\aller.regular.ttf" />
-	  <None Remove="tools\ExplosionResetHelper2018.exe" />
-	  <None Remove="tools\ExplosionResetHelper2022.exe" />
 	  <None Remove="Updates\Possible Updates.txt" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Content Include="tools\ExplosionResetHelper2018.exe">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-	    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-	  </Content>
-	  <Content Include="tools\ExplosionResetHelper2022.exe">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-	    <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-	  </Content>
 	</ItemGroup>
 
 	<ItemGroup>
