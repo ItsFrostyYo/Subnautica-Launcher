@@ -32,6 +32,19 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.8.0",
+        Title = "Mod Management Fixes",
+        Date = "Apr 16, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Cleaned up mod management so it detects mods correctly",
+            "Updated RNG Mod for 2018 and 2.0+ Versions for Crashing Issues",
+            "Improved startup and version loading behavior",
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.7.4",
         Title = "Steam Launch Safety Fixes",
         Date = "Apr 12, 2026 | Contributors (1) - ItsFrosti.",

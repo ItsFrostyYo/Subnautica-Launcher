@@ -1,6 +1,7 @@
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Versions;
 using System;
@@ -311,7 +312,8 @@ namespace SubnauticaLauncher.UI
         private bool IsGameCurrentlyRunning()
         {
             string processName = IsBelowZero ? "SubnauticaZero" : "Subnautica";
-            return Process.GetProcessesByName(processName).Length > 0;
+            GameProcessMonitor.RefreshNow();
+            return GameProcessMonitor.GetSnapshot().Get(processName).IsRunning;
         }
     }
 }

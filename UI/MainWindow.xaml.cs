@@ -70,6 +70,19 @@ namespace SubnauticaLauncher.UI
         private string? _directLaunchedBelowZeroFolder;
         private bool _subnauticaFolderSwapPerformedThisSession = false;
         private bool _belowZeroFolderSwapPerformedThisSession = false;
+        private readonly object _versionReloadSync = new();
+        private readonly SemaphoreSlim _versionReloadGate = new(1, 1);
+        private readonly SemaphoreSlim _backgroundCheckGate = new(1, 1);
+        private Task? _versionReloadWorker;
+        private int _pendingVersionReloadRequests;
+        private bool _pendingVersionReloadRepair;
+        private bool _startupStagesCompleted;
+        private bool _runtimeServicesStarted;
+        private DateTime _lastLauncherUpdateCheckUtc = DateTime.MinValue;
+        private DateTime _lastModUpdateCheckUtc = DateTime.MinValue;
+
+        private static readonly TimeSpan LauncherUpdateCheckFreshness = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan ModUpdateCheckFreshness = TimeSpan.FromMinutes(10);
 
         private static CancellationTokenSource? _explosionCts;
         private static bool _explosionRunning;
@@ -187,18 +200,34 @@ namespace SubnauticaLauncher.UI
                 }
             }
 
-            await CheckForUpdatesOnStartup();
-
             Directory.CreateDirectory(AppPaths.DataPath);
             OldRemover.Run();
-            await NewInstaller.RunAsync();
-
-            InitializeTrayIcon();
-
             LauncherSettings.Load();
-            var settings = LauncherSettings.Current;
-            LoadOverlayModeSettings();
+            ApplyInitialUiState();
+            ShowView(InstallsView);
 
+            if (_overlayStartupMode)
+                ShowOverlayWindow();
+
+            await Dispatcher.Yield(DispatcherPriority.Background);
+            _ = RunDeferredStartupStagesAsync();
+        }
+
+        private void ApplyInitialUiState()
+        {
+            InitializeTrayIcon();
+            LoadOverlayModeSettings();
+            ApplyConfiguredBackground();
+            LoadMacroSettings();
+            ApplyExplosionResetVisualState();
+            UpdateHardcoreSaveDeleterVisualState();
+            UpdateSubnautica100TrackerVisualState();
+            UpdateSidebarState();
+        }
+
+        private void ApplyConfiguredBackground()
+        {
+            var settings = LauncherSettings.Current;
             string bg = settings.BackgroundPreset;
             if (string.IsNullOrWhiteSpace(bg))
             {
@@ -209,13 +238,10 @@ namespace SubnauticaLauncher.UI
 
             ApplyBackground(bg);
             SyncThemeDropdown(bg);
+        }
 
-            LoadInstalledVersions();
-            if (await EnsureSteamVisibleSubnauticaFolderAsync())
-                LoadInstalledVersions();
-            StartStatusRefreshTimer();
-            LoadMacroSettings();
-
+        private void ApplyExplosionResetVisualState()
+        {
             ExplosionResetSettings.Load();
 
             ExplosionResetToggleButton.Content =
@@ -240,10 +266,44 @@ namespace SubnauticaLauncher.UI
                 ExplosionResetSettings.TrackResets ? "Enabled" : "Disabled";
             ExplosionTrackToggleButton.Background =
                 ExplosionResetSettings.TrackResets ? Brushes.Green : Brushes.DarkRed;
+        }
 
-            UpdateHardcoreSaveDeleterVisualState();
-            UpdateSubnautica100TrackerVisualState();
+        private async Task RunDeferredStartupStagesAsync()
+        {
+            var startupTimer = Stopwatch.StartNew();
 
+            try
+            {
+                Logger.Log("[Startup] Stage 2: scanning installed versions");
+                await LoadInstalledVersionsAsync(repairMetadata: true);
+                Logger.Log($"[Startup] Stage 2 complete in {startupTimer.ElapsedMilliseconds}ms");
+
+                Logger.Log("[Startup] Stage 3: starting runtime services");
+                StartRuntimeServices();
+                Logger.Log($"[Startup] Stage 3 complete in {startupTimer.ElapsedMilliseconds}ms");
+
+                Logger.Log("[Startup] Stage 4: verifying runtime tools");
+                await NewInstaller.RunAsync();
+                _startupStagesCompleted = true;
+                StartUpdateCheckTimer();
+                await RunBackgroundChecksIfIdleAsync(forceLauncherCheck: true, forceModCheck: true);
+
+                Logger.Log($"Startup complete in {startupTimer.ElapsedMilliseconds}ms");
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "Deferred startup failed");
+            }
+        }
+
+        private void StartRuntimeServices()
+        {
+            if (_runtimeServicesStarted)
+                return;
+
+            _runtimeServicesStarted = true;
+            GameProcessMonitor.Start();
+            StartStatusRefreshTimer();
             GameEventDocumenter.Start();
             DebugTelemetryController.Start();
 
@@ -256,17 +316,6 @@ namespace SubnauticaLauncher.UI
                 SpeedrunTimerController.Start();
             else
                 SpeedrunTimerController.Stop();
-
-            Logger.Log("Startup complete");
-            ShowView(InstallsView);
-
-            if (_overlayStartupMode)
-                ShowOverlayWindow();
-
-            StartUpdateCheckTimer();
-            _ = Dispatcher.BeginInvoke(
-                new Action(async () => await CheckForModUpdatesOnStartupAsync()),
-                DispatcherPriority.Background);
         }
 
         private void UpdateResetMacroVisualState()
@@ -390,10 +439,7 @@ namespace SubnauticaLauncher.UI
             };
         }
 
-        private static bool IsAnyGameProcessRunning()
-        {
-            return IsProcessRunning("Subnautica") || IsProcessRunning("SubnauticaZero");
-        }
+        private static bool IsAnyGameProcessRunning() => GameProcessMonitor.GetSnapshot().AnyRunning;
 
         private static System.Windows.Media.Brush GetStatusBrush(VersionStatus status)
         {
@@ -544,13 +590,10 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        private async Task CheckForUpdatesOnStartup()
+        private async Task CheckForModUpdatesIfIdleAsync()
         {
-            await CheckForUpdatesIfIdleAsync(startupPrompt: true);
-        }
+            _lastModUpdateCheckUtc = DateTime.UtcNow;
 
-        private async Task CheckForModUpdatesOnStartupAsync()
-        {
             try
             {
                 await ModCatalog.RefreshAsync();
@@ -561,7 +604,7 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            var updates = ModUpdateService.GetAvailableUpdates(_subnauticaInstalledVersions, _belowZeroInstalledVersions);
+            var updates = await ModUpdateService.GetAvailableUpdatesAsync(_subnauticaInstalledVersions, _belowZeroInstalledVersions);
             if (updates.Count == 0 || !CanPromptForUpdate())
                 return;
 
@@ -586,7 +629,7 @@ namespace SubnauticaLauncher.UI
                     return DialogWindowHelper.ShowDialog(this, window);
                 });
 
-            LoadInstalledVersions();
+            LoadInstalledVersions(repairMetadata: true);
         }
 
         private void StartUpdateCheckTimer()
@@ -596,7 +639,7 @@ namespace SubnauticaLauncher.UI
             {
                 Interval = TimeSpan.FromMinutes(5)
             };
-            _updateCheckTimer.Tick += async (_, _) => await CheckForUpdatesIfIdleAsync(startupPrompt: false);
+            _updateCheckTimer.Tick += async (_, _) => await RunBackgroundChecksIfIdleAsync();
             _updateCheckTimer.Start();
         }
 
@@ -607,6 +650,8 @@ namespace SubnauticaLauncher.UI
 
             if (!CanPromptForUpdate())
                 return;
+
+            _lastLauncherUpdateCheckUtc = DateTime.UtcNow;
 
             UpdateInfo? update;
             try
@@ -703,9 +748,44 @@ namespace SubnauticaLauncher.UI
             }
         }
 
+        private async Task RunBackgroundChecksIfIdleAsync(bool forceLauncherCheck = false, bool forceModCheck = false)
+        {
+            if (!await _backgroundCheckGate.WaitAsync(0))
+                return;
+
+            try
+            {
+                if (forceLauncherCheck || ShouldRunLauncherUpdateCheck())
+                    await CheckForUpdatesIfIdleAsync(startupPrompt: forceLauncherCheck);
+
+                if (forceModCheck || ShouldRunModUpdateCheck())
+                    await CheckForModUpdatesIfIdleAsync();
+            }
+            finally
+            {
+                _backgroundCheckGate.Release();
+            }
+        }
+
+        private bool ShouldRunLauncherUpdateCheck()
+        {
+            if (_deferUpdatePromptUntilRestart || !CanPromptForUpdate())
+                return false;
+
+            return DateTime.UtcNow - _lastLauncherUpdateCheckUtc >= LauncherUpdateCheckFreshness;
+        }
+
+        private bool ShouldRunModUpdateCheck()
+        {
+            if (!CanPromptForUpdate())
+                return false;
+
+            return DateTime.UtcNow - _lastModUpdateCheckUtc >= ModUpdateCheckFreshness;
+        }
+
         private bool CanPromptForUpdate()
         {
-            if (_updatePromptRunning || !IsLoaded || !IsVisible || !IsEnabled)
+            if (_updatePromptRunning || !_startupStagesCompleted || !IsLoaded || !IsVisible || !IsEnabled)
                 return false;
 
             if (IsAnyGameProcessRunning())
@@ -717,27 +797,28 @@ namespace SubnauticaLauncher.UI
         private void NotifyActionCompleted(bool reloadVersions = true)
         {
             if (reloadVersions)
-                LoadInstalledVersions();
+                LoadInstalledVersions(repairMetadata: true);
             else
+            {
                 UpdateSidebarState();
+                _ = EnsureSteamVisibleSubnauticaFolderAndRefreshAsync();
+            }
 
-            _ = EnsureSteamVisibleSubnauticaFolderAndRefreshAsync();
-            _ = CheckForUpdatesIfIdleAsync(startupPrompt: false);
+            _ = RunBackgroundChecksIfIdleAsync();
         }
 
         private async Task EnsureSteamVisibleSubnauticaFolderAndRefreshAsync()
         {
-            if (await EnsureSteamVisibleSubnauticaFolderAsync())
-                LoadInstalledVersions();
+            if (await EnsureSteamVisibleSubnauticaFolderAsync(_subnauticaInstalledVersions))
+                LoadInstalledVersions(repairMetadata: false);
         }
 
-        private async Task<bool> EnsureSteamVisibleSubnauticaFolderAsync()
+        private async Task<bool> EnsureSteamVisibleSubnauticaFolderAsync(IEnumerable<InstalledVersion> allInstalled)
         {
             if (!RenameFolderSafetyEnabled || IsProcessRunning("Subnautica"))
                 return false;
 
             bool changed = false;
-            var allInstalled = VersionLoader.LoadInstalled();
             var commonPaths = AppPaths.SteamCommonPaths;
             if (commonPaths.Count == 0)
                 commonPaths = new List<string> { AppPaths.SteamCommonPath };
@@ -952,11 +1033,10 @@ namespace SubnauticaLauncher.UI
                 await LaunchCoordinator.CloseAllGameProcessesAsync();
                 ClearTrackedDirectLaunchFoldersIfGamesClosed();
                 ClearClosingStatus();
-                LoadInstalledVersions();
                 RefreshRunningStatusIndicators();
                 UpdateSidebarState();
                 _launcherOverlayWindow?.RefreshVersionStatusOnly();
-                _ = CheckForUpdatesIfIdleAsync(startupPrompt: false);
+                _ = RunBackgroundChecksIfIdleAsync();
             }
             finally
             {
@@ -1023,7 +1103,6 @@ namespace SubnauticaLauncher.UI
 
                 bool launched = await WaitForLaunchedAsync(process);
                 SetStatus(target, launched ? VersionStatus.Launched : VersionStatus.Active);
-                LoadInstalledVersions();
                 RefreshRunningStatusIndicators();
             }
             catch (Exception ex)
@@ -1095,7 +1174,6 @@ namespace SubnauticaLauncher.UI
 
                 bool launched = await WaitForLaunchedAsync(process);
                 SetStatus(target, launched ? VersionStatus.Launched : VersionStatus.Active);
-                LoadInstalledVersions();
                 RefreshRunningStatusIndicators();
             }
             catch (Exception ex)
@@ -1122,15 +1200,81 @@ namespace SubnauticaLauncher.UI
                 StringComparison.OrdinalIgnoreCase);
         }
 
-        private void LoadInstalledVersions()
+        private void LoadInstalledVersions(bool repairMetadata = false)
         {
-            string? selectedSnFolder = (InstalledVersionsList.SelectedItem as InstalledVersion)?.HomeFolder;
-            string? selectedBzFolder = (BZInstalledVersionsList.SelectedItem as BZInstalledVersion)?.HomeFolder;
-            string? runningSnFolder = GetRunningProcessFolder("Subnautica") ?? _directLaunchedSubnauticaFolder;
-            string? runningBzFolder = GetRunningProcessFolder("SubnauticaZero") ?? _directLaunchedBelowZeroFolder;
+            RequestInstalledVersionReload(repairMetadata);
+        }
+
+        private Task LoadInstalledVersionsAsync(bool repairMetadata = false)
+        {
+            RequestInstalledVersionReload(repairMetadata);
+            lock (_versionReloadSync)
+            {
+                return _versionReloadWorker ?? Task.CompletedTask;
+            }
+        }
+
+        private void RequestInstalledVersionReload(bool repairMetadata = false)
+        {
+            Interlocked.Increment(ref _pendingVersionReloadRequests);
+
+            if (repairMetadata)
+                _pendingVersionReloadRepair = true;
+
+            lock (_versionReloadSync)
+            {
+                _versionReloadWorker ??= ProcessInstalledVersionReloadQueueAsync();
+            }
+        }
+
+        private async Task ProcessInstalledVersionReloadQueueAsync()
+        {
+            await _versionReloadGate.WaitAsync();
+            try
+            {
+                while (Interlocked.Exchange(ref _pendingVersionReloadRequests, 0) > 0)
+                {
+                    (string? selectedSnFolder, string? selectedBzFolder) = await Dispatcher.InvokeAsync(() => (
+                        (InstalledVersionsList.SelectedItem as InstalledVersion)?.HomeFolder,
+                        (BZInstalledVersionsList.SelectedItem as BZInstalledVersion)?.HomeFolder));
+
+                    bool repairMetadata = _pendingVersionReloadRepair;
+                    _pendingVersionReloadRepair = false;
+
+                    InstalledVersionScanSnapshot snapshot = await InstalledVersionScanService.ScanAsync(repairMetadata);
+                    if (await EnsureSteamVisibleSubnauticaFolderAsync(snapshot.SubnauticaVersions))
+                        snapshot = await InstalledVersionScanService.ScanAsync(repairMetadata: false);
+
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        ApplyInstalledVersionSnapshot(snapshot, selectedSnFolder, selectedBzFolder);
+                    });
+                }
+            }
+            finally
+            {
+                _versionReloadGate.Release();
+                lock (_versionReloadSync)
+                {
+                    _versionReloadWorker = null;
+                    if (Volatile.Read(ref _pendingVersionReloadRequests) > 0)
+                        _versionReloadWorker = ProcessInstalledVersionReloadQueueAsync();
+                }
+            }
+        }
+
+        private void ApplyInstalledVersionSnapshot(
+            InstalledVersionScanSnapshot snapshot,
+            string? selectedSnFolder,
+            string? selectedBzFolder)
+        {
+            GameProcessMonitor.RefreshNow();
+            GameProcessSnapshot processSnapshot = GameProcessMonitor.GetSnapshot();
+            string? runningSnFolder = processSnapshot.Subnautica.FolderPath ?? _directLaunchedSubnauticaFolder;
+            string? runningBzFolder = processSnapshot.BelowZero.FolderPath ?? _directLaunchedBelowZeroFolder;
 
             _subnauticaInstalledVersions.Clear();
-            _subnauticaInstalledVersions.AddRange(VersionLoader.LoadInstalled());
+            _subnauticaInstalledVersions.AddRange(snapshot.SubnauticaVersions);
             foreach (var v in _subnauticaInstalledVersions)
             {
                 string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
@@ -1139,7 +1283,7 @@ namespace SubnauticaLauncher.UI
             }
 
             _belowZeroInstalledVersions.Clear();
-            _belowZeroInstalledVersions.AddRange(BZVersionLoader.LoadInstalled());
+            _belowZeroInstalledVersions.AddRange(snapshot.BelowZeroVersions);
             foreach (var v in _belowZeroInstalledVersions)
             {
                 string common = AppPaths.GetSteamCommonPathFor(v.HomeFolder);
@@ -1189,17 +1333,13 @@ namespace SubnauticaLauncher.UI
         private void SetStatus(InstalledVersion version, VersionStatus status)
         {
             version.Status = status;
-            InstalledVersionsList.Items.Refresh();
-            UpdateSidebarState();
-            _launcherOverlayWindow?.RefreshVersionStatusOnly();
+            RefreshVersionStatusUi(refreshSnList: true);
         }
 
         private void SetStatus(BZInstalledVersion version, VersionStatus status)
         {
             version.Status = status;
-            BZInstalledVersionsList.Items.Refresh();
-            UpdateSidebarState();
-            _launcherOverlayWindow?.RefreshVersionStatusOnly();
+            RefreshVersionStatusUi(refreshBzList: true);
         }
 
         private void SetClosingOnActiveVersions()
@@ -1231,8 +1371,8 @@ namespace SubnauticaLauncher.UI
                 }
             }
 
-            if (snChanged) InstalledVersionsList.Items.Refresh();
-            if (bzChanged) BZInstalledVersionsList.Items.Refresh();
+            if (snChanged || bzChanged)
+                RefreshVersionStatusUi(refreshSnList: snChanged, refreshBzList: bzChanged);
         }
 
         private void ClearClosingStatus()
@@ -1264,28 +1404,14 @@ namespace SubnauticaLauncher.UI
                 }
             }
 
-            if (snChanged) InstalledVersionsList.Items.Refresh();
-            if (bzChanged) BZInstalledVersionsList.Items.Refresh();
+            if (snChanged || bzChanged)
+                RefreshVersionStatusUi(refreshSnList: snChanged, refreshBzList: bzChanged);
         }
 
         private static bool IsProcessRunning(string processName)
         {
-            var processes = Process.GetProcessesByName(processName);
-            try
-            {
-                foreach (var proc in processes)
-                {
-                    if (!proc.HasExited)
-                        return true;
-                }
-
-                return false;
-            }
-            finally
-            {
-                foreach (var proc in processes)
-                    proc.Dispose();
-            }
+            GameProcessMonitor.RefreshNow();
+            return GameProcessMonitor.GetSnapshot().Get(processName).IsRunning;
         }
 
         private void StartStatusRefreshTimer()
@@ -1315,15 +1441,16 @@ namespace SubnauticaLauncher.UI
 
         private void RefreshRunningStatusIndicators()
         {
-            bool snRunning = IsProcessRunning("Subnautica");
-            bool bzRunning = IsProcessRunning("SubnauticaZero");
+            GameProcessSnapshot processSnapshot = GameProcessMonitor.GetSnapshot();
+            bool snRunning = processSnapshot.Subnautica.IsRunning;
+            bool bzRunning = processSnapshot.BelowZero.IsRunning;
             if (!snRunning)
                 _directLaunchedSubnauticaFolder = null;
             if (!bzRunning)
                 _directLaunchedBelowZeroFolder = null;
 
-            string? runningSnFolder = snRunning ? GetRunningProcessFolder("Subnautica") ?? _directLaunchedSubnauticaFolder : null;
-            string? runningBzFolder = bzRunning ? GetRunningProcessFolder("SubnauticaZero") ?? _directLaunchedBelowZeroFolder : null;
+            string? runningSnFolder = snRunning ? processSnapshot.Subnautica.FolderPath ?? _directLaunchedSubnauticaFolder : null;
+            string? runningBzFolder = bzRunning ? processSnapshot.BelowZero.FolderPath ?? _directLaunchedBelowZeroFolder : null;
             bool snChanged = false;
             bool bzChanged = false;
 
@@ -1369,16 +1496,26 @@ namespace SubnauticaLauncher.UI
                 }
             }
 
-            if (snChanged)
+            if (snChanged || bzChanged)
+                RefreshVersionStatusUi(refreshSnList: snChanged, refreshBzList: bzChanged);
+        }
+
+        private void RefreshVersionStatusUi(
+            bool refreshSnList = false,
+            bool refreshBzList = false,
+            bool refreshOverlayFull = false)
+        {
+            if (refreshSnList)
                 InstalledVersionsList.Items.Refresh();
-            if (bzChanged)
+            if (refreshBzList)
                 BZInstalledVersionsList.Items.Refresh();
 
-            if (snChanged || bzChanged)
-            {
-                UpdateSidebarState();
+            UpdateSidebarState();
+
+            if (refreshOverlayFull)
+                _launcherOverlayWindow?.RefreshFromMain();
+            else
                 _launcherOverlayWindow?.RefreshVersionStatusOnly();
-            }
         }
 
         private static async Task<bool> WaitForLaunchedAsync(Process process, int timeoutMs = 10000)
@@ -1419,9 +1556,11 @@ namespace SubnauticaLauncher.UI
 
         private void ClearTrackedDirectLaunchFoldersIfGamesClosed()
         {
-            if (!IsProcessRunning("Subnautica"))
+            GameProcessMonitor.RefreshNow();
+            GameProcessSnapshot processSnapshot = GameProcessMonitor.GetSnapshot();
+            if (!processSnapshot.Subnautica.IsRunning)
                 _directLaunchedSubnauticaFolder = null;
-            if (!IsProcessRunning("SubnauticaZero"))
+            if (!processSnapshot.BelowZero.IsRunning)
                 _directLaunchedBelowZeroFolder = null;
         }
 
@@ -1439,37 +1578,6 @@ namespace SubnauticaLauncher.UI
                 : VersionStatus.Idle;
         }
 
-        private static string? GetRunningProcessFolder(string processName)
-        {
-            var processes = Process.GetProcessesByName(processName);
-            try
-            {
-                foreach (var process in processes)
-                {
-                    try
-                    {
-                        string? exePath = process.MainModule?.FileName;
-                        if (string.IsNullOrWhiteSpace(exePath))
-                            continue;
-
-                        string? folder = Path.GetDirectoryName(exePath);
-                        if (!string.IsNullOrWhiteSpace(folder))
-                            return folder;
-                    }
-                    catch
-                    {
-                        // Some process module reads can fail; try the next process.
-                    }
-                }
-            }
-            finally
-            {
-                foreach (var process in processes)
-                    process.Dispose();
-            }
-
-            return null;
-        }
 
         private void InstalledVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -1561,7 +1669,7 @@ namespace SubnauticaLauncher.UI
 
         private void EditVersionInternal(InstalledVersion version, string processName)
         {
-            if (Process.GetProcessesByName(processName).Length > 0)
+            if (GameProcessMonitor.GetSnapshot().Get(processName).IsRunning)
             {
                 string gameName = processName == "SubnauticaZero" ? "Below Zero" : "Subnautica";
                 MessageBox.Show(
@@ -1659,8 +1767,10 @@ namespace SubnauticaLauncher.UI
 
         private static RunningGameState GetRunningGameState()
         {
-            bool snRunning = Process.GetProcessesByName("Subnautica").Length > 0;
-            bool bzRunning = Process.GetProcessesByName("SubnauticaZero").Length > 0;
+            GameProcessMonitor.RefreshNow();
+            GameProcessSnapshot snapshot = GameProcessMonitor.GetSnapshot();
+            bool snRunning = snapshot.Subnautica.IsRunning;
+            bool bzRunning = snapshot.BelowZero.IsRunning;
 
             if (snRunning && bzRunning)
                 return RunningGameState.Both;
@@ -1836,7 +1946,7 @@ namespace SubnauticaLauncher.UI
             {
                 return activeOnly
                     ? FindActiveRoots(SnActiveFolder)
-                    : VersionLoader.LoadInstalled()
+                    : _subnauticaInstalledVersions
                         .Select(v => v.HomeFolder)
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToArray();
@@ -1846,7 +1956,7 @@ namespace SubnauticaLauncher.UI
             {
                 return activeOnly
                     ? FindActiveRoots(BzActiveFolder)
-                    : BZVersionLoader.LoadInstalled()
+                    : _belowZeroInstalledVersions
                         .Select(v => v.HomeFolder)
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToArray();
@@ -1861,8 +1971,8 @@ namespace SubnauticaLauncher.UI
             }
             else
             {
-                roots.AddRange(VersionLoader.LoadInstalled().Select(v => v.HomeFolder));
-                roots.AddRange(BZVersionLoader.LoadInstalled().Select(v => v.HomeFolder));
+                roots.AddRange(_subnauticaInstalledVersions.Select(v => v.HomeFolder));
+                roots.AddRange(_belowZeroInstalledVersions.Select(v => v.HomeFolder));
             }
 
             return roots
@@ -2430,6 +2540,7 @@ namespace SubnauticaLauncher.UI
             SpeedrunTimerController.Stop();
             DebugTelemetryController.Stop();
             GameEventDocumenter.Stop();
+            GameProcessMonitor.Stop();
 
             var handle = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(handle, HotkeyIdReset);

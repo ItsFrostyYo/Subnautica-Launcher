@@ -1,10 +1,10 @@
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Mods;
 using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Versions;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -112,7 +112,8 @@ namespace SubnauticaLauncher.UI
                 return;
 
             string processName = _game == LauncherGame.Subnautica ? "Subnautica" : "SubnauticaZero";
-            if (Process.GetProcessesByName(processName).Length > 0)
+            GameProcessMonitor.RefreshNow();
+            if (GameProcessMonitor.GetSnapshot().Get(processName).IsRunning)
             {
                 MessageBox.Show(
                     "Close the game before removing mods from this version.",

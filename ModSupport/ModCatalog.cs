@@ -41,44 +41,27 @@ public static class ModCatalog
     private sealed record CatalogEntry(string Name, string DownloadUrl);
 
     public static IReadOnlyList<ModDefinition> AllMods { get; private set; } = Array.Empty<ModDefinition>();
+    private static Task? _inflightRefreshTask;
 
-    public static async Task RefreshAsync(CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<CatalogEntry> files = await FetchEntriesAsync(cancellationToken).ConfigureAwait(false);
-
-        var resolvedMods = new List<ModDefinition>(2);
-
-        ModDefinition? legacy = ResolveLatest(
-            files,
-            LegacyBundleRegex,
-            "SpeedrunRng",
-            "Speedrun RNG Mod");
-        if (legacy != null)
-            resolvedMods.Add(legacy);
-
-        ModDefinition? modern = ResolveLatest(
-            files,
-            ModernBundleRegex,
-            "SpeedrunRng20Plus",
-            "Speedrun RNG Mod 2.0+");
-        if (modern != null)
-            resolvedMods.Add(modern);
-
-        lock (Sync)
-        {
-            AllMods = resolvedMods;
-        }
-    }
-
-    public static void EnsureLoaded()
+    public static Task EnsureLoadedAsync(CancellationToken cancellationToken = default)
     {
         lock (Sync)
         {
             if (AllMods.Count > 0)
-                return;
-        }
+                return Task.CompletedTask;
 
-        RefreshAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            _inflightRefreshTask ??= RefreshCoreAsync(cancellationToken);
+            return _inflightRefreshTask;
+        }
+    }
+
+    public static Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
+        lock (Sync)
+        {
+            _inflightRefreshTask ??= RefreshCoreAsync(cancellationToken);
+            return _inflightRefreshTask;
+        }
     }
 
     public static ModDefinition? GetById(string? modId)
@@ -86,8 +69,10 @@ public static class ModCatalog
         if (string.IsNullOrWhiteSpace(modId))
             return null;
 
-        EnsureLoaded();
-        return AllMods.FirstOrDefault(mod => string.Equals(mod.Id, modId, StringComparison.OrdinalIgnoreCase));
+        lock (Sync)
+        {
+            return AllMods.FirstOrDefault(mod => string.Equals(mod.Id, modId, StringComparison.OrdinalIgnoreCase));
+        }
     }
 
     public static string GetDisplayName(string? modId)
@@ -110,6 +95,52 @@ public static class ModCatalog
             return mod.DisplayName;
 
         return string.Empty;
+    }
+
+    public static IReadOnlyList<ModDefinition> GetSnapshot()
+    {
+        lock (Sync)
+        {
+            return AllMods.ToArray();
+        }
+    }
+
+    private static async Task RefreshCoreAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IReadOnlyList<CatalogEntry> files = await FetchEntriesAsync(cancellationToken).ConfigureAwait(false);
+
+            var resolvedMods = new List<ModDefinition>(2);
+
+            ModDefinition? legacy = ResolveLatest(
+                files,
+                LegacyBundleRegex,
+                "SpeedrunRng",
+                "Speedrun RNG Mod");
+            if (legacy != null)
+                resolvedMods.Add(legacy);
+
+            ModDefinition? modern = ResolveLatest(
+                files,
+                ModernBundleRegex,
+                "SpeedrunRng20Plus",
+                "Speedrun RNG Mod 2.0+");
+            if (modern != null)
+                resolvedMods.Add(modern);
+
+            lock (Sync)
+            {
+                AllMods = resolvedMods;
+            }
+        }
+        finally
+        {
+            lock (Sync)
+            {
+                _inflightRefreshTask = null;
+            }
+        }
     }
 
     private static async Task<IReadOnlyList<CatalogEntry>> FetchEntriesAsync(CancellationToken cancellationToken)

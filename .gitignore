@@ -14,6 +14,7 @@ Assets/Subnautica/Texture2D/
 Properties/PublishProfiles/
 
 *.zip
+!Mods/*.zip
 tools/**/bin/
 tools/**/obj/
 

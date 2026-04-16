@@ -1805,32 +1805,25 @@ namespace SubnauticaLauncher.Gameplay
         {
             rect = default;
 
-            Process[] processes = Process.GetProcessesByName("Subnautica");
-            foreach (Process process in processes)
+            if (GameProcessMonitor.GetSnapshot().Subnautica.ProcessId is not int subnauticaPid)
+                return false;
+
+            try
             {
-                try
-                {
-                    if (process.HasExited)
-                        continue;
+                using Process process = Process.GetProcessById(subnauticaPid);
+                if (process.HasExited)
+                    return false;
 
-                    IntPtr hwnd = process.MainWindowHandle;
-                    if (hwnd == IntPtr.Zero || IsIconic(hwnd))
-                        continue;
+                IntPtr hwnd = process.MainWindowHandle;
+                if (hwnd == IntPtr.Zero || IsIconic(hwnd))
+                    return false;
 
-                    if (GetWindowRect(hwnd, out rect))
-                        return true;
-                }
-                catch
-                {
-                    // Process may exit mid-check.
-                }
-                finally
-                {
-                    process.Dispose();
-                }
+                return GetWindowRect(hwnd, out rect);
             }
-
-            return false;
+            catch
+            {
+                return false;
+            }
         }
 
         private static bool IsCaptureFriendlyForeground()

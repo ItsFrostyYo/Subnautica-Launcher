@@ -145,7 +145,8 @@
                                        FontWeight="SemiBold"
                                        Margin="0,0,0,6"/>
 
-                            <ScrollViewer Grid.Row="1"
+                            <ScrollViewer x:Name="LogScrollViewer"
+                                          Grid.Row="1"
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Auto"
                                           CanContentScroll="False">

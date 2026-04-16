@@ -14,11 +14,12 @@ public static class ModUpdateService
         Version InstalledVersion,
         Version LatestVersion);
 
-    public static IReadOnlyList<ModUpdateCandidate> GetAvailableUpdates(
+    public static async Task<IReadOnlyList<ModUpdateCandidate>> GetAvailableUpdatesAsync(
         IEnumerable<InstalledVersion> subnauticaVersions,
-        IEnumerable<BZInstalledVersion> belowZeroVersions)
+        IEnumerable<BZInstalledVersion> belowZeroVersions,
+        CancellationToken cancellationToken = default)
     {
-        ModCatalog.EnsureLoaded();
+        await ModCatalog.EnsureLoadedAsync(cancellationToken);
 
         var updates = new List<ModUpdateCandidate>();
 

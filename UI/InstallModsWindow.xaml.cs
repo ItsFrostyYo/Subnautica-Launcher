@@ -1,5 +1,6 @@
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Mods;
 using SubnauticaLauncher.Settings;
@@ -34,8 +35,9 @@ namespace SubnauticaLauncher.UI
 
         private readonly List<InstallCandidate> _subnauticaCandidates;
         private readonly List<InstallCandidate> _belowZeroCandidates;
-        private readonly List<InstalledVersion> _subnauticaInstalled;
-        private readonly List<BZInstalledVersion> _belowZeroInstalled;
+        private List<InstalledVersion> _subnauticaInstalled = new();
+        private List<BZInstalledVersion> _belowZeroInstalled = new();
+        private bool _dataLoaded;
 
         public InstallModsWindow()
         {
@@ -66,14 +68,11 @@ namespace SubnauticaLauncher.UI
                 })
                 .ToList();
 
-            _subnauticaInstalled = VersionLoader.LoadInstalled();
-            _belowZeroInstalled = BZVersionLoader.LoadInstalled();
-
             LoadGameSelectors();
             RefreshLists();
         }
 
-        private void InstallModsWindow_Loaded(object sender, RoutedEventArgs e)
+        private async void InstallModsWindow_Loaded(object sender, RoutedEventArgs e)
         {
             LauncherSettings.Load();
             string bg = LauncherSettings.Current.BackgroundPreset;
@@ -81,6 +80,8 @@ namespace SubnauticaLauncher.UI
                 bg = DefaultBg;
 
             ApplyBackground(bg);
+
+            await LoadRuntimeDataAsync();
         }
 
         private ImageBrush GetBackgroundBrush() => (ImageBrush)Resources["BackgroundBrush"];
@@ -170,22 +171,16 @@ namespace SubnauticaLauncher.UI
             {
                 ExistingModComboBox.ItemsSource = BuildModChoices(Array.Empty<ModDefinition>());
             }
-            else if (version.IsModded)
-            {
-                ExistingModComboBox.ItemsSource = new[]
-                {
-                    CreateComboItem("Already Modded", string.Empty, isPlaceholder: true)
-                };
-            }
             else
             {
                 LauncherGame game = GetSelectedGame(ExistingGameComboBox);
-                IReadOnlyList<ModDefinition> mods = ModInstallerService.GetAvailableModsForVersion(
+                IReadOnlyList<ModDefinition> availableMods = ModInstallerService.GetAvailableModsForVersion(
                     game,
                     version.OriginalDownload,
                     version.DisplayName,
                     version.FolderName);
-                ExistingModComboBox.ItemsSource = BuildModChoices(mods);
+                IReadOnlyList<ModDefinition> installableMods = ModInstallerService.GetInstallableModsForVersion(game, version);
+                ExistingModComboBox.ItemsSource = BuildExistingModChoices(availableMods, installableMods);
             }
 
             ExistingModComboBox.SelectedIndex = 0;
@@ -198,7 +193,7 @@ namespace SubnauticaLauncher.UI
             {
                 return new[]
                 {
-                    CreateComboItem("No Mods Yet", string.Empty, isPlaceholder: true)
+                    CreateComboItem("No Mods Available", string.Empty, isPlaceholder: true)
                 };
             }
 
@@ -207,13 +202,41 @@ namespace SubnauticaLauncher.UI
                 .ToList();
         }
 
+        private static IReadOnlyList<System.Windows.Controls.ComboBoxItem> BuildExistingModChoices(
+            IReadOnlyList<ModDefinition> availableMods,
+            IReadOnlyList<ModDefinition> installableMods)
+        {
+            if (installableMods.Count > 0)
+                return BuildModChoices(installableMods);
+
+            if (availableMods.Count == 0)
+            {
+                return new[]
+                {
+                    CreateComboItem("No Mods Available", string.Empty, isPlaceholder: true)
+                };
+            }
+
+            return new[]
+            {
+                CreateComboItem("All Allowed Mods Installed", string.Empty, isPlaceholder: true)
+            };
+        }
+
         private void UpdateButtonStates()
         {
+            if (!_dataLoaded)
+            {
+                InstallNewModdedButton.IsEnabled = false;
+                InstallExistingModButton.IsEnabled = false;
+                return;
+            }
+
             bool newModSelected = TryGetSelectedModId(NewModComboBox, out _, out bool newPlaceholder) && !newPlaceholder;
             InstallNewModdedButton.IsEnabled = NewVersionsList.SelectedItem is InstallCandidate && newModSelected;
 
             bool existingModSelected = TryGetSelectedModId(ExistingModComboBox, out _, out bool existingPlaceholder) && !existingPlaceholder;
-            bool existingVersionValid = ExistingVersionsList.SelectedItem is InstalledVersion existingVersion && !existingVersion.IsModded;
+            bool existingVersionValid = ExistingVersionsList.SelectedItem is InstalledVersion;
             InstallExistingModButton.IsEnabled = existingVersionValid && existingModSelected;
         }
 
@@ -316,7 +339,8 @@ namespace SubnauticaLauncher.UI
 
             LauncherGame game = GetSelectedGame(ExistingGameComboBox);
             string processName = game == LauncherGame.Subnautica ? "Subnautica" : "SubnauticaZero";
-            if (System.Diagnostics.Process.GetProcessesByName(processName).Length > 0)
+            GameProcessMonitor.RefreshNow();
+            if (GameProcessMonitor.GetSnapshot().Get(processName).IsRunning)
             {
                 MessageBox.Show(
                     "Close the game before installing mods into this version.",
@@ -367,7 +391,7 @@ namespace SubnauticaLauncher.UI
                 "Steam",
                 "steamapps",
                 "common");
-            string baseDisplayName = InstalledVersionNaming.BuildInstalledDisplayName(candidate.Id, candidate.DisplayName);
+            string baseDisplayName = InstalledVersionNaming.BuildBaseDisplayName(candidate.Id, candidate.DisplayName);
 
             int instance = 1;
             while (true)
@@ -445,6 +469,28 @@ namespace SubnauticaLauncher.UI
             modId = null;
             isPlaceholder = true;
             return false;
+        }
+
+        private async Task LoadRuntimeDataAsync()
+        {
+            try
+            {
+                await ModCatalog.EnsureLoadedAsync();
+
+                InstalledVersionScanSnapshot snapshot = await InstalledVersionScanService.ScanAsync();
+                _subnauticaInstalled = snapshot.SubnauticaVersions.ToList();
+                _belowZeroInstalled = snapshot.BelowZeroVersions.ToList();
+                _dataLoaded = true;
+                RefreshLists();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Failed to load mod install data.{Environment.NewLine}{Environment.NewLine}{ex.Message}",
+                    "Load Failed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
     }
 }

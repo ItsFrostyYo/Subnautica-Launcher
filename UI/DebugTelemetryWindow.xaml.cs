@@ -54,12 +54,14 @@ namespace SubnauticaLauncher.UI
 
         public void AppendEvent(GameplayEvent evt)
         {
+            bool autoScroll = ShouldAutoScroll();
             _eventLines.Enqueue(FormatEventLine(evt));
             while (_eventLines.Count > MaxLines)
                 _eventLines.Dequeue();
 
             EventsTextBox.Text = string.Join(Environment.NewLine, _eventLines);
-            EventsTextBox.ScrollToEnd();
+            if (autoScroll)
+                EventsTextBox.ScrollToEnd();
         }
 
         public void AppendEvents(IReadOnlyList<GameplayEvent> events)
@@ -67,6 +69,7 @@ namespace SubnauticaLauncher.UI
             if (events.Count == 0)
                 return;
 
+            bool autoScroll = ShouldAutoScroll();
             foreach (var evt in events)
             {
                 _eventLines.Enqueue(FormatEventLine(evt));
@@ -75,7 +78,16 @@ namespace SubnauticaLauncher.UI
             }
 
             EventsTextBox.Text = string.Join(Environment.NewLine, _eventLines);
-            EventsTextBox.ScrollToEnd();
+            if (autoScroll)
+                EventsTextBox.ScrollToEnd();
+        }
+
+        private bool ShouldAutoScroll()
+        {
+            if (string.IsNullOrEmpty(EventsTextBox.Text))
+                return true;
+
+            return EventsTextBox.VerticalOffset + EventsTextBox.ViewportHeight >= EventsTextBox.ExtentHeight - 8;
         }
 
         private static string FormatEventLine(GameplayEvent evt)

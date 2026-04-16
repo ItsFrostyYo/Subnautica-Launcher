@@ -6,7 +6,7 @@
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 
-		<Version>2.7.4</Version>
+		<Version>2.8.0</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 
@@ -38,26 +38,10 @@
 	  <EmbeddedResource Remove="SprinterAutosplitter\**\*" />
 	  <None Remove="SprinterAutosplitter\**\*" />
 	  <Content Remove="SprinterAutosplitter\**\*" />
-	  <None Remove="Assets\Backgrounds\Aurora Borealis.png" />
-	  <None Remove="Assets\Backgrounds\Cove Tree.png" />
-	  <None Remove="Assets\Backgrounds\Floating Island.png" />
-	  <None Remove="Assets\Backgrounds\Jellyshroom Caves.png" />
-	  <None Remove="Assets\Backgrounds\Kelp Forest.png" />
-	  <None Remove="Assets\Backgrounds\Lifepod.png" />
-	  <None Remove="Assets\Backgrounds\Lost River.png" />
-	  <None Remove="Assets\Backgrounds\Safe Shallows.png" />
-	  <None Remove="Assets\Backgrounds\Sea Dragon Leviathan.png" />
-	  <None Remove="Assets\Backgrounds\Snow Stalker.png" />
-	  <None Remove="Assets\Backgrounds\Squid Shark.png" />
-	  <None Remove="Assets\Icons\DiscordIcon.png" />
-	  <None Remove="Assets\Icons\GithubIcon.png" />
-	  <None Remove="Assets\Icons\SNL.ico" />
-	  <None Remove="Assets\Icons\SNLBZ.ico" />
-	  <None Remove="Assets\Icons\SNLIcon.png" />
-	  <None Remove="Assets\Icons\SNLIconBZ.png" />
-	  <None Remove="Assets\Icons\YoutubeIcon.png" />
-	  <None Remove="Assets\Subnautica\aller.regular.ttf" />
-	  <None Remove="Updates\Possible Updates.txt" />
+	  <None Remove="Assets\Backgrounds\**\*.png" />
+	  <None Remove="Assets\Icons\**\*.png" />
+	  <None Remove="Assets\Icons\**\*.ico" />
+	  <None Remove="Assets\Subnautica\**\*.ttf" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -65,100 +49,16 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Resource Include="Assets\Backgrounds\Arcitect Facility.png">
+	  <Resource Include="Assets\Backgrounds\**\*.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Aurora Borealis.png">
+	  <Resource Include="Assets\Icons\**\*.png">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Cove Tree.png">
+	  <Resource Include="Assets\Icons\**\*.ico">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Floating Island.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Grand Reef.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Grassy Plateau.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Ice Worm.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Icy Land.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Jellyshroom Caves.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Kelp Forest.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Lifepod.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Ghost Leviathan.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Lost River.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Reaper Leviathan.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Red Crystals.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Safe Shallows.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Sea Dragon Leviathan.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Shadow Leviathan.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Snow Stalker.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Snowfox.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Squid Shark.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Backgrounds\Twisty Bridges.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\DiscordIcon.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\GithubIcon.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\SNLButton.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\SNLBZ.ico">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\SNLBZButton.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\SNL.ico">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\SNLIcon.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\SNLIconBZ.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\YoutubeIcon.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Subnautica\aller.regular.ttf">
+	  <Resource Include="Assets\Subnautica\**\*.ttf">
 	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
 	  </Resource>
 	</ItemGroup>

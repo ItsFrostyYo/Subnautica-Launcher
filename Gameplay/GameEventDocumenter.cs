@@ -19,18 +19,21 @@ namespace SubnauticaLauncher.Gameplay
 {
     public static class GameEventDocumenter
     {
-        private const int ForegroundPollIntervalMs = 1;
-        private const int BackgroundPollIntervalMs = 4;
-        private const int IdlePollIntervalMs = 100;
+        private const int ForegroundPollIntervalMs = 16;
+        private const int BackgroundPollIntervalMs = 50;
+        private const int IdlePollIntervalMs = 250;
 
         private static readonly object Sync = new();
         private static readonly Dictionary<string, DynamicMonoGameplayEventTracker> Trackers = new();
         private static readonly Dictionary<string, ProcessStateTracker> StateTrackers = new();
+        private static readonly Dictionary<string, DateTime> LastPollErrorAtUtc = new();
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
             WriteIndented = false,
             Converters = { new JsonStringEnumConverter() }
         };
+
+        private static readonly TimeSpan PollErrorLogCooldown = TimeSpan.FromSeconds(15);
 
         private static readonly ConcurrentQueue<GameplayEvent> _eventQueue = new();
 
@@ -154,7 +157,7 @@ namespace SubnauticaLauncher.Gameplay
                     if (batch.Count > 0)
                         WriteBatchAndNotify(batch);
 
-                    await Task.Delay(5, token);
+                    await Task.Delay(20, token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -171,7 +174,6 @@ namespace SubnauticaLauncher.Gameplay
         {
             var formatted = new List<GameplayEvent>(batch.Count);
             var jsonLines = new StringBuilder(batch.Count * 200);
-            var logLines = new StringBuilder(batch.Count * 120);
 
             foreach (var evt in batch)
             {
@@ -184,8 +186,6 @@ namespace SubnauticaLauncher.Gameplay
                     jsonLines.AppendLine(json);
                 }
                 catch { }
-
-                logLines.AppendLine($"[GameEvent] {output.Game} {output.Type} key={output.Key} delta={output.Delta}");
             }
 
             try
@@ -198,8 +198,6 @@ namespace SubnauticaLauncher.Gameplay
             {
                 Logger.Exception(ex, "Failed to write gameplay event batch");
             }
-
-            Logger.Log(logLines.ToString().TrimEnd());
 
             var snapshot = formatted.ToArray();
 
@@ -301,7 +299,7 @@ namespace SubnauticaLauncher.Gameplay
                 }
                 catch (Exception ex)
                 {
-                    Logger.Exception(ex, $"Game event polling failed for {processName}");
+                    LogPollErrorThrottled(processName, ex);
                     process.Dispose();
                 }
             }
@@ -328,7 +326,7 @@ namespace SubnauticaLauncher.Gameplay
                 }
                 catch (Exception ex)
                 {
-                    Logger.Exception(ex, $"Game event polling failed for {processName}");
+                    LogPollErrorThrottled(processName, ex);
                 }
                 finally
                 {
@@ -337,6 +335,23 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return isForeground ? PollMode.Foreground : PollMode.Background;
+        }
+
+        private static void LogPollErrorThrottled(string processName, Exception ex)
+        {
+            DateTime now = DateTime.UtcNow;
+            lock (Sync)
+            {
+                if (LastPollErrorAtUtc.TryGetValue(processName, out DateTime lastLoggedAt) &&
+                    now - lastLoggedAt < PollErrorLogCooldown)
+                {
+                    return;
+                }
+
+                LastPollErrorAtUtc[processName] = now;
+            }
+
+            Logger.Exception(ex, $"Game event polling failed for {processName}");
         }
 
         private static DynamicMonoGameplayEventTracker GetOrCreateTracker(string processName, string trackerKey)

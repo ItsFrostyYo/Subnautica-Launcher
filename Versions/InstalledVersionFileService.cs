@@ -16,12 +16,26 @@ internal static class InstalledVersionFileService
         Func<string, string, T?> fromInfo)
         where T : InstalledVersion
     {
+        IReadOnlyList<string> commonPaths = AppPaths.SteamCommonPaths;
+        if (commonPaths.Count == 0)
+            commonPaths = new List<string> { AppPaths.SteamCommonPath };
+
+        RepairMisplacedInfoFiles(commonPaths);
+        return LoadInstalledFromRoots(commonPaths, infoFileName, launcherMarker, fromInfo);
+    }
+
+    [SupportedOSPlatform("windows")]
+    public static List<T> LoadInstalledFromRoots<T>(
+        IReadOnlyList<string> commonPaths,
+        string infoFileName,
+        string launcherMarker,
+        Func<string, string, T?> fromInfo)
+        where T : InstalledVersion
+    {
         var list = new List<T>();
 
-        foreach (var common in AppPaths.SteamCommonPaths)
+        foreach (string common in commonPaths)
         {
-            RepairMisplacedInfoFiles(common);
-
             IEnumerable<string> directories;
             try
             {
@@ -54,6 +68,13 @@ internal static class InstalledVersionFileService
         }
 
         return list;
+    }
+
+    [SupportedOSPlatform("windows")]
+    public static void RepairMisplacedInfoFiles(IReadOnlyList<string> commonPaths)
+    {
+        foreach (string commonPath in commonPaths)
+            RepairMisplacedInfoFiles(commonPath);
     }
 
     private sealed record ParsedInfo(

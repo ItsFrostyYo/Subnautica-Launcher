@@ -165,6 +165,7 @@ namespace SubnauticaLauncher.UI
                         if (DownloadProgress.IsIndeterminate)
                             DownloadProgress.IsIndeterminate = false;
 
+                        StageText.Text = "Downloading game files...";
                         DownloadProgress.Value = clamped;
                         PercentText.Text = $"{DownloadProgress.Value:0.0}%";
                     }, DispatcherPriority.Background);
@@ -312,6 +313,9 @@ namespace SubnauticaLauncher.UI
             if (batch.Length == 0)
                 return;
 
+            bool autoScroll = ShouldAutoScrollLog();
+            double previousOffset = LogScrollViewer?.VerticalOffset ?? 0;
+
             LogText.AppendText(batch.ToString());
             _logCharCount += batch.Length;
 
@@ -325,8 +329,28 @@ namespace SubnauticaLauncher.UI
                 _logCharCount = LogText.Text.Length;
             }
 
-            LogText.CaretIndex = LogText.Text.Length;
-            LogText.ScrollToEnd();
+            LogScrollViewer?.UpdateLayout();
+
+            if (autoScroll)
+            {
+                LogText.CaretIndex = LogText.Text.Length;
+                LogScrollViewer?.ScrollToEnd();
+            }
+            else if (LogScrollViewer != null)
+            {
+                LogScrollViewer.ScrollToVerticalOffset(Math.Min(previousOffset, LogScrollViewer.ScrollableHeight));
+            }
+        }
+
+        private bool ShouldAutoScrollLog()
+        {
+            if (LogScrollViewer == null)
+                return true;
+
+            if (LogText.Text.Length == 0)
+                return true;
+
+            return LogScrollViewer.VerticalOffset >= LogScrollViewer.ScrollableHeight - 8;
         }
 
         private static bool TryExtractPercent(string line, out double percent)

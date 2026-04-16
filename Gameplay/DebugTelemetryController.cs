@@ -116,7 +116,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 try
                 {
-                    await Task.Delay(125, token);
+                    await Task.Delay(250, token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -127,23 +127,21 @@ namespace SubnauticaLauncher.Gameplay
 
         private static void PollSnapshot()
         {
-            Process[] snProcesses = Process.GetProcessesByName("Subnautica");
-            Process[] bzProcesses = Process.GetProcessesByName("SubnauticaZero");
+            GameProcessSnapshot snapshot = GameProcessMonitor.GetSnapshot();
 
-            Process? sn = snProcesses.FirstOrDefault(p => !p.HasExited);
-            Process? bz = bzProcesses.FirstOrDefault(p => !p.HasExited);
-
-            string processText = sn == null && bz == null
+            string processText = !snapshot.AnyRunning
                 ? "none"
-                : $"Subnautica={(sn?.Id.ToString() ?? "not running")} | Below Zero={(bz?.Id.ToString() ?? "not running")}";
+                : $"Subnautica={(snapshot.Subnautica.ProcessId?.ToString() ?? "not running")} | Below Zero={(snapshot.BelowZero.ProcessId?.ToString() ?? "not running")}";
 
             double? explosionSeconds = null;
             float? x = null;
             float? y = null;
             float? z = null;
 
-            if (sn != null)
+            if (snapshot.Subnautica.ProcessId is int subnauticaPid)
             {
+                using Process sn = Process.GetProcessById(subnauticaPid);
+
                 if (_resolverPid != sn.Id || _resolver == null)
                 {
                     string? exePath = sn.MainModule?.FileName;
@@ -180,12 +178,6 @@ namespace SubnauticaLauncher.Gameplay
                 _window.SetPosition(x, y, z);
                 _window.SetState(BuildStateText());
             });
-
-            foreach (var p in snProcesses)
-                p.Dispose();
-
-            foreach (var p in bzProcesses)
-                p.Dispose();
         }
 
         private static void OnBatchEventWritten(IReadOnlyList<GameplayEvent> events)

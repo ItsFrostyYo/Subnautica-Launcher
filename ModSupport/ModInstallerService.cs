@@ -21,8 +21,6 @@ public static class ModInstallerService
         string? displayName,
         string? folderName)
     {
-        ModCatalog.EnsureLoaded();
-
         var mods = new List<ModDefinition>(1);
         if (SupportsLegacySpeedrunRng(game, originalDownload, displayName, folderName))
         {
@@ -38,6 +36,27 @@ public static class ModInstallerService
         }
 
         return mods;
+    }
+
+    public static IReadOnlyList<ModDefinition> GetInstallableModsForVersion(
+        LauncherGame game,
+        InstalledVersion version)
+    {
+        IReadOnlyList<ModDefinition> available = GetAvailableModsForVersion(
+            game,
+            version.OriginalDownload,
+            version.DisplayName,
+            version.FolderName);
+
+        if (available.Count == 0)
+            return available;
+
+        if (string.IsNullOrWhiteSpace(version.InstalledModId))
+            return available;
+
+        return available
+            .Where(mod => !string.Equals(mod.Id, version.InstalledModId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
     public static bool SupportsLegacySpeedrunRng(
@@ -125,6 +144,7 @@ public static class ModInstallerService
             callbacks?.OnStatus?.Invoke($"Installing {mod.DisplayName}...");
             callbacks?.OnOutput?.Invoke($"Copying mod bundle into {targetFolder}");
 
+            CleanupStalePresetFiles(contentRoot, targetFolder, mod.PreservedRelativePaths);
             CopyDirectoryContents(contentRoot, targetFolder, mod.PreservedRelativePaths);
 
             if (game == LauncherGame.Subnautica)
@@ -192,8 +212,6 @@ public static class ModInstallerService
 
     public static ModDefinition? GetInstalledModDefinition(LauncherGame game, InstalledVersion version)
     {
-        ModCatalog.EnsureLoaded();
-
         if (string.IsNullOrWhiteSpace(version.InstalledModId))
             return null;
 
@@ -286,6 +304,52 @@ public static class ModInstallerService
                 continue;
 
             File.Copy(file, destination, overwrite: true);
+        }
+    }
+
+    private static void CleanupStalePresetFiles(
+        string sourceDir,
+        string targetDir,
+        IReadOnlyList<string> preservedRelativePaths)
+    {
+        const string presetRootRelative = @"BepInEx\plugins\Assembly-CheatSharp\Presets";
+
+        string sourcePresetRoot = Path.Combine(sourceDir, presetRootRelative);
+        string targetPresetRoot = Path.Combine(targetDir, presetRootRelative);
+        if (!Directory.Exists(sourcePresetRoot) || !Directory.Exists(targetPresetRoot))
+            return;
+
+        var preserved = new HashSet<string>(
+            preservedRelativePaths.Select(NormalizeRelativePath),
+            StringComparer.OrdinalIgnoreCase);
+
+        var sourceFiles = new HashSet<string>(
+            Directory.GetFiles(sourcePresetRoot, "*", SearchOption.AllDirectories)
+                .Select(path => NormalizeRelativePath(Path.Combine(
+                    presetRootRelative,
+                    Path.GetRelativePath(sourcePresetRoot, path)))),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (string targetFile in Directory.GetFiles(targetPresetRoot, "*", SearchOption.AllDirectories))
+        {
+            string relative = NormalizeRelativePath(Path.Combine(
+                presetRootRelative,
+                Path.GetRelativePath(targetPresetRoot, targetFile)));
+
+            if (preserved.Contains(relative))
+                continue;
+
+            if (sourceFiles.Contains(relative))
+                continue;
+
+            File.Delete(targetFile);
+        }
+
+        foreach (string directory in Directory.GetDirectories(targetPresetRoot, "*", SearchOption.AllDirectories)
+                     .OrderByDescending(path => path.Length))
+        {
+            if (!Directory.EnumerateFileSystemEntries(directory).Any())
+                Directory.Delete(directory);
         }
     }
 
