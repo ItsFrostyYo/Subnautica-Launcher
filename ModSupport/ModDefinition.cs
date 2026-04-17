@@ -10,6 +10,9 @@ public sealed class ModDefinition
     public required Version PackageVersion { get; init; }
     public required string BundleZipFileName { get; init; }
     public required string DownloadUrl { get; init; }
+    public required string PluginRootRelativePath { get; init; }
+    public required string VersionMarkerRelativePath { get; init; }
     public required IReadOnlyList<string> RemovalTargets { get; init; }
     public required IReadOnlyList<string> PreservedRelativePaths { get; init; }
+    public required IReadOnlyList<string> StaleCleanupRelativeRoots { get; init; }
 }

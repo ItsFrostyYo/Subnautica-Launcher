@@ -2,7 +2,6 @@ using SubnauticaLauncher.Enums;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace SubnauticaLauncher.Mods;
 
@@ -13,30 +12,6 @@ public static class ModCatalog
     private const string Branch = "master";
     private static readonly HttpClient Http = BuildClient();
     private static readonly object Sync = new();
-
-    private static readonly Regex LegacyBundleRegex = new(
-        @"^Assembly-CheatSharp\.v(?<version>\d+\.\d+\.\d+)\+BepInEx_.*\.zip$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    private static readonly Regex ModernBundleRegex = new(
-        @"^Assembly-CheatSharp\.v(?<version>\d+\.\d+\.\d+)-Subnautica2025\+BepInEx_.*\.zip$",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    private static readonly string[] CommonRemovalTargets =
-    {
-        "BepInEx",
-        ".doorstop_version",
-        "doorstop_config.ini",
-        "winhttp.dll",
-        "changelog.txt"
-    };
-
-    private static readonly string[] PreservedPaths =
-    {
-        @"BepInEx\plugins\Assembly-CheatSharp\Options.txt",
-        @"BepInEx\plugins\Assembly-CheatSharp\Presets\Custom.preset",
-        @"BepInEx\plugins\Assembly-CheatSharp\Presets\Custom.SpawnLoc"
-    };
 
     private sealed record CatalogEntry(string Name, string DownloadUrl);
 
@@ -80,15 +55,9 @@ public static class ModCatalog
         if (string.IsNullOrWhiteSpace(modId))
             return string.Empty;
 
-        string? knownName = modId switch
-        {
-            "SpeedrunRng" => "Speedrun RNG Mod",
-            "SpeedrunRng20Plus" => "Speedrun RNG Mod 2.0+",
-            _ => null
-        };
-
-        if (!string.IsNullOrWhiteSpace(knownName))
-            return knownName;
+        ManagedModFamily? knownFamily = ManagedModFamilies.GetById(modId);
+        if (knownFamily != null)
+            return knownFamily.DisplayName;
 
         ModDefinition? mod = GetById(modId);
         if (mod != null)
@@ -111,23 +80,11 @@ public static class ModCatalog
         {
             IReadOnlyList<CatalogEntry> files = await FetchEntriesAsync(cancellationToken).ConfigureAwait(false);
 
-            var resolvedMods = new List<ModDefinition>(2);
-
-            ModDefinition? legacy = ResolveLatest(
-                files,
-                LegacyBundleRegex,
-                "SpeedrunRng",
-                "Speedrun RNG Mod");
-            if (legacy != null)
-                resolvedMods.Add(legacy);
-
-            ModDefinition? modern = ResolveLatest(
-                files,
-                ModernBundleRegex,
-                "SpeedrunRng20Plus",
-                "Speedrun RNG Mod 2.0+");
-            if (modern != null)
-                resolvedMods.Add(modern);
+            var resolvedMods = ManagedModFamilies.All
+                .Select(family => ResolveLatest(files, family))
+                .Where(mod => mod != null)
+                .Cast<ModDefinition>()
+                .ToList();
 
             lock (Sync)
             {
@@ -174,14 +131,12 @@ public static class ModCatalog
 
     private static ModDefinition? ResolveLatest(
         IReadOnlyList<CatalogEntry> entries,
-        Regex pattern,
-        string modId,
-        string displayName)
+        ManagedModFamily family)
     {
         var match = entries
             .Select(entry =>
             {
-                Match regexMatch = pattern.Match(entry.Name);
+                var regexMatch = family.BundleFileNamePattern.Match(entry.Name);
                 if (!regexMatch.Success)
                     return null;
 
@@ -203,14 +158,17 @@ public static class ModCatalog
 
         return new ModDefinition
         {
-            Id = modId,
-            DisplayName = displayName,
-            Game = LauncherGame.Subnautica,
+            Id = family.Id,
+            DisplayName = family.DisplayName,
+            Game = family.Game,
             PackageVersion = match.Version,
             BundleZipFileName = match.Entry.Name,
             DownloadUrl = match.Entry.DownloadUrl,
-            RemovalTargets = CommonRemovalTargets,
-            PreservedRelativePaths = PreservedPaths
+            PluginRootRelativePath = family.PluginRootRelativePath,
+            VersionMarkerRelativePath = family.VersionMarkerRelativePath,
+            RemovalTargets = family.RemovalTargets,
+            PreservedRelativePaths = family.PreservedRelativePaths,
+            StaleCleanupRelativeRoots = family.StaleCleanupRelativeRoots
         };
     }
 

@@ -71,6 +71,35 @@ public static class GameProcessMonitor
         }
     }
 
+    public static bool TryOpenRunningProcess(string processName, out Process? process)
+    {
+        RefreshNow();
+        GameProcessInfo info = GetSnapshot().Get(processName);
+        if (!info.IsRunning || info.ProcessId is not int pid)
+        {
+            process = null;
+            return false;
+        }
+
+        try
+        {
+            process = Process.GetProcessById(pid);
+            if (process.HasExited)
+            {
+                process.Dispose();
+                process = null;
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            process = null;
+            return false;
+        }
+    }
+
     private static async Task PollLoopAsync(CancellationToken token)
     {
         while (!token.IsCancellationRequested)

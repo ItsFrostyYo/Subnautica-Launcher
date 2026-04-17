@@ -1,4 +1,5 @@
 using SubnauticaLauncher.BelowZero;
+using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Installer;
@@ -44,7 +45,7 @@ namespace SubnauticaLauncher.UI
             InitializeComponent();
             Loaded += InstallModsWindow_Loaded;
 
-            _subnauticaCandidates = VersionRegistry.AllVersions
+            _subnauticaCandidates = LauncherGameProfiles.Subnautica.InstallDefinitions
                 .Select(v => new InstallCandidate
                 {
                     Game = LauncherGame.Subnautica,
@@ -56,7 +57,7 @@ namespace SubnauticaLauncher.UI
                 })
                 .ToList();
 
-            _belowZeroCandidates = BZVersionRegistry.AllVersions
+            _belowZeroCandidates = LauncherGameProfiles.BelowZero.InstallDefinitions
                 .Select(v => new InstallCandidate
                 {
                     Game = LauncherGame.BelowZero,
@@ -289,12 +290,11 @@ namespace SubnauticaLauncher.UI
 
                 Func<DepotInstallCallbacks, CancellationToken, Task> installAction = async (callbacks, cancellationToken) =>
                 {
-                    await DepotInstallWorkflow.InstallAsync(
+                    await GameDepotDownloaderService.InstallVersionAsync(
+                        candidate.Game,
                         installVersion,
                         login.AuthOptions,
                         installDir,
-                        GetInfoFileName(candidate.Game),
-                        GetLauncherMarker(candidate.Game),
                         callbacks,
                         cancellationToken);
 
@@ -338,9 +338,9 @@ namespace SubnauticaLauncher.UI
             }
 
             LauncherGame game = GetSelectedGame(ExistingGameComboBox);
-            string processName = game == LauncherGame.Subnautica ? "Subnautica" : "SubnauticaZero";
+            LauncherGameProfile profile = LauncherGameProfiles.Get(game);
             GameProcessMonitor.RefreshNow();
-            if (GameProcessMonitor.GetSnapshot().Get(processName).IsRunning)
+            if (GameProcessMonitor.GetSnapshot().Get(profile.ProcessName).IsRunning)
             {
                 MessageBox.Show(
                     "Close the game before installing mods into this version.",
@@ -364,10 +364,7 @@ namespace SubnauticaLauncher.UI
                     version.IsModded = true;
                     version.InstalledModId = mod.Id;
 
-                    if (game == LauncherGame.Subnautica)
-                        VersionLoader.Save(version);
-                    else if (version is BZInstalledVersion bzVersion)
-                        BZVersionLoader.Save(bzVersion);
+                    InstalledVersionStore.Save(game, version);
                 };
 
                 var installWindow = new DepotDownloaderInstallWindow(version.DisplayName, installAction);
@@ -407,12 +404,6 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        private static string GetInfoFileName(LauncherGame game) =>
-            game == LauncherGame.BelowZero ? "BZVersion.info" : "Version.info";
-
-        private static string GetLauncherMarker(LauncherGame game) =>
-            game == LauncherGame.BelowZero ? "IsBelowZeroLauncherVersion" : "IsSubnauticaLauncherVersion";
-
         private static void SaveInstalledModdedVersion(
             LauncherGame game,
             string installDir,
@@ -423,7 +414,7 @@ namespace SubnauticaLauncher.UI
         {
             if (game == LauncherGame.BelowZero)
             {
-                BZVersionLoader.Save(new BZInstalledVersion
+                InstalledVersionStore.Save(game, new BZInstalledVersion
                 {
                     HomeFolder = installDir,
                     FolderName = folderName,
@@ -435,7 +426,7 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            VersionLoader.Save(new InstalledVersion
+            InstalledVersionStore.Save(game, new InstalledVersion
             {
                 HomeFolder = installDir,
                 FolderName = folderName,

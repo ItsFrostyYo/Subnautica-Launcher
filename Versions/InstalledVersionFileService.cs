@@ -10,29 +10,21 @@ namespace SubnauticaLauncher.Versions;
 internal static class InstalledVersionFileService
 {
     [SupportedOSPlatform("windows")]
-    public static List<T> LoadInstalled<T>(
-        string infoFileName,
-        string launcherMarker,
-        Func<string, string, T?> fromInfo)
-        where T : InstalledVersion
+    public static List<InstalledVersion> LoadInstalled(LauncherGameProfile profile)
     {
         IReadOnlyList<string> commonPaths = AppPaths.SteamCommonPaths;
         if (commonPaths.Count == 0)
             commonPaths = new List<string> { AppPaths.SteamCommonPath };
 
-        RepairMisplacedInfoFiles(commonPaths);
-        return LoadInstalledFromRoots(commonPaths, infoFileName, launcherMarker, fromInfo);
+        return LoadInstalledFromRoots(commonPaths, profile);
     }
 
     [SupportedOSPlatform("windows")]
-    public static List<T> LoadInstalledFromRoots<T>(
+    public static List<InstalledVersion> LoadInstalledFromRoots(
         IReadOnlyList<string> commonPaths,
-        string infoFileName,
-        string launcherMarker,
-        Func<string, string, T?> fromInfo)
-        where T : InstalledVersion
+        LauncherGameProfile profile)
     {
-        var list = new List<T>();
+        var list = new List<InstalledVersion>();
 
         foreach (string common in commonPaths)
         {
@@ -48,17 +40,17 @@ internal static class InstalledVersionFileService
 
             foreach (var dir in directories)
             {
-                string info = Path.Combine(dir, infoFileName);
+                string info = Path.Combine(dir, profile.InfoFileName);
                 if (!File.Exists(info))
                     continue;
 
-                if (!HasLauncherMarker(info, launcherMarker))
+                if (!HasLauncherMarker(info, profile.LauncherMarker))
                     continue;
 
-                if (!HasExpectedGameExecutable(dir, infoFileName))
+                if (!profile.HasExpectedExecutable(dir))
                     continue;
 
-                var version = fromInfo(dir, info);
+                var version = profile.FromInfo(dir, info);
                 if (version == null)
                     continue;
 
@@ -85,20 +77,39 @@ internal static class InstalledVersionFileService
         string InstalledModId,
         long? ManifestId);
 
-    public static void Save(
-        InstalledVersion version,
-        string infoFileName,
-        string launcherMarker)
+    public static void Save(InstalledVersion version, LauncherGameProfile profile)
     {
-        string infoPath = Path.Combine(version.HomeFolder, infoFileName);
+        string infoPath = Path.Combine(version.HomeFolder, profile.InfoFileName);
         WriteInfoFile(
             infoPath,
-            launcherMarker,
+            profile.LauncherMarker,
             version.DisplayName,
             version.FolderName,
             version.OriginalDownload,
             version.IsModded,
             version.InstalledModId);
+    }
+
+    public static void WriteInfoFile(
+        string versionFolder,
+        LauncherGameProfile profile,
+        string displayName,
+        string folderName,
+        string originalDownload,
+        bool isModded = false,
+        string installedModId = "",
+        long? manifestId = null)
+    {
+        string infoPath = Path.Combine(versionFolder, profile.InfoFileName);
+        WriteInfoFile(
+            infoPath,
+            profile.LauncherMarker,
+            displayName,
+            folderName,
+            originalDownload,
+            isModded,
+            installedModId,
+            manifestId);
     }
 
     public static void WriteInfoFile(
@@ -146,18 +157,6 @@ internal static class InstalledVersionFileService
         return false;
     }
 
-    private static bool HasExpectedGameExecutable(string versionFolder, string infoFileName)
-    {
-        string? exeName = infoFileName switch
-        {
-            "Version.info" => "Subnautica.exe",
-            "BZVersion.info" => "SubnauticaZero.exe",
-            _ => null
-        };
-
-        return string.IsNullOrWhiteSpace(exeName) || File.Exists(Path.Combine(versionFolder, exeName));
-    }
-
     private static void RepairMisplacedInfoFiles(string commonPath)
     {
         IEnumerable<string> directories;
@@ -174,20 +173,23 @@ internal static class InstalledVersionFileService
         {
             try
             {
-                bool hasSubnauticaExe = File.Exists(Path.Combine(dir, "Subnautica.exe"));
-                bool hasBelowZeroExe = File.Exists(Path.Combine(dir, "SubnauticaZero.exe"));
+                LauncherGameProfile? detectedProfile = LauncherGameProfiles.DetectFromFolder(dir);
+                bool hasSubnauticaExe = LauncherGameProfiles.Subnautica.HasExpectedExecutable(dir);
+                bool hasBelowZeroExe = LauncherGameProfiles.BelowZero.HasExpectedExecutable(dir);
 
                 if (hasSubnauticaExe == hasBelowZeroExe)
                     continue;
 
-                if (hasBelowZeroExe)
-                    SteamAppIdFileHelper.EnsureBelowZeroSteamAppIdFile(dir);
-                else
-                    SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(dir);
+                if (detectedProfile == null)
+                    continue;
 
-                string expectedInfoName = hasBelowZeroExe ? "BZVersion.info" : "Version.info";
-                string expectedMarker = hasBelowZeroExe ? "IsBelowZeroLauncherVersion" : "IsSubnauticaLauncherVersion";
-                string conflictingInfoName = hasBelowZeroExe ? "Version.info" : "BZVersion.info";
+                detectedProfile.EnsureSteamAppIdFile(dir);
+
+                string expectedInfoName = detectedProfile.InfoFileName;
+                string expectedMarker = detectedProfile.LauncherMarker;
+                string? conflictingInfoName = GetConflictingInfoName(detectedProfile.InfoFileName);
+                if (string.IsNullOrWhiteSpace(conflictingInfoName))
+                    continue;
 
                 string expectedInfoPath = Path.Combine(dir, expectedInfoName);
                 string conflictingInfoPath = Path.Combine(dir, conflictingInfoName);
@@ -210,7 +212,7 @@ internal static class InstalledVersionFileService
                         parsed.InstalledModId,
                         parsed.ManifestId);
 
-                    Logger.Log($"Repaired launcher metadata for {(hasBelowZeroExe ? "Below Zero" : "Subnautica")} folder '{dir}'.");
+                    Logger.Log($"Repaired launcher metadata for {detectedProfile.DisplayName} folder '{dir}'.");
                     continue;
                 }
 
@@ -286,12 +288,7 @@ internal static class InstalledVersionFileService
         if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName))
             return;
 
-        string? conflictingName = fileName switch
-        {
-            "Version.info" => "BZVersion.info",
-            "BZVersion.info" => "Version.info",
-            _ => null
-        };
+        string? conflictingName = GetConflictingInfoName(fileName);
 
         if (string.IsNullOrWhiteSpace(conflictingName))
             return;
@@ -299,5 +296,15 @@ internal static class InstalledVersionFileService
         string conflictingPath = Path.Combine(directory, conflictingName);
         if (File.Exists(conflictingPath))
             File.Delete(conflictingPath);
+    }
+
+    private static string? GetConflictingInfoName(string fileName)
+    {
+        return fileName switch
+        {
+            "Version.info" => "BZVersion.info",
+            "BZVersion.info" => "Version.info",
+            _ => null
+        };
     }
 }

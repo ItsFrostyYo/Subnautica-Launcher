@@ -23,6 +23,7 @@ namespace SubnauticaLauncher.UI
         private readonly BZInstalledVersion? _bzVersion;
 
         private bool IsBelowZero => _bzVersion != null;
+        private LauncherGameProfile CurrentProfile => LauncherGameProfiles.Get(IsBelowZero ? LauncherGame.BelowZero : LauncherGame.Subnautica);
 
         public EditVersionWindow(InstalledVersion version)
         {
@@ -205,10 +206,7 @@ namespace SubnauticaLauncher.UI
                     _snVersion!.DisplayName = newDisplay;
             }
 
-            if (IsBelowZero)
-                BZVersionLoader.Save(_bzVersion!);
-            else
-                VersionLoader.Save(_snVersion!);
+            InstalledVersionStore.Save(CurrentProfile.Game, IsBelowZero ? _bzVersion! : _snVersion!);
 
             DialogWindowHelper.Finish(this, true);
         }
@@ -297,8 +295,7 @@ namespace SubnauticaLauncher.UI
         private void Mods_Click(object sender, RoutedEventArgs e)
         {
             InstalledVersion version = IsBelowZero ? _bzVersion! : _snVersion!;
-            LauncherGame game = IsBelowZero ? LauncherGame.BelowZero : LauncherGame.Subnautica;
-            var win = new VersionModsWindow(version, game);
+            var win = new VersionModsWindow(version, CurrentProfile.Game);
 
             if (DialogWindowHelper.ShowDialog(this, win) == true)
                 DialogWindowHelper.Finish(this, true);
@@ -311,9 +308,8 @@ namespace SubnauticaLauncher.UI
 
         private bool IsGameCurrentlyRunning()
         {
-            string processName = IsBelowZero ? "SubnauticaZero" : "Subnautica";
             GameProcessMonitor.RefreshNow();
-            return GameProcessMonitor.GetSnapshot().Get(processName).IsRunning;
+            return GameProcessMonitor.GetSnapshot().Get(CurrentProfile.ProcessName).IsRunning;
         }
     }
 }

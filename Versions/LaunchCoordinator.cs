@@ -1,4 +1,5 @@
 using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Gameplay;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -131,7 +132,7 @@ namespace SubnauticaLauncher.Versions
 
         private static async Task<bool> CloseProcessAsync(string processName)
         {
-            var processes = Process.GetProcessesByName(processName);
+            var processes = OpenProcesses(processName);
             if (processes.Length == 0)
                 return false;
 
@@ -148,10 +149,14 @@ namespace SubnauticaLauncher.Versions
                 {
                     try { p.Kill(true); } catch { }
                 }
+                finally
+                {
+                    p.Dispose();
+                }
             }
 
             var waitStart = DateTime.UtcNow;
-            while (Process.GetProcessesByName(processName).Length > 0)
+            while (OpenProcesses(processName).Length > 0)
             {
                 if ((DateTime.UtcNow - waitStart).TotalMilliseconds > 10000)
                     break;
@@ -205,15 +210,7 @@ namespace SubnauticaLauncher.Versions
 
             foreach (string processName in candidateNames)
             {
-                Process[] processes;
-                try
-                {
-                    processes = Process.GetProcessesByName(processName);
-                }
-                catch
-                {
-                    continue;
-                }
+                Process[] processes = OpenProcesses(processName);
 
                 foreach (Process process in processes)
                 {
@@ -244,6 +241,10 @@ namespace SubnauticaLauncher.Versions
                     catch
                     {
                         // Best effort only.
+                    }
+                    finally
+                    {
+                        process.Dispose();
                     }
                 }
             }
@@ -294,6 +295,28 @@ namespace SubnauticaLauncher.Versions
             catch
             {
                 return false;
+            }
+        }
+
+        private static Process[] OpenProcesses(string processName)
+        {
+            try
+            {
+                if (GameProcessMonitor.TryOpenRunningProcess(processName, out Process? process) && process != null)
+                    return [process];
+            }
+            catch
+            {
+                // Fall back below.
+            }
+
+            try
+            {
+                return Process.GetProcessesByName(processName);
+            }
+            catch
+            {
+                return Array.Empty<Process>();
             }
         }
     }

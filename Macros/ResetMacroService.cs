@@ -1,5 +1,6 @@
 using SubnauticaLauncher.Display;
 using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Gameplay;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -15,8 +16,7 @@ namespace SubnauticaLauncher.Macros
             GameMode mode,
             ResetMacroLogChannel logChannel = ResetMacroLogChannel.Subnautica)
         {
-            var processes = Process.GetProcessesByName("Subnautica");
-            if (processes.Length == 0)
+            if (!GameProcessMonitor.TryOpenRunningProcess("Subnautica", out Process? openedProcess) || openedProcess == null)
             {
                 ResetMacroLogger.Warn(
                     logChannel,
@@ -24,9 +24,10 @@ namespace SubnauticaLauncher.Macros
                 return;
             }
 
+            Process process = openedProcess;
+
             try
             {
-                Process process = processes[0];
                 string root = Path.GetDirectoryName(process.MainModule!.FileName!)!;
                 int yearGroup = BuildYearResolver.ResolveGroupedYear(root);
 
@@ -156,6 +157,10 @@ namespace SubnauticaLauncher.Macros
             {
                 ResetMacroLogger.Exception(logChannel, ex, "Reset macro failed.");
                 throw;
+            }
+            finally
+            {
+                process.Dispose();
             }
         }
     }

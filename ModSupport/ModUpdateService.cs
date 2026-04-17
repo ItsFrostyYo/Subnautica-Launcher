@@ -23,41 +23,8 @@ public static class ModUpdateService
 
         var updates = new List<ModUpdateCandidate>();
 
-        foreach (InstalledVersion version in subnauticaVersions.Where(v => v.IsModded))
-        {
-            ModDefinition? mod = ModInstallerService.GetInstalledModDefinition(LauncherGame.Subnautica, version);
-            Version? installedVersion = ModInstallerService.TryReadInstalledModVersion(version);
-            if (mod == null || installedVersion == null)
-                continue;
-
-            if (installedVersion < mod.PackageVersion)
-            {
-                updates.Add(new ModUpdateCandidate(
-                    version,
-                    LauncherGame.Subnautica,
-                    mod,
-                    installedVersion,
-                    mod.PackageVersion));
-            }
-        }
-
-        foreach (BZInstalledVersion version in belowZeroVersions.Where(v => v.IsModded))
-        {
-            ModDefinition? mod = ModInstallerService.GetInstalledModDefinition(LauncherGame.BelowZero, version);
-            Version? installedVersion = ModInstallerService.TryReadInstalledModVersion(version);
-            if (mod == null || installedVersion == null)
-                continue;
-
-            if (installedVersion < mod.PackageVersion)
-            {
-                updates.Add(new ModUpdateCandidate(
-                    version,
-                    LauncherGame.BelowZero,
-                    mod,
-                    installedVersion,
-                    mod.PackageVersion));
-            }
-        }
+        CollectUpdates(updates, LauncherGame.Subnautica, subnauticaVersions);
+        CollectUpdates(updates, LauncherGame.BelowZero, belowZeroVersions.Cast<InstalledVersion>());
 
         return updates;
     }
@@ -85,12 +52,30 @@ public static class ModUpdateService
             if (result != true)
                 break;
 
-            if (update.Game == LauncherGame.Subnautica)
-                VersionLoader.Save(update.Version);
-            else if (update.Version is BZInstalledVersion bzVersion)
-                BZVersionLoader.Save(bzVersion);
+            InstalledVersionStore.Save(update.Game, update.Version);
         }
 
         return Task.CompletedTask;
+    }
+
+    private static void CollectUpdates(
+        ICollection<ModUpdateCandidate> updates,
+        LauncherGame game,
+        IEnumerable<InstalledVersion> versions)
+    {
+        foreach (InstalledVersion version in versions.Where(v => v.IsModded))
+        {
+            ModDefinition? mod = ModInstallerService.GetInstalledModDefinition(game, version);
+            Version? installedVersion = ModInstallerService.TryReadInstalledModVersion(version);
+            if (mod == null || installedVersion == null || installedVersion >= mod.PackageVersion)
+                continue;
+
+            updates.Add(new ModUpdateCandidate(
+                version,
+                game,
+                mod,
+                installedVersion,
+                mod.PackageVersion));
+        }
     }
 }

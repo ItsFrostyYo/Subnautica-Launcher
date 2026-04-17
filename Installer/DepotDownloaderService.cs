@@ -1,4 +1,5 @@
 using SubnauticaLauncher.Versions;
+using SubnauticaLauncher.Enums;
 using System;
 using System.IO;
 using System.Threading;
@@ -24,12 +25,11 @@ public static class DepotDownloaderService
         DepotInstallCallbacks? callbacks = null,
         CancellationToken cancellationToken = default)
     {
-        return DepotInstallWorkflow.InstallAsync(
+        return GameDepotDownloaderService.InstallVersionAsync(
+            LauncherGame.Subnautica,
             version,
             auth,
             installDir,
-            "Version.info",
-            "IsSubnauticaLauncherVersion",
             callbacks,
             cancellationToken);
     }
@@ -55,12 +55,11 @@ public static class DepotDownloaderService
         string password,
         string installDir)
     {
-        return DepotInstallWorkflow.InstallAsync(
+        return GameDepotDownloaderService.InstallVersionAsync(
+            LauncherGame.Subnautica,
             version,
             username,
             password,
-            installDir,
-            "Version.info",
-            "IsSubnauticaLauncherVersion");
+            installDir);
     }
 }

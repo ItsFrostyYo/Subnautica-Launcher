@@ -1,9 +1,9 @@
-using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Mods;
 using SubnauticaLauncher.Settings;
 using SubnauticaLauncher.Versions;
+using SubnauticaLauncher.Core;
 using System;
 using System.IO;
 using System.Linq;
@@ -111,9 +111,9 @@ namespace SubnauticaLauncher.UI
             if (!_version.HasBepInEx)
                 return;
 
-            string processName = _game == LauncherGame.Subnautica ? "Subnautica" : "SubnauticaZero";
+            LauncherGameProfile profile = LauncherGameProfiles.Get(_game);
             GameProcessMonitor.RefreshNow();
-            if (GameProcessMonitor.GetSnapshot().Get(processName).IsRunning)
+            if (GameProcessMonitor.GetSnapshot().Get(profile.ProcessName).IsRunning)
             {
                 MessageBox.Show(
                     "Close the game before removing mods from this version.",
@@ -126,11 +126,7 @@ namespace SubnauticaLauncher.UI
             try
             {
                 ModInstallerService.RemoveManagedMod(_version, _game);
-
-                if (_game == LauncherGame.Subnautica)
-                    VersionLoader.Save(_version);
-                else if (_version is BZInstalledVersion bzVersion)
-                    BZVersionLoader.Save(bzVersion);
+                InstalledVersionStore.Save(_game, _version);
 
                 DialogWindowHelper.Finish(this, true);
             }

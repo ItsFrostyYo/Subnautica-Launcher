@@ -19,7 +19,7 @@ internal static class SteamAppIdFileHelper
         EnsureSteamAppIdFile(gameFolder, BelowZeroAppId);
     }
 
-    private static void EnsureSteamAppIdFile(string gameFolder, string appId)
+    internal static void EnsureSteamAppIdFile(string gameFolder, string appId)
     {
         if (string.IsNullOrWhiteSpace(gameFolder))
             throw new ArgumentException("Game folder is required.", nameof(gameFolder));

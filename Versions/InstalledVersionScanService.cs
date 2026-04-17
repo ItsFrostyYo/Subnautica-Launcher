@@ -1,5 +1,7 @@
 using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Enums;
+using System.Linq;
 
 namespace SubnauticaLauncher.Versions;
 
@@ -20,22 +22,25 @@ internal static class InstalledVersionScanService
             if (repairMetadata)
                 InstalledVersionFileService.RepairMisplacedInfoFiles(commonPaths);
 
-            List<InstalledVersion> subnautica = InstalledVersionFileService.LoadInstalledFromRoots(
+            LauncherGameProfile subnauticaProfile = LauncherGameProfiles.Get(LauncherGame.Subnautica);
+            LauncherGameProfile belowZeroProfile = LauncherGameProfiles.Get(LauncherGame.BelowZero);
+
+            List<InstalledVersion> subnautica = InstalledVersionStore.LoadInstalledFromRoots(
                 commonPaths,
-                "Version.info",
-                "IsSubnauticaLauncherVersion",
-                InstalledVersion.FromInfo);
+                subnauticaProfile);
             cancellationToken.ThrowIfCancellationRequested();
 
-            List<BZInstalledVersion> belowZero = InstalledVersionFileService.LoadInstalledFromRoots(
+            List<BZInstalledVersion> belowZero = InstalledVersionStore.LoadInstalledFromRoots(
                 commonPaths,
-                "BZVersion.info",
-                "IsBelowZeroLauncherVersion",
-                BZInstalledVersion.FromInfo);
+                belowZeroProfile)
+                .OfType<BZInstalledVersion>()
+                .ToList();
             cancellationToken.ThrowIfCancellationRequested();
 
             return new InstalledVersionScanSnapshot
             {
+                SubnauticaProfile = subnauticaProfile,
+                BelowZeroProfile = belowZeroProfile,
                 SubnauticaVersions = subnautica,
                 BelowZeroVersions = belowZero,
                 MetadataRepaired = repairMetadata

@@ -1,4 +1,3 @@
-using SubnauticaLauncher.BelowZero;
 using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Settings;
@@ -108,13 +107,11 @@ namespace SubnauticaLauncher.UI
 
         private void LoadOriginalDownloads()
         {
-            var choices = _detectedGame switch
+            IEnumerable<GameVersionInstallDefinition> choices = _detectedGame switch
             {
-                LauncherGame.Subnautica => VersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>(),
-                LauncherGame.BelowZero => BZVersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>(),
-                _ => VersionRegistry.AllVersions
-                    .Cast<GameVersionInstallDefinition>()
-                    .Concat(BZVersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>())
+                LauncherGame.Subnautica => LauncherGameProfiles.Subnautica.InstallDefinitions,
+                LauncherGame.BelowZero => LauncherGameProfiles.BelowZero.InstallDefinitions,
+                _ => LauncherGameProfiles.All.SelectMany(profile => profile.InstallDefinitions)
             };
 
             OriginalDownloadBox.Items.Clear();
@@ -261,23 +258,12 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (_detectedGame == LauncherGame.Subnautica)
-                SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(FolderPathBox.Text);
-            else
-                SteamAppIdFileHelper.EnsureBelowZeroSteamAppIdFile(FolderPathBox.Text);
-
-            string infoFileName = _detectedGame == LauncherGame.Subnautica
-                ? "Version.info"
-                : "BZVersion.info";
-
-            string infoPath = Path.Combine(FolderPathBox.Text, infoFileName);
-            string launcherMarker = _detectedGame == LauncherGame.Subnautica
-                ? "IsSubnauticaLauncherVersion"
-                : "IsBelowZeroLauncherVersion";
+            LauncherGameProfile profile = LauncherGameProfiles.Get(_detectedGame.Value);
+            profile.EnsureSteamAppIdFile(FolderPathBox.Text);
 
             InstalledVersionFileService.WriteInfoFile(
-                infoPath,
-                launcherMarker,
+                FolderPathBox.Text,
+                profile,
                 displayName,
                 folderName,
                 originalDownloadId,

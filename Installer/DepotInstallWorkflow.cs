@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -725,10 +726,7 @@ internal static class DepotInstallWorkflow
         GameVersionInstallDefinition version,
         string installDir)
     {
-        if (version.SteamAppId == VersionInstallDefinition.AppId)
-            SteamAppIdFileHelper.EnsureSubnauticaSteamAppIdFile(installDir);
-        else if (version.SteamAppId == BelowZero.BZVersionInstallDefinition.AppId)
-            SteamAppIdFileHelper.EnsureBelowZeroSteamAppIdFile(installDir);
+        LauncherGameProfiles.GetBySteamAppId(version.SteamAppId).EnsureSteamAppIdFile(installDir);
     }
 
     private static void WriteVersionInfo(
@@ -737,10 +735,14 @@ internal static class DepotInstallWorkflow
         string infoFileName,
         string launcherMarker)
     {
-        string infoPath = Path.Combine(installDir, infoFileName);
+        LauncherGameProfile profile = LauncherGameProfiles.All.FirstOrDefault(p =>
+            string.Equals(p.InfoFileName, infoFileName, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(p.LauncherMarker, launcherMarker, StringComparison.Ordinal))
+            ?? LauncherGameProfiles.GetBySteamAppId(version.SteamAppId);
+
         InstalledVersionFileService.WriteInfoFile(
-            infoPath,
-            launcherMarker,
+            installDir,
+            profile,
             InstalledVersionNaming.BuildInstalledDisplayName(version.Id, version.DisplayName),
             version.Id,
             version.Id,

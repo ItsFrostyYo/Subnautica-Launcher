@@ -244,7 +244,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private static PollMode PollGame(string processName, CancellationToken token)
         {
-            Process[] processes = Process.GetProcessesByName(processName);
+            Process[] processes = OpenObservedProcesses(processName);
             if (processes.Length == 0)
                 return PollMode.Idle;
 
@@ -335,6 +335,21 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             return isForeground ? PollMode.Foreground : PollMode.Background;
+        }
+
+        private static Process[] OpenObservedProcesses(string processName)
+        {
+            if (GameProcessMonitor.TryOpenRunningProcess(processName, out Process? process) && process != null)
+                return [process];
+
+            try
+            {
+                return Process.GetProcessesByName(processName);
+            }
+            catch
+            {
+                return Array.Empty<Process>();
+            }
         }
 
         private static void LogPollErrorThrottled(string processName, Exception ex)

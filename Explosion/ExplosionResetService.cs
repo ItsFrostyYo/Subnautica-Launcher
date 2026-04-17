@@ -1,4 +1,5 @@
 using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Gameplay;
 using SubnauticaLauncher.Macros;
 using System;
 using System.Diagnostics;
@@ -47,33 +48,33 @@ namespace SubnauticaLauncher.Explosion
         {
             _abortRequested = false;
 
-            Process[] processes = Process.GetProcessesByName("Subnautica");
-            if (processes.Length == 0)
+            if (!GameProcessMonitor.TryOpenRunningProcess("Subnautica", out Process? openedProcess) || openedProcess == null)
             {
                 ResetMacroLogger.Warn(
                     LogChannel,
                     "Explosion reset requested but Subnautica process is not running.");
                 return;
             }
-            Process process = processes[0];
 
-            int yearGroup = BuildYearResolver.ResolveGroupedYear(
-                Path.GetDirectoryName(process.MainModule!.FileName!)!);
-
-            var resolver = ExplosionResolverFactory.Get(yearGroup);
-            string resolverName = resolver.GetType().Name;
-
-            ResetMacroLogger.Info(
-                LogChannel,
-                $"Start explosion reset. Mode={mode}, Preset={preset}, PID={process.Id}, YearGroup={yearGroup}, Resolver={resolverName}.");
-
-            ExplosionResetDisplayController.Start(process, resolver);
+            Process process = openedProcess;
 
             bool completedWithGoodTime = false;
             bool canceled = false;
 
             try
             {
+                int yearGroup = BuildYearResolver.ResolveGroupedYear(
+                    Path.GetDirectoryName(process.MainModule!.FileName!)!);
+
+                var resolver = ExplosionResolverFactory.Get(yearGroup);
+                string resolverName = resolver.GetType().Name;
+
+                ResetMacroLogger.Info(
+                    LogChannel,
+                    $"Start explosion reset. Mode={mode}, Preset={preset}, PID={process.Id}, YearGroup={yearGroup}, Resolver={resolverName}.");
+
+                ExplosionResetDisplayController.Start(process, resolver);
+
                 int cycle = 0;
 
                 while (!_abortRequested && !token.IsCancellationRequested)
@@ -210,6 +211,8 @@ namespace SubnauticaLauncher.Explosion
                         LogChannel,
                         $"Explosion reset ended: {reason}. ResetCount={ExplosionResetDisplayController.ResetCount}.");
                 }
+
+                process.Dispose();
             }
         }
 

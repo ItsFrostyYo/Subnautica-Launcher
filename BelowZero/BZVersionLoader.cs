@@ -1,6 +1,8 @@
 using SubnauticaLauncher.Versions;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Versioning;
+using SubnauticaLauncher.Enums;
 
 namespace SubnauticaLauncher.BelowZero;
 
@@ -8,14 +10,10 @@ public static class BZVersionLoader
 {
     [SupportedOSPlatform("windows")]
     public static List<BZInstalledVersion> LoadInstalled()
-        => InstalledVersionFileService.LoadInstalled(
-            "BZVersion.info",
-            "IsBelowZeroLauncherVersion",
-            BZInstalledVersion.FromInfo);
+        => InstalledVersionStore.LoadInstalled(LauncherGame.BelowZero)
+            .OfType<BZInstalledVersion>()
+            .ToList();
 
     public static void Save(BZInstalledVersion version)
-        => InstalledVersionFileService.Save(
-            version,
-            "BZVersion.info",
-            "IsBelowZeroLauncherVersion");
+        => InstalledVersionStore.Save(LauncherGame.BelowZero, version);
 }

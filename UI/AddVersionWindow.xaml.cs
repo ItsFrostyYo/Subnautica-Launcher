@@ -26,9 +26,10 @@ namespace SubnauticaLauncher.UI
         private sealed class InstallCandidate
         {
             public required LauncherGame Game { get; init; }
-            public required string Id { get; init; }
-            public required string DisplayName { get; init; }
-            public required long ManifestId { get; init; }
+            public required GameVersionInstallDefinition Definition { get; init; }
+            public string Id => Definition.Id;
+            public string DisplayName => Definition.DisplayName;
+            public long ManifestId => Definition.ManifestId;
         }
 
         public AddVersionWindow()
@@ -85,25 +86,23 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        private static InstallCandidate CreateCandidate(LauncherGame game, string id, string displayName, long manifestId)
+        private static InstallCandidate CreateCandidate(LauncherGame game, GameVersionInstallDefinition definition)
         {
             return new InstallCandidate
             {
                 Game = game,
-                Id = id,
-                DisplayName = displayName,
-                ManifestId = manifestId
+                Definition = definition
             };
         }
 
         private void LoadVersionLists()
         {
-            IReadOnlyList<InstallCandidate> snItems = VersionRegistry.AllVersions
-                .Select(v => CreateCandidate(LauncherGame.Subnautica, v.Id, v.DisplayName, v.ManifestId))
+            IReadOnlyList<InstallCandidate> snItems = LauncherGameProfiles.Subnautica.InstallDefinitions
+                .Select(v => CreateCandidate(LauncherGame.Subnautica, v))
                 .ToList();
 
-            IReadOnlyList<InstallCandidate> bzItems = BZVersionRegistry.AllVersions
-                .Select(v => CreateCandidate(LauncherGame.BelowZero, v.Id, v.DisplayName, v.ManifestId))
+            IReadOnlyList<InstallCandidate> bzItems = LauncherGameProfiles.BelowZero.InstallDefinitions
+                .Select(v => CreateCandidate(LauncherGame.BelowZero, v))
                 .ToList();
 
             SnAvailableVersionsList.ItemsSource = snItems;
@@ -191,38 +190,15 @@ namespace SubnauticaLauncher.UI
                     candidate.Id);
                 bool installDirExistedBefore = Directory.Exists(installDir);
 
-                Func<DepotInstallCallbacks, CancellationToken, Task> installAction;
-
-                if (candidate.Game == LauncherGame.Subnautica)
-                {
-                    var version = new VersionInstallDefinition(
-                        candidate.Id,
-                        candidate.DisplayName,
-                        candidate.ManifestId);
-
-                    installAction = (callbacks, cancellationToken) =>
-                        SubnauticaLauncher.Installer.DepotDownloaderService.InstallVersionAsync(
-                            version,
+                Func<DepotInstallCallbacks, CancellationToken, Task> installAction =
+                    (callbacks, cancellationToken) =>
+                        GameDepotDownloaderService.InstallVersionAsync(
+                            candidate.Game,
+                            candidate.Definition,
                             login.AuthOptions,
                             installDir,
                             callbacks,
                             cancellationToken);
-                }
-                else
-                {
-                    var version = new BZVersionInstallDefinition(
-                        candidate.Id,
-                        candidate.DisplayName,
-                        candidate.ManifestId);
-
-                    installAction = (callbacks, cancellationToken) =>
-                        SubnauticaLauncher.BelowZero.BZDepotDownloaderService.BZInstallVersionAsync(
-                            version,
-                            login.AuthOptions,
-                            installDir,
-                            callbacks,
-                            cancellationToken);
-                }
 
                 var installWindow = new DepotDownloaderInstallWindow(
                     candidate.DisplayName,

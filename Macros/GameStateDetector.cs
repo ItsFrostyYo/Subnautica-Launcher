@@ -108,8 +108,9 @@ namespace SubnauticaLauncher.Macros
 
         private static Process? GetFirstProcess(string processName)
         {
-            Process[] processes = Process.GetProcessesByName(processName);
-            return processes.Length > 0 ? processes[0] : null;
+            return GameProcessMonitor.TryOpenRunningProcess(processName, out Process? process)
+                ? process
+                : null;
         }
 
         private static void FocusGame(Process? process)

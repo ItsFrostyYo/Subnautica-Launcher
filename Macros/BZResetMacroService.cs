@@ -1,5 +1,6 @@
 using SubnauticaLauncher.Display;
 using SubnauticaLauncher.Enums;
+using SubnauticaLauncher.Gameplay;
 using System;
 using System.Diagnostics;
 using System.Globalization;
@@ -16,8 +17,7 @@ namespace SubnauticaLauncher.Macros
         {
             const ResetMacroLogChannel LogChannel = ResetMacroLogChannel.BelowZero;
 
-            var processes = Process.GetProcessesByName("SubnauticaZero");
-            if (processes.Length == 0)
+            if (!GameProcessMonitor.TryOpenRunningProcess("SubnauticaZero", out Process? openedProcess) || openedProcess == null)
             {
                 ResetMacroLogger.Warn(
                     LogChannel,
@@ -25,9 +25,10 @@ namespace SubnauticaLauncher.Macros
                 return;
             }
 
+            Process process = openedProcess;
+
             try
             {
-                Process process = processes[0];
                 string root = Path.GetDirectoryName(process.MainModule!.FileName!)!;
                 int buildYear = ReadBelowZeroBuildYear(root);
 
@@ -164,6 +165,10 @@ namespace SubnauticaLauncher.Macros
             {
                 ResetMacroLogger.Exception(LogChannel, ex, "Below Zero reset macro failed.");
                 throw;
+            }
+            finally
+            {
+                process.Dispose();
             }
         }
 
