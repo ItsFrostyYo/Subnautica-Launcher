@@ -200,14 +200,36 @@ internal static class InstalledVersionFileService
                 ParsedInfo? parsed = TryParseInfoFile(expectedInfoPath) ??
                                      TryParseInfoFile(conflictingInfoPath);
 
-                if (parsed != null && (!expectedExists || !HasLauncherMarker(expectedInfoPath, expectedMarker)))
+                string resolvedOriginalDownload = parsed != null
+                    ? ResolveOriginalDownload(dir, detectedProfile, parsed.OriginalDownload)
+                    : string.Empty;
+                string resolvedDisplayName = parsed != null
+                    ? ResolveDisplayName(parsed.DisplayName, resolvedOriginalDownload, parsed.FolderName)
+                    : string.Empty;
+
+                bool needsOriginalDownloadRepair = parsed != null &&
+                                                  !string.Equals(
+                                                      parsed.OriginalDownload,
+                                                      resolvedOriginalDownload,
+                                                      StringComparison.Ordinal);
+                bool needsDisplayNameRepair = parsed != null &&
+                                              !string.Equals(
+                                                  parsed.DisplayName,
+                                                  resolvedDisplayName,
+                                                  StringComparison.Ordinal);
+
+                if (parsed != null &&
+                    (!expectedExists ||
+                     !HasLauncherMarker(expectedInfoPath, expectedMarker) ||
+                     needsOriginalDownloadRepair ||
+                     needsDisplayNameRepair))
                 {
                     WriteInfoFile(
                         expectedInfoPath,
                         expectedMarker,
-                        parsed.DisplayName,
+                        resolvedDisplayName,
                         parsed.FolderName,
-                        parsed.OriginalDownload,
+                        resolvedOriginalDownload,
                         parsed.IsModded,
                         parsed.InstalledModId,
                         parsed.ManifestId);
@@ -300,11 +322,47 @@ internal static class InstalledVersionFileService
 
     private static string? GetConflictingInfoName(string fileName)
     {
-        return fileName switch
+        return LauncherGameProfiles.All
+            .Select(profile => profile.InfoFileName)
+            .FirstOrDefault(infoName =>
+                !string.Equals(infoName, fileName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string ResolveOriginalDownload(
+        string versionFolder,
+        LauncherGameProfile profile,
+        string existingOriginalDownload)
+    {
+        if (profile.InstallDefinitions.Any(def =>
+                string.Equals(def.Id, existingOriginalDownload, StringComparison.Ordinal)))
         {
-            "Version.info" => "BZVersion.info",
-            "BZVersion.info" => "Version.info",
-            _ => null
-        };
+            return existingOriginalDownload;
+        }
+
+        return VersionIdentityResolver.TryDetectOriginalVersion(
+            versionFolder,
+            profile,
+            out GameVersionInstallDefinition? detectedVersion,
+            out _,
+            out _)
+            ? detectedVersion!.Id
+            : existingOriginalDownload;
+    }
+
+    private static string ResolveDisplayName(
+        string existingDisplayName,
+        string originalDownload,
+        string folderName)
+    {
+        if (!string.IsNullOrWhiteSpace(existingDisplayName))
+            return existingDisplayName;
+
+        GameVersionInstallDefinition? definition = LauncherGameProfiles.All
+            .SelectMany(profile => profile.InstallDefinitions)
+            .FirstOrDefault(def => string.Equals(def.Id, originalDownload, StringComparison.Ordinal));
+
+        return definition != null
+            ? InstalledVersionNaming.BuildBaseDisplayName(definition.Id, definition.DisplayName)
+            : folderName;
     }
 }

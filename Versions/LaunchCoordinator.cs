@@ -21,8 +21,9 @@ namespace SubnauticaLauncher.Versions
         public static async Task<bool> CloseAllGameProcessesAsync()
         {
             bool closedAnything = false;
-            closedAnything |= await CloseProcessAsync("Subnautica");
-            closedAnything |= await CloseProcessAsync("SubnauticaZero");
+            foreach (LauncherGameProfile profile in LauncherGameProfiles.All)
+                closedAnything |= await CloseProcessAsync(profile.ProcessName);
+
             return closedAnything;
         }
 
@@ -200,13 +201,11 @@ namespace SubnauticaLauncher.Versions
 
         private static void TryCloseKnownLockingProcesses(string sourcePath, string destinationPath)
         {
-            string[] candidateNames =
-            {
-                "Subnautica",
-                "SubnauticaZero",
-                "UnityCrashHandler64",
-                "UnityCrashHandler32"
-            };
+            string[] candidateNames = LauncherGameProfiles.All
+                .Select(profile => profile.ProcessName)
+                .Concat(["UnityCrashHandler64", "UnityCrashHandler32"])
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
             foreach (string processName in candidateNames)
             {
@@ -227,8 +226,8 @@ namespace SubnauticaLauncher.Versions
                         }
 
                         bool isLikelyLocker =
-                            string.Equals(process.ProcessName, "Subnautica", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(process.ProcessName, "SubnauticaZero", StringComparison.OrdinalIgnoreCase) ||
+                            LauncherGameProfiles.All.Any(profile =>
+                                string.Equals(process.ProcessName, profile.ProcessName, StringComparison.OrdinalIgnoreCase)) ||
                             (!string.IsNullOrWhiteSpace(processPath) &&
                              (processPath.StartsWith(sourcePath, StringComparison.OrdinalIgnoreCase) ||
                               processPath.StartsWith(destinationPath, StringComparison.OrdinalIgnoreCase)));

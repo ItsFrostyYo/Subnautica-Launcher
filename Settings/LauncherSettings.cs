@@ -83,6 +83,7 @@ namespace SubnauticaLauncher.Settings
         public bool DepotDownloaderUseRememberedLoginOnly { get; set; } = false;
         public bool DepotDownloaderPreferTwoFactorCode { get; set; } = true;
         public bool DepotDownloaderRememberedLoginSeeded { get; set; } = false;
+        public string DepotDownloaderLastInstallCommonPath { get; set; } = "";
 
         public static void Load()
         {

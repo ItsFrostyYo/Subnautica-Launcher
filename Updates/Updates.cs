@@ -32,6 +32,20 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.8.1",
+        Title = "Launcher Reliability and Cleanup",
+        Date = "Apr 17, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Add Existing Version now auto-detects the original version from build files instead of asking you to select it manually",
+            "New installs can choose a detected Steam library, with better multi-drive Steam library detection and path handling",
+            "Subnautica and Below Zero launch, status, and metadata flows were cleaned up to stay more closely synced",
+            "Improved overall launcher reliability and removed old unused explosion helper files"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.8.0",
         Title = "Mod Management Fixes",
         Date = "Apr 16, 2026 | Contributors (1) - ItsFrosti.",

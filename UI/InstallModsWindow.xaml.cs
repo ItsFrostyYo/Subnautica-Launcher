@@ -272,15 +272,18 @@ namespace SubnauticaLauncher.UI
             if (mod == null)
                 return;
 
-            var login = new DepotDownloaderLoginWindow();
-            if (DialogWindowHelper.ShowDialog(this, login) != true || login.AuthOptions == null)
+            DepotInstallAuthOptions? authOptions = DepotDownloaderLoginWindow.PromptForAuth(this);
+            if (authOptions == null)
                 return;
 
             try
             {
                 InstallNewModdedButton.IsEnabled = false;
+                using IDisposable busyOperation = LauncherBusyCoordinator.Begin($"Install modded {candidate.Id}");
 
-                (string folderName, string displayName, string installDir) = BuildUniqueModdedInstallLocation(candidate);
+                (string folderName, string displayName, string installDir) = BuildUniqueModdedInstallLocation(
+                    candidate,
+                    authOptions.InstallCommonPath);
                 var installVersion = new GameVersionInstallDefinition(
                     folderName,
                     displayName,
@@ -293,7 +296,7 @@ namespace SubnauticaLauncher.UI
                     await GameDepotDownloaderService.InstallVersionAsync(
                         candidate.Game,
                         installVersion,
-                        login.AuthOptions,
+                        authOptions,
                         installDir,
                         callbacks,
                         cancellationToken);
@@ -357,6 +360,7 @@ namespace SubnauticaLauncher.UI
             try
             {
                 InstallExistingModButton.IsEnabled = false;
+                using IDisposable busyOperation = LauncherBusyCoordinator.Begin($"Install mod {version.FolderName}");
 
                 Func<DepotInstallCallbacks, CancellationToken, Task> installAction = async (callbacks, cancellationToken) =>
                 {
@@ -381,13 +385,10 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        private static (string FolderName, string DisplayName, string InstallDir) BuildUniqueModdedInstallLocation(InstallCandidate candidate)
+        private static (string FolderName, string DisplayName, string InstallDir) BuildUniqueModdedInstallLocation(
+            InstallCandidate candidate,
+            string commonPath)
         {
-            string commonPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-                "Steam",
-                "steamapps",
-                "common");
             string baseDisplayName = InstalledVersionNaming.BuildBaseDisplayName(candidate.Id, candidate.DisplayName);
 
             int instance = 1;

@@ -65,14 +65,63 @@ namespace SubnauticaLauncher.Core
 
         public static string GetSteamCommonPathFor(string versionFolder)
         {
+            if (TryGetContainingSteamCommonPath(versionFolder, out string? commonPath))
+                return commonPath;
+
             if (!string.IsNullOrWhiteSpace(versionFolder))
             {
-                var parent = Directory.GetParent(versionFolder);
+                DirectoryInfo? current = Directory.Exists(versionFolder)
+                    ? new DirectoryInfo(versionFolder)
+                    : Directory.GetParent(versionFolder);
+
+                while (current != null)
+                {
+                    if (string.Equals(current.Name, "common", StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(current.Parent?.Name, "steamapps", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return current.FullName;
+                    }
+
+                    current = current.Parent;
+                }
+
+                DirectoryInfo? parent = Directory.GetParent(versionFolder);
                 if (parent != null)
                     return parent.FullName;
             }
 
             return SteamCommonPath;
+        }
+
+        public static bool TryGetContainingSteamCommonPath(string? path, out string commonPath)
+        {
+            commonPath = string.Empty;
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(path)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            }
+            catch
+            {
+                return false;
+            }
+
+            foreach (string knownCommonPath in SteamCommonPaths)
+            {
+                string normalizedCommon = knownCommonPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (string.Equals(fullPath, normalizedCommon, StringComparison.OrdinalIgnoreCase) ||
+                    fullPath.StartsWith(normalizedCommon + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    commonPath = knownCommonPath;
+                    return true;
+                }
+            }
+
+            return false;
         }
         [SupportedOSPlatform("windows")]
         private static IReadOnlyList<string> GetSteamCommonPathsCached()
@@ -102,8 +151,7 @@ namespace SubnauticaLauncher.Core
             if (!string.IsNullOrWhiteSpace(registryRoot))
                 AddCommonPath(paths, registryRoot);
 
-            string? libraryFile = FindLibraryFoldersFile();
-            if (libraryFile != null)
+            foreach (string libraryFile in FindLibraryFoldersFiles())
             {
                 foreach (var line in File.ReadLines(libraryFile))
                 {
@@ -132,8 +180,9 @@ namespace SubnauticaLauncher.Core
             paths.Add(common);
         }
 
-        private static string? FindLibraryFoldersFile()
+        private static IReadOnlyList<string> FindLibraryFoldersFiles()
         {
+            var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var candidateRoots = new List<string>
             {
                 DefaultSteamRootX86,
@@ -144,6 +193,8 @@ namespace SubnauticaLauncher.Core
             if (!string.IsNullOrWhiteSpace(registryRoot))
                 candidateRoots.Add(registryRoot);
 
+            candidateRoots.AddRange(DiscoverFixedDriveSteamRoots());
+
             foreach (var root in candidateRoots)
             {
                 if (string.IsNullOrWhiteSpace(root))
@@ -151,10 +202,41 @@ namespace SubnauticaLauncher.Core
 
                 string candidate = Path.Combine(root, "steamapps", "libraryfolders.vdf");
                 if (File.Exists(candidate))
-                    return candidate;
+                    files.Add(candidate);
             }
 
-            return null;
+            return files.ToList();
+        }
+
+        private static IEnumerable<string> DiscoverFixedDriveSteamRoots()
+        {
+            foreach (DriveInfo drive in DriveInfo.GetDrives())
+            {
+                if (drive.DriveType != DriveType.Fixed || !drive.IsReady)
+                    continue;
+
+                string root = drive.RootDirectory.FullName;
+                foreach (string candidate in new[]
+                {
+                    root.TrimEnd('\\'),
+                    Path.Combine(root, "Steam"),
+                    Path.Combine(root, "SteamLibrary")
+                })
+                {
+                    bool hasSteamApps = false;
+                    try
+                    {
+                        hasSteamApps = Directory.Exists(Path.Combine(candidate, "steamapps"));
+                    }
+                    catch
+                    {
+                        // Ignore inaccessible drive roots.
+                    }
+
+                    if (hasSteamApps)
+                        yield return candidate;
+                }
+            }
         }
         [SupportedOSPlatform("windows")]
         private static string? GetSteamRootFromRegistry()

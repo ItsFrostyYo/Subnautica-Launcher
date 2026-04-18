@@ -125,6 +125,7 @@ namespace SubnauticaLauncher.UI
 
             try
             {
+                using IDisposable busyOperation = LauncherBusyCoordinator.Begin($"Remove mods {_version.FolderName}");
                 ModInstallerService.RemoveManagedMod(_version, _game);
                 InstalledVersionStore.Save(_game, _version);
 

@@ -670,6 +670,9 @@ internal static class DepotInstallWorkflow
         if (string.IsNullOrWhiteSpace(auth.Username))
             throw new ArgumentException("Username is required.");
 
+        if (string.IsNullOrWhiteSpace(auth.InstallCommonPath))
+            throw new ArgumentException("A Steam install library/common path is required.");
+
         if (!auth.UseRememberedLoginOnly && string.IsNullOrWhiteSpace(auth.Password))
             throw new ArgumentException("Password is required unless using remembered login.");
     }

@@ -7,6 +7,7 @@ using SubnauticaLauncher.Versions;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -184,6 +185,7 @@ namespace SubnauticaLauncher.UI
                     return;
                 }
 
+                using IDisposable busyOperation = LauncherBusyCoordinator.Begin($"Rename {CurrentFolderName}");
                 await LaunchCoordinator.MoveFolderWithRetryAsync(HomeFolder, newPath);
 
                 if (IsBelowZero)
@@ -206,15 +208,17 @@ namespace SubnauticaLauncher.UI
                     _snVersion!.DisplayName = newDisplay;
             }
 
-            InstalledVersionStore.Save(CurrentProfile.Game, IsBelowZero ? _bzVersion! : _snVersion!);
+            using (LauncherBusyCoordinator.Begin($"Save metadata {CurrentFolderName}"))
+            {
+                InstalledVersionStore.Save(CurrentProfile.Game, IsBelowZero ? _bzVersion! : _snVersion!);
+            }
 
             DialogWindowHelper.Finish(this, true);
         }
 
         private static bool IsReservedActiveFolderName(string folderName)
         {
-            return string.Equals(folderName, "Subnautica", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(folderName, "SubnauticaZero", StringComparison.OrdinalIgnoreCase);
+            return LauncherGameProfiles.IsReservedActiveFolderName(folderName);
         }
 
         private void Delete_Click(object sender, RoutedEventArgs e)
@@ -231,6 +235,8 @@ namespace SubnauticaLauncher.UI
 
             try
             {
+                using IDisposable busyOperation = LauncherBusyCoordinator.Begin($"Delete {CurrentFolderName}");
+
                 if (IsBelowZero)
                 {
                     var dialog = new DeleteVersionDialog();
@@ -284,7 +290,9 @@ namespace SubnauticaLauncher.UI
 
         private static void DeleteLauncherInfoFiles(string homeFolder)
         {
-            foreach (string fileName in new[] { "Version.info", "BZVersion.info" })
+            foreach (string fileName in LauncherGameProfiles.All
+                         .Select(profile => profile.InfoFileName)
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 string path = Path.Combine(homeFolder, fileName);
                 if (File.Exists(path))

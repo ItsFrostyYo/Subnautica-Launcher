@@ -3,6 +3,7 @@ using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Settings;
 using System;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -21,6 +22,14 @@ namespace SubnauticaLauncher.UI
         {
             InitializeComponent();
             Loaded += DepotDownloaderLoginWindow_Loaded;
+        }
+
+        public static DepotInstallAuthOptions? PromptForAuth(Window owner)
+        {
+            var login = new DepotDownloaderLoginWindow();
+            return DialogWindowHelper.ShowDialog(owner, login) == true
+                ? login.AuthOptions
+                : null;
         }
 
         private ImageBrush GetBackgroundBrush()
@@ -43,6 +52,7 @@ namespace SubnauticaLauncher.UI
             UseRememberedLoginCheck.IsChecked = _hasRememberedLoginSeeded &&
                                                LauncherSettings.Current.DepotDownloaderUseRememberedLoginOnly;
             PreferTwoFactorCodeCheck.IsChecked = LauncherSettings.Current.DepotDownloaderPreferTwoFactorCode;
+            LoadInstallLibraries();
 
             UpdateRememberedLoginUi();
             SyncPasswordState();
@@ -116,6 +126,43 @@ namespace SubnauticaLauncher.UI
             }
         }
 
+        private void LoadInstallLibraries()
+        {
+            var choices = AppPaths.SteamCommonPaths
+                .Select(path => new System.Windows.Controls.ComboBoxItem
+                {
+                    Content = path,
+                    Tag = path,
+                    ToolTip = path
+                })
+                .ToList();
+
+            InstallLibraryComboBox.ItemsSource = choices;
+
+            string preferredPath = LauncherSettings.Current.DepotDownloaderLastInstallCommonPath;
+            if (!AppPaths.TryGetContainingSteamCommonPath(preferredPath, out string normalizedPreferredPath))
+                normalizedPreferredPath = preferredPath;
+            System.Windows.Controls.ComboBoxItem? preferredChoice = choices.FirstOrDefault(choice =>
+                choice.Tag is string path &&
+                string.Equals(path, normalizedPreferredPath, StringComparison.OrdinalIgnoreCase));
+
+            InstallLibraryComboBox.SelectedItem = preferredChoice ?? choices.FirstOrDefault();
+
+            bool hasChoices = choices.Count > 0;
+            InstallLibraryComboBox.IsEnabled = hasChoices;
+            ContinueButton.IsEnabled = hasChoices;
+            if (hasChoices)
+            {
+                InstallLibraryHintText.Text = "Choose which detected Steam library/common folder new installs should use.";
+                StatusText.Text = "";
+            }
+            else
+            {
+                InstallLibraryHintText.Text = "No Steam library/common folders were detected on this PC yet.";
+                StatusText.Text = "A valid Steam library/common folder is required before installs can continue.";
+            }
+        }
+
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -173,10 +220,19 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
+            if (InstallLibraryComboBox.SelectedItem is not System.Windows.Controls.ComboBoxItem installChoiceItem ||
+                installChoiceItem.Tag is not string installPath ||
+                string.IsNullOrWhiteSpace(installPath))
+            {
+                StatusText.Text = "Pick a valid Steam install library before continuing.";
+                return;
+            }
+
             AuthOptions = new DepotInstallAuthOptions
             {
                 Username = username,
                 Password = password,
+                InstallCommonPath = installPath,
                 RememberPassword = true,
                 UseRememberedLoginOnly = useRemembered,
                 PreferTwoFactorCode = PreferTwoFactorCodeCheck.IsChecked == true
@@ -186,6 +242,7 @@ namespace SubnauticaLauncher.UI
             LauncherSettings.Current.DepotDownloaderRememberPassword = true;
             LauncherSettings.Current.DepotDownloaderUseRememberedLoginOnly = useRemembered;
             LauncherSettings.Current.DepotDownloaderPreferTwoFactorCode = AuthOptions.PreferTwoFactorCode;
+            LauncherSettings.Current.DepotDownloaderLastInstallCommonPath = installPath;
             LauncherSettings.Save();
 
             DialogWindowHelper.Finish(this, true);

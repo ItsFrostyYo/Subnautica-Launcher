@@ -8,7 +8,7 @@ internal sealed class RuntimeServiceCoordinator
     private readonly Action _startStatusRefreshTimer;
     private readonly Action _stopStatusRefreshTimer;
     private bool _started;
-    private bool _pausedForFolderSwitch;
+    private int _pauseCount;
 
     public RuntimeServiceCoordinator(Action startStatusRefreshTimer, Action stopStatusRefreshTimer)
     {
@@ -24,7 +24,7 @@ internal sealed class RuntimeServiceCoordinator
             return;
 
         _started = true;
-        _pausedForFolderSwitch = false;
+        _pauseCount = 0;
 
         GameProcessMonitor.Start();
         _startStatusRefreshTimer();
@@ -48,7 +48,7 @@ internal sealed class RuntimeServiceCoordinator
             return;
 
         _started = false;
-        _pausedForFolderSwitch = false;
+        _pauseCount = 0;
 
         _stopStatusRefreshTimer();
         SpeedrunTimerController.Stop();
@@ -60,21 +60,47 @@ internal sealed class RuntimeServiceCoordinator
 
     public void PauseForFolderSwitch()
     {
-        if (!_started || _pausedForFolderSwitch)
+        PauseNonCriticalWork();
+    }
+
+    public void ResumeAfterFolderSwitch()
+    {
+        ResumeNonCriticalWork();
+    }
+
+    public void PauseForBusyOperation()
+    {
+        PauseNonCriticalWork();
+    }
+
+    public void ResumeAfterBusyOperation()
+    {
+        ResumeNonCriticalWork();
+    }
+
+    private void PauseNonCriticalWork()
+    {
+        if (!_started)
             return;
 
-        _pausedForFolderSwitch = true;
+        _pauseCount++;
+        if (_pauseCount > 1)
+            return;
+
         _stopStatusRefreshTimer();
         DebugTelemetryController.Stop();
         GameEventDocumenter.Stop();
     }
 
-    public void ResumeAfterFolderSwitch()
+    private void ResumeNonCriticalWork()
     {
-        if (!_started || !_pausedForFolderSwitch)
+        if (!_started || _pauseCount <= 0)
             return;
 
-        _pausedForFolderSwitch = false;
+        _pauseCount--;
+        if (_pauseCount > 0)
+            return;
+
         GameEventDocumenter.Start();
         DebugTelemetryController.Start();
         _startStatusRefreshTimer();

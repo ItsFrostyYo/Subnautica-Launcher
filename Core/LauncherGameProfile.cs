@@ -25,6 +25,17 @@ internal sealed class LauncherGameProfile
                File.Exists(Path.Combine(versionFolder, ExecutableName));
     }
 
+    public string GetActiveFolderPath(string commonPath)
+    {
+        return Path.Combine(commonPath, ActiveFolderName);
+    }
+
+    public bool MatchesActiveFolderName(string? folderName)
+    {
+        return !string.IsNullOrWhiteSpace(folderName) &&
+               string.Equals(folderName, ActiveFolderName, StringComparison.OrdinalIgnoreCase);
+    }
+
     public void EnsureSteamAppIdFile(string gameFolder)
     {
         SteamAppIdFileHelper.EnsureSteamAppIdFile(gameFolder, SteamAppId);
@@ -102,5 +113,10 @@ internal static class LauncherGameProfiles
             return Subnautica;
 
         return null;
+    }
+
+    public static bool IsReservedActiveFolderName(string? folderName)
+    {
+        return All.Any(profile => profile.MatchesActiveFolderName(folderName));
     }
 }

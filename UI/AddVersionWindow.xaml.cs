@@ -169,25 +169,16 @@ namespace SubnauticaLauncher.UI
             if (candidate == null)
                 return;
 
-            var login = new DepotDownloaderLoginWindow();
-            bool? result = DialogWindowHelper.ShowDialog(this, login);
-
-            if (result != true)
-                return;
-
-            if (login.AuthOptions == null)
+            DepotInstallAuthOptions? authOptions = DepotDownloaderLoginWindow.PromptForAuth(this);
+            if (authOptions == null)
                 return;
 
             try
             {
                 InstallButton.IsEnabled = false;
+                using IDisposable busyOperation = LauncherBusyCoordinator.Begin($"Install {candidate.Id}");
 
-                string installDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-                    "Steam",
-                    "steamapps",
-                    "common",
-                    candidate.Id);
+                string installDir = Path.Combine(authOptions.InstallCommonPath, candidate.Id);
                 bool installDirExistedBefore = Directory.Exists(installDir);
 
                 Func<DepotInstallCallbacks, CancellationToken, Task> installAction =
@@ -195,7 +186,7 @@ namespace SubnauticaLauncher.UI
                         GameDepotDownloaderService.InstallVersionAsync(
                             candidate.Game,
                             candidate.Definition,
-                            login.AuthOptions,
+                            authOptions,
                             installDir,
                             callbacks,
                             cancellationToken);

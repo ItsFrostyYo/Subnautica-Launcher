@@ -49,12 +49,7 @@ public static class GameDepotDownloaderService
         string username,
         string password)
     {
-        string installDir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            "Steam",
-            "steamapps",
-            "common",
-            version.Id);
+        string installDir = Path.Combine(AppPaths.SteamCommonPath, version.Id);
 
         return InstallVersionAsync(game, version, username, password, installDir);
     }
