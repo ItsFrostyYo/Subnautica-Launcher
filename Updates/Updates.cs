@@ -32,6 +32,19 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.8.2",
+        Title = "Refresh and Window Behavior Fixes",
+        Date = "Apr 19, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Improved installed version refreshing after version actions and during the background update timer",
+            "Fixed dialog return behavior so the launcher comes back to the front more reliably",
+            "Changed normal minimizing so the launcher stays on the taskbar instead of hiding straight to tray"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.8.1",
         Title = "Launcher Reliability and Cleanup",
         Date = "Apr 17, 2026 | Contributors (1) - ItsFrosti.",

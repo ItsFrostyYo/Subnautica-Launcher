@@ -13,7 +13,11 @@ namespace SubnauticaLauncher.UI
             PositionDialogOver(owner, dialog);
 
             if (owner is MainWindow)
-                return dialog.ShowDialog();
+            {
+                bool? result = dialog.ShowDialog();
+                RestoreWindow(owner);
+                return result;
+            }
 
             bool ownerWasVisible = owner.Visibility == Visibility.Visible;
             void HideOwnerOnRender(object? sender, EventArgs args)
@@ -32,10 +36,7 @@ namespace SubnauticaLauncher.UI
             {
                 dialog.ContentRendered -= HideOwnerOnRender;
                 if (ownerWasVisible)
-                {
-                    owner.Visibility = Visibility.Visible;
-                    owner.Activate();
-                }
+                    RestoreWindow(owner);
             }
         }
 
@@ -83,6 +84,24 @@ namespace SubnauticaLauncher.UI
                 return min;
 
             return fallback;
+        }
+
+        private static void RestoreWindow(Window window)
+        {
+            if (window.Visibility != Visibility.Visible)
+                window.Visibility = Visibility.Visible;
+
+            if (window.WindowState == WindowState.Minimized)
+                window.WindowState = WindowState.Normal;
+
+            window.ShowInTaskbar = true;
+            window.Activate();
+            window.Focus();
+
+            // Best-effort focus nudge for cases where another app steals focus during dialog close.
+            bool wasTopmost = window.Topmost;
+            window.Topmost = true;
+            window.Topmost = wasTopmost;
         }
     }
 }

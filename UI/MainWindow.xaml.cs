@@ -540,15 +540,8 @@ namespace SubnauticaLauncher.UI
 
         private void Minimize_Click(object sender, RoutedEventArgs e)
         {
-            if (_overlayStartupMode)
-            {
-                ShowInTaskbar = true;
-                WindowState = WindowState.Minimized;
-                return;
-            }
-
-            Hide();
-            ShowInTaskbar = false;
+            ShowInTaskbar = true;
+            WindowState = WindowState.Minimized;
         }
 
         private void Maximize_Click(object sender, RoutedEventArgs e)
@@ -634,7 +627,7 @@ namespace SubnauticaLauncher.UI
                     return DialogWindowHelper.ShowDialog(this, window);
                 });
 
-            LoadInstalledVersions(repairMetadata: true);
+            await LoadInstalledVersionsAsync(repairMetadata: true);
         }
 
         private void StartUpdateCheckTimer()
@@ -644,7 +637,11 @@ namespace SubnauticaLauncher.UI
             {
                 Interval = TimeSpan.FromMinutes(5)
             };
-            _updateCheckTimer.Tick += async (_, _) => await RunBackgroundChecksIfIdleAsync();
+            _updateCheckTimer.Tick += async (_, _) =>
+            {
+                await RefreshInstalledVersionsIfIdleAsync();
+                await RunBackgroundChecksIfIdleAsync();
+            };
             _updateCheckTimer.Start();
         }
 
@@ -799,17 +796,30 @@ namespace SubnauticaLauncher.UI
             return OwnedWindows.Cast<Window>().All(window => !window.IsVisible);
         }
 
-        private void NotifyActionCompleted(bool reloadVersions = true)
+        private async Task RefreshInstalledVersionsIfIdleAsync(bool repairMetadata = false)
+        {
+            if (LauncherBusyCoordinator.IsBusy || !_startupStagesCompleted)
+                return;
+
+            await LoadInstalledVersionsAsync(repairMetadata);
+        }
+
+        private async Task NotifyActionCompletedAsync(bool reloadVersions = true)
         {
             if (reloadVersions)
-                LoadInstalledVersions(repairMetadata: true);
+                await LoadInstalledVersionsAsync(repairMetadata: true);
             else
             {
                 UpdateSidebarState();
-                _ = EnsureSteamVisibleSubnauticaFolderAndRefreshAsync();
+                await EnsureSteamVisibleSubnauticaFolderAndRefreshAsync();
             }
 
-            _ = RunBackgroundChecksIfIdleAsync();
+            await RunBackgroundChecksIfIdleAsync();
+        }
+
+        private void NotifyActionCompleted(bool reloadVersions = true)
+        {
+            _ = NotifyActionCompletedAsync(reloadVersions);
         }
 
         private async Task EnsureSteamVisibleSubnauticaFolderAndRefreshAsync()
@@ -1571,10 +1581,10 @@ namespace SubnauticaLauncher.UI
             _launcherOverlayWindow?.RefreshFromMain();
         }
 
-        private void InstallVersion_Click(object sender, RoutedEventArgs e)
+        private async void InstallVersion_Click(object sender, RoutedEventArgs e)
         {
             DialogWindowHelper.ShowDialog(this, new AddVersionWindow());
-            NotifyActionCompleted(reloadVersions: true);
+            await NotifyActionCompletedAsync(reloadVersions: true);
         }
 
         private void OpenInstallFolder_Click(object sender, RoutedEventArgs e)
@@ -1584,17 +1594,17 @@ namespace SubnauticaLauncher.UI
                 BZInstalledVersionsList.SelectedItem as InstalledVersion);
         }
 
-        private void EditVersion_Click(object sender, RoutedEventArgs e)
+        private async void EditVersion_Click(object sender, RoutedEventArgs e)
         {
             if (InstalledVersionsList.SelectedItem is InstalledVersion snVersion)
             {
-                EditVersionInternal(snVersion, SubnauticaProfile);
+                await EditVersionInternalAsync(snVersion, SubnauticaProfile);
                 return;
             }
 
             if (BZInstalledVersionsList.SelectedItem is BZInstalledVersion bzVersion)
             {
-                EditVersionInternal(bzVersion, BelowZeroProfile);
+                await EditVersionInternalAsync(bzVersion, BelowZeroProfile);
             }
         }
 
@@ -1611,7 +1621,7 @@ namespace SubnauticaLauncher.UI
             OpenInstallFolderForVersion(version);
         }
 
-        private void EditVersionRow_Click(object sender, RoutedEventArgs e)
+        private async void EditVersionRow_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not System.Windows.Controls.Button button || button.Tag is not InstalledVersion version)
                 return;
@@ -1619,12 +1629,12 @@ namespace SubnauticaLauncher.UI
             if (version is BZInstalledVersion bzVersion)
             {
                 BZInstalledVersionsList.SelectedItem = bzVersion;
-                EditVersionInternal(bzVersion, BelowZeroProfile);
+                await EditVersionInternalAsync(bzVersion, BelowZeroProfile);
                 return;
             }
 
             InstalledVersionsList.SelectedItem = version;
-            EditVersionInternal(version, SubnauticaProfile);
+            await EditVersionInternalAsync(version, SubnauticaProfile);
         }
 
         private void OpenInstallFolderForVersion(InstalledVersion? version)
@@ -1641,7 +1651,7 @@ namespace SubnauticaLauncher.UI
             });
         }
 
-        private void EditVersionInternal(InstalledVersion version, LauncherGameProfile profile)
+        private async Task EditVersionInternalAsync(InstalledVersion version, LauncherGameProfile profile)
         {
             if (GameProcessMonitor.GetSnapshot().Get(profile.ProcessName).IsRunning)
             {
@@ -1658,7 +1668,7 @@ namespace SubnauticaLauncher.UI
                 : new EditVersionWindow(version);
 
             DialogWindowHelper.ShowDialog(this, editWindow);
-            NotifyActionCompleted(reloadVersions: true);
+            await NotifyActionCompletedAsync(reloadVersions: true);
         }
 
         private async Task OnResetHotkeyPressed()
@@ -2217,11 +2227,8 @@ namespace SubnauticaLauncher.UI
 
         private void MainWindow_StateChanged(object? sender, EventArgs e)
         {
-            if (WindowState == WindowState.Minimized && !_overlayStartupMode)
-            {
-                Hide();
-                ShowInTaskbar = false;
-            }
+            if (WindowState == WindowState.Minimized)
+                ShowInTaskbar = true;
         }
 
         private void RestoreFromTray()
