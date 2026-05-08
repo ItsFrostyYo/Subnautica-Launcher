@@ -21,6 +21,7 @@ namespace SubnauticaLauncher.Gameplay
         private const int MaxPlausibleTechType = 200000;
         private const int MaxPlausibleItemCount = 10000;
         private const int MaxKnownTechType = 10005;
+        private const int ThermometerTechType = 516;
         private const int RunStartFallbackMenuResetSamples = 6;
         private const int FabricatorMenuInteractValue = 1;
         private const int PdaOpenValue = 1051931443;
@@ -357,6 +358,28 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             events = detectedEvents;
+            return true;
+        }
+
+        public bool TryReadUnlockSnapshot(Process proc, out GameplayUnlockSnapshot snapshot)
+        {
+            snapshot = new GameplayUnlockSnapshot(
+                new HashSet<int>(),
+                new HashSet<string>(StringComparer.Ordinal));
+
+            EnsureInitialized(proc);
+            if (!_ready)
+                return false;
+
+            bool hasBlueprints = TryReadBlueprints(proc, out var currentBlueprints);
+            bool hasDatabank = TryReadDatabankEntries(proc, out var currentDatabankEntries);
+            if (!hasBlueprints && !hasDatabank)
+                return false;
+
+            snapshot = new GameplayUnlockSnapshot(
+                currentBlueprints,
+                currentDatabankEntries);
+
             return true;
         }
 
@@ -1838,14 +1861,8 @@ namespace SubnauticaLauncher.Gameplay
 
             if (TryReadStaticObject(proc, _knownTechField, out var knownTechObj))
             {
-                if (TryReadKnownTechList(proc, knownTechObj, values))
-                {
-                    found = true;
-                }
-                else if (TryReadIntCollection(proc, knownTechObj, values))
-                {
-                    found = true;
-                }
+                found |= TryReadKnownTechList(proc, knownTechObj, values);
+                found |= TryReadIntCollection(proc, knownTechObj, values);
             }
 
             if (TryReadStaticObject(proc, _scannerCompleteField, out var scannerObj) &&
@@ -1856,7 +1873,7 @@ namespace SubnauticaLauncher.Gameplay
 
             foreach (int tech in values.ToList())
             {
-                if (tech <= 0 || tech > MaxKnownTechType)
+                if (tech <= 0 || tech > MaxKnownTechType || tech == ThermometerTechType)
                     values.Remove(tech);
             }
 

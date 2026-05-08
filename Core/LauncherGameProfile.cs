@@ -16,6 +16,7 @@ internal sealed class LauncherGameProfile
     public required string SteamAppId { get; init; }
     public required string ActiveFolderName { get; init; }
     public required string UnmanagedReservedFolderName { get; init; }
+    public required string SaveDataFolderName { get; init; }
     public required IReadOnlyList<GameVersionInstallDefinition> InstallDefinitions { get; init; }
     public required Func<string, string, InstalledVersion?> FromInfo { get; init; }
 
@@ -55,6 +56,7 @@ internal static class LauncherGameProfiles
         SteamAppId = SteamAppIdFileHelper.SubnauticaAppId,
         ActiveFolderName = "Subnautica",
         UnmanagedReservedFolderName = "SubnauticaUnmanagedVersion",
+        SaveDataFolderName = "SNAppData",
         InstallDefinitions = VersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>().ToArray(),
         FromInfo = InstalledVersion.FromInfo
     };
@@ -70,6 +72,7 @@ internal static class LauncherGameProfiles
         SteamAppId = SteamAppIdFileHelper.BelowZeroAppId,
         ActiveFolderName = "SubnauticaZero",
         UnmanagedReservedFolderName = "SubnauticaZeroUnmanagedVersion",
+        SaveDataFolderName = "SNAppData",
         InstallDefinitions = BZVersionRegistry.AllVersions.Cast<GameVersionInstallDefinition>().ToArray(),
         FromInfo = BZInstalledVersion.FromInfo
     };

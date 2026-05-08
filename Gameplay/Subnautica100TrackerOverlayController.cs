@@ -21,6 +21,8 @@ namespace SubnauticaLauncher.Gameplay
     {
         private const int OverlayPadding = 12;
         private const int MaxAliasLength = 96;
+        private const int ThermometerTechType = 516;
+        private static readonly TimeSpan UnlockRecheckDelay = TimeSpan.FromSeconds(10);
         private const double ParkedWindowLeft = -32000;
         private const double ParkedWindowTop = -32000;
 
@@ -200,6 +202,7 @@ namespace SubnauticaLauncher.Gameplay
         private static Subnautica100TrackerOverlay? _window;
         private static CancellationTokenSource? _cts;
         private static CancellationTokenSource? _toastDisplayCts;
+        private static CancellationTokenSource? _unlockRecheckCts;
         private static Task? _loopTask;
         private static bool _runActive;
         private static bool _rulesLoaded;
@@ -213,6 +216,9 @@ namespace SubnauticaLauncher.Gameplay
         private static bool _collectPreRunUnlocks;
         private static readonly HashSet<string> PendingPreRunBlueprints = new(StringComparer.Ordinal);
         private static readonly HashSet<string> PendingPreRunDatabankEntries = new(StringComparer.Ordinal);
+        private static HashSet<int> _recheckBaselineBlueprintTechTypes = new();
+        private static HashSet<string> _recheckBaselineDatabankEntries = new(StringComparer.Ordinal);
+        private static bool _hasRecheckBaseline;
         private static readonly string[] CreativeExcludedDatabankRawNames =
         {
             "Bioreactor",
@@ -593,6 +599,7 @@ namespace SubnauticaLauncher.Gameplay
         private static void OnBatchEventWritten(IReadOnlyList<GameplayEvent> batch)
         {
             bool needsOverlayUpdate = false;
+            bool sawUnlockEvent = false;
             int batchBlueprintAdded = 0;
             int batchDatabankAdded = 0;
             string? lastBpKey = null;
@@ -638,6 +645,7 @@ namespace SubnauticaLauncher.Gameplay
                             if (creativeStart)
                                 ApplyCreativeDatabankExclusions();
                             ApplyPendingPreRunUnlocks();
+                            CaptureUnlockRecheckBaseline();
                             Logger.Log($"[100Tracker] Run started from RunStarted event. reason={evt.Key}");
                             needsOverlayUpdate = true;
                         }
@@ -647,6 +655,7 @@ namespace SubnauticaLauncher.Gameplay
                                 $"[100Tracker] Run start fallback: restarting from creative provisional start to survival start. reason={evt.Key}");
                             StartRunState(creativeStart: false);
                             ApplyPendingPreRunUnlocks();
+                            CaptureUnlockRecheckBaseline();
                             needsOverlayUpdate = true;
                         }
 
@@ -661,6 +670,7 @@ namespace SubnauticaLauncher.Gameplay
 
                     if (evt.Type == GameplayEventType.BlueprintUnlocked)
                     {
+                        sawUnlockEvent = true;
                         var matches = ResolveBlueprintMatches(evt.Key);
 
                         if (!_runActive)
@@ -689,6 +699,7 @@ namespace SubnauticaLauncher.Gameplay
 
                     if (evt.Type == GameplayEventType.DatabankEntryUnlocked)
                     {
+                        sawUnlockEvent = true;
                         var matches = ResolveDatabankMatches(evt.Key);
 
                         if (!_runActive)
@@ -720,6 +731,9 @@ namespace SubnauticaLauncher.Gameplay
             if (totalAdded > 0 || needsOverlayUpdate)
                 UpdateOverlayText();
 
+            if (sawUnlockEvent)
+                ScheduleUnlockRecheck();
+
             if (totalAdded == 0)
                 return;
 
@@ -732,30 +746,188 @@ namespace SubnauticaLauncher.Gameplay
             }
             else
             {
-                string summary;
-                if (batchDatabankAdded == 0)
-                    summary = $"{batchBlueprintAdded} Blueprints Unlocked";
-                else if (batchBlueprintAdded == 0)
-                    summary = $"{batchDatabankAdded} Databank Entries Unlocked";
-                else
-                    summary = $"{totalAdded} Unlocks ({batchBlueprintAdded} Blueprints, {batchDatabankAdded} Databank)";
+                QueueSummaryToast(BuildUnlockSummary(batchBlueprintAdded, batchDatabankAdded));
+            }
+        }
 
-                CancellationTokenSource? previousCts;
-                CancellationTokenSource currentCts;
-                lock (Sync)
+        private static string BuildUnlockSummary(int blueprintAdded, int databankAdded)
+        {
+            int totalAdded = blueprintAdded + databankAdded;
+            if (databankAdded == 0)
+                return $"{blueprintAdded} Blueprints Unlocked";
+
+            if (blueprintAdded == 0)
+                return $"{databankAdded} Databank Entries Unlocked";
+
+            return $"{totalAdded} Unlocks ({blueprintAdded} Blueprints, {databankAdded} Databank)";
+        }
+
+        private static void QueueSummaryToast(string summary)
+        {
+            if (!IsUnlockPopupEnabled() || string.IsNullOrWhiteSpace(summary))
+                return;
+
+            CancellationTokenSource currentCts;
+            CancellationTokenSource? previousCts;
+            lock (Sync)
+            {
+                previousCts = _toastDisplayCts;
+                currentCts = new CancellationTokenSource();
+                _toastDisplayCts = currentCts;
+            }
+
+            try
+            {
+                previousCts?.Cancel();
+            }
+            catch
+            {
+                // best effort cancel
+            }
+            finally
+            {
+                previousCts?.Dispose();
+            }
+
+            _ = Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                await ShowToastSequenceAsync(summary, currentCts.Token);
+            });
+        }
+
+        private static void ScheduleUnlockRecheck()
+        {
+            if (!_runActive)
+                return;
+
+            CancellationTokenSource recheckCts;
+            CancellationTokenSource? previousCts;
+            lock (Sync)
+            {
+                previousCts = _unlockRecheckCts;
+                recheckCts = new CancellationTokenSource();
+                _unlockRecheckCts = recheckCts;
+            }
+
+            try
+            {
+                previousCts?.Cancel();
+            }
+            catch
+            {
+                // best effort cancel
+            }
+            finally
+            {
+                previousCts?.Dispose();
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
                 {
-                    previousCts = _toastDisplayCts;
-                    currentCts = new CancellationTokenSource();
-                    _toastDisplayCts = currentCts;
+                    await Task.Delay(UnlockRecheckDelay, recheckCts.Token);
+                    await RunUnlockRecheckAsync(recheckCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    // expected when a fresher unlock batch replaces this recheck
+                }
+            });
+        }
+
+        private static void CaptureUnlockRecheckBaseline()
+        {
+            if (!GameEventDocumenter.TryCaptureUnlockSnapshot("Subnautica", out GameplayUnlockSnapshot snapshot))
+            {
+                _hasRecheckBaseline = false;
+                _recheckBaselineBlueprintTechTypes = new HashSet<int>();
+                _recheckBaselineDatabankEntries = new HashSet<string>(StringComparer.Ordinal);
+                return;
+            }
+
+            lock (Sync)
+            {
+                _recheckBaselineBlueprintTechTypes = new HashSet<int>(snapshot.BlueprintTechTypes);
+                _recheckBaselineDatabankEntries = new HashSet<string>(snapshot.DatabankEntries, StringComparer.Ordinal);
+                _hasRecheckBaseline = true;
+            }
+        }
+
+        private static async Task RunUnlockRecheckAsync(
+            CancellationToken token,
+            bool showRecoveryToast = true,
+            string reason = "delayed-recheck")
+        {
+            if (token.IsCancellationRequested || !_runActive)
+                return;
+
+            if (!GameEventDocumenter.TryCaptureUnlockSnapshot("Subnautica", out GameplayUnlockSnapshot snapshot))
+                return;
+
+            int addedBlueprints = 0;
+            int addedDatabank = 0;
+            HashSet<int> baselineBlueprintTechTypes;
+            HashSet<string> baselineDatabankEntries;
+
+            lock (Sync)
+            {
+                if (!_runActive)
+                    return;
+
+                baselineBlueprintTechTypes = _hasRecheckBaseline
+                    ? new HashSet<int>(_recheckBaselineBlueprintTechTypes)
+                    : new HashSet<int>();
+                baselineDatabankEntries = _hasRecheckBaseline
+                    ? new HashSet<string>(_recheckBaselineDatabankEntries, StringComparer.Ordinal)
+                    : new HashSet<string>(StringComparer.Ordinal);
+
+                foreach (int techType in snapshot.BlueprintTechTypes)
+                {
+                    if (_hasRecheckBaseline && baselineBlueprintTechTypes.Contains(techType))
+                        continue;
+
+                    foreach (string requirement in ResolveBlueprintMatches(techType.ToString()))
+                    {
+                        if (RunBlueprints.Add(requirement))
+                            addedBlueprints++;
+                    }
                 }
 
-                try { previousCts?.Cancel(); } catch { }
-                previousCts?.Dispose();
-
-                _ = Application.Current.Dispatcher.InvokeAsync(async () =>
+                foreach (string databankKey in snapshot.DatabankEntries)
                 {
-                    await ShowToastSequenceAsync(summary, currentCts.Token);
-                });
+                    if (_hasRecheckBaseline && baselineDatabankEntries.Contains(databankKey))
+                        continue;
+
+                    foreach (string requirement in ResolveDatabankMatches(databankKey))
+                    {
+                        if (RunDatabankEntries.Add(requirement))
+                            addedDatabank++;
+                    }
+                }
+
+                _recheckBaselineBlueprintTechTypes = new HashSet<int>(snapshot.BlueprintTechTypes);
+                _recheckBaselineDatabankEntries = new HashSet<string>(snapshot.DatabankEntries, StringComparer.Ordinal);
+                _hasRecheckBaseline = true;
+            }
+
+            if (addedBlueprints <= 0 && addedDatabank <= 0)
+                return;
+
+            Logger.Log(
+                $"[100Tracker] Unlock recheck recovered missed entries: blueprints={addedBlueprints}, databank={addedDatabank}, reason={reason}");
+
+            UpdateOverlayText();
+
+            if (showRecoveryToast && IsUnlockPopupEnabled())
+            {
+                string summary = addedBlueprints > 0 && addedDatabank > 0
+                    ? $"Resynced {addedBlueprints + addedDatabank} Missed Unlocks"
+                    : addedBlueprints > 0
+                        ? $"Resynced {addedBlueprints} Missed Blueprint{(addedBlueprints == 1 ? string.Empty : "s")}"
+                        : $"Resynced {addedDatabank} Missed Databank Entr{(addedDatabank == 1 ? "y" : "ies")}";
+
+                await Application.Current.Dispatcher.InvokeAsync(() => QueueSummaryToast(summary));
             }
         }
 
@@ -829,6 +1001,9 @@ namespace SubnauticaLauncher.Gameplay
 
         private static HashSet<string> ResolveBlueprintMatches(string eventKey)
         {
+            if (ShouldIgnoreBlueprintUnlock(eventKey))
+                return new HashSet<string>(StringComparer.Ordinal);
+
             if (BlueprintResolutionCache.TryGetValue(eventKey, out var cached))
                 return cached;
 
@@ -1089,11 +1264,35 @@ namespace SubnauticaLauncher.Gameplay
 
         private static void LogUnmatchedBlueprint(string eventKey)
         {
+            if (ShouldIgnoreBlueprintUnlock(eventKey))
+                return;
+
             string alias = NormalizeEventName(eventKey);
             if (alias.Length == 0 || !LoggedUnmatchedBlueprintAliases.Add(alias))
                 return;
 
             Logger.Log($"[100Tracker] Unmatched blueprint unlock: key={eventKey}");
+        }
+
+        private static bool ShouldIgnoreBlueprintUnlock(string eventKey)
+        {
+            string normalized = NormalizeEventName(eventKey);
+            if (normalized == "thermometer")
+                return true;
+
+            if (TryExtractTechTypeId(eventKey, out int techTypeId))
+            {
+                if (techTypeId == ThermometerTechType)
+                    return true;
+
+                if (TechTypeDatabase.TryGetValue(techTypeId, out string? enumName) &&
+                    NormalizeChecklistName(enumName) == "thermometer")
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static void LogUnmatchedDatabank(string eventKey)
@@ -1276,6 +1475,8 @@ namespace SubnauticaLauncher.Gameplay
         {
             CancellationTokenSource? toastCts = _toastDisplayCts;
             _toastDisplayCts = null;
+            CancellationTokenSource? recheckCts = _unlockRecheckCts;
+            _unlockRecheckCts = null;
             if (toastCts != null)
             {
                 try
@@ -1292,6 +1493,22 @@ namespace SubnauticaLauncher.Gameplay
                 }
             }
 
+            if (recheckCts != null)
+            {
+                try
+                {
+                    recheckCts.Cancel();
+                }
+                catch
+                {
+                    // best effort cancel
+                }
+                finally
+                {
+                    recheckCts.Dispose();
+                }
+            }
+
             _runActive = false;
             _runStartedFromCreative = false;
             _activeToastMessage = string.Empty;
@@ -1303,6 +1520,9 @@ namespace SubnauticaLauncher.Gameplay
             RunDatabankEntries.Clear();
             PendingPreRunBlueprints.Clear();
             PendingPreRunDatabankEntries.Clear();
+            _recheckBaselineBlueprintTechTypes.Clear();
+            _recheckBaselineDatabankEntries.Clear();
+            _hasRecheckBaseline = false;
             LoggedUnmatchedBlueprintAliases.Clear();
             LoggedUnmatchedDatabankAliases.Clear();
 
@@ -1315,12 +1535,33 @@ namespace SubnauticaLauncher.Gameplay
 
         private static void StartRunState(bool creativeStart)
         {
+            CancellationTokenSource? recheckCts = _unlockRecheckCts;
+            _unlockRecheckCts = null;
+            if (recheckCts != null)
+            {
+                try
+                {
+                    recheckCts.Cancel();
+                }
+                catch
+                {
+                    // best effort cancel
+                }
+                finally
+                {
+                    recheckCts.Dispose();
+                }
+            }
+
             _runActive = true;
             _runStartedFromCreative = creativeStart;
             _activeToastMessage = string.Empty;
             _biomeScrollOffset = 0;
             _lastBiomeScrollUtc = DateTime.MinValue;
             _collectPreRunUnlocks = false;
+            _recheckBaselineBlueprintTechTypes.Clear();
+            _recheckBaselineDatabankEntries.Clear();
+            _hasRecheckBaseline = false;
 
             // Creative starts can happen before a BiomeChanged event arrives; default to lifepod biome.
             if (string.IsNullOrWhiteSpace(_currentBiomeCanonical))

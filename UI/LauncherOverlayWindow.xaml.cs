@@ -27,6 +27,7 @@ namespace SubnauticaLauncher.UI
         private bool _syncingModes;
         private bool _syncingOpacity;
         private bool _syncingBackground;
+        private bool _syncingExplosionCustomRangeInputs;
         private bool _allowClose;
         private bool _updatesBuilt;
 
@@ -124,6 +125,7 @@ namespace SubnauticaLauncher.UI
                 SelectComboItemByContent(OverlayResetGamemodeDropdown, _main.GetResetGameModeForOverlay().ToString());
                 SelectComboItemByTag(OverlayExplosionPresetDropdown, _main.GetExplosionPresetForOverlay().ToString());
                 OverlayExplosionPresetDropdown.IsEnabled = _main.IsExplosionResetEnabledForOverlay();
+                RefreshExplosionCustomRangeUi();
             }
             finally
             {
@@ -240,14 +242,17 @@ namespace SubnauticaLauncher.UI
                     Text = $"{update.Version} ({update.Title})",
                     FontSize = 12,
                     FontWeight = FontWeights.Bold,
-                    TextWrapping = TextWrapping.Wrap
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 290
                 });
                 panel.Children.Add(new TextBlock
                 {
                     Text = update.Date,
                     FontSize = 11,
                     Foreground = Brushes.LightGray,
-                    Margin = new Thickness(0, 2, 0, 4)
+                    Margin = new Thickness(0, 2, 0, 4),
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 290
                 });
 
                 foreach (string change in update.Changes)
@@ -257,7 +262,8 @@ namespace SubnauticaLauncher.UI
                         Text = "- " + change,
                         FontSize = 11,
                         Foreground = Brushes.Gainsboro,
-                        TextWrapping = TextWrapping.Wrap
+                        TextWrapping = TextWrapping.Wrap,
+                        MaxWidth = 290
                     });
                 }
 
@@ -456,6 +462,67 @@ namespace SubnauticaLauncher.UI
         private void OverlayTrackerCustomizeButton_Click(object sender, RoutedEventArgs e)
         {
             _main.OpenTrackerCustomizeFromOverlay();
+            RefreshFromMain();
+        }
+
+        private void RefreshExplosionCustomRangeUi()
+        {
+            bool isCustom = _main.IsExplosionCustomPresetForOverlay();
+            bool isEnabled = _main.IsExplosionResetEnabledForOverlay() && isCustom;
+
+            OverlayExplosionCustomRangePanel.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
+            OverlayExplosionCustomMinBox.IsEnabled = isEnabled;
+            OverlayExplosionCustomMaxBox.IsEnabled = isEnabled;
+
+            _syncingExplosionCustomRangeInputs = true;
+            try
+            {
+                string minText = _main.GetExplosionCustomMinTextForOverlay();
+                string maxText = _main.GetExplosionCustomMaxTextForOverlay();
+
+                if (!string.Equals(OverlayExplosionCustomMinBox.Text, minText, StringComparison.Ordinal))
+                    OverlayExplosionCustomMinBox.Text = minText;
+
+                if (!string.Equals(OverlayExplosionCustomMaxBox.Text, maxText, StringComparison.Ordinal))
+                    OverlayExplosionCustomMaxBox.Text = maxText;
+            }
+            finally
+            {
+                _syncingExplosionCustomRangeInputs = false;
+            }
+        }
+
+        private void OverlayExplosionCustomRangeBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_syncingExplosionCustomRangeInputs)
+                return;
+
+            _main.TrySetExplosionCustomRangeFromOverlay(
+                OverlayExplosionCustomMinBox.Text,
+                OverlayExplosionCustomMaxBox.Text);
+        }
+
+        private void OverlayExplosionCustomRangeBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_syncingExplosionCustomRangeInputs)
+                return;
+
+            _main.CommitExplosionCustomRangeFromOverlay(
+                OverlayExplosionCustomMinBox.Text,
+                OverlayExplosionCustomMaxBox.Text);
+            RefreshFromMain();
+        }
+
+        private void OverlayExplosionCustomRangeBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+                return;
+
+            e.Handled = true;
+            _main.CommitExplosionCustomRangeFromOverlay(
+                OverlayExplosionCustomMinBox.Text,
+                OverlayExplosionCustomMaxBox.Text);
+            Keyboard.ClearFocus();
             RefreshFromMain();
         }
 

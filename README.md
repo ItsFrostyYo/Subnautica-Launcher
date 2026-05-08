@@ -72,9 +72,10 @@ To install a normal version:
 2. Go to `Play`.
 3. Press `Install Version`.
 4. Pick the game and version you want.
-5. Enter your Steam login when asked.
-6. If Steam requests a code, email code, or Steam Guard input, enter it in the launcher prompt.
-7. Wait for the install to finish.
+5. Choose the detected Steam library/common install location you want to use.
+6. Enter your Steam login when asked.
+7. If Steam requests a code, email code, or Steam Guard input, enter it in the launcher prompt.
+8. Wait for the install to finish.
 
 After the install finishes, the version should appear in the correct game list.
 
@@ -85,8 +86,8 @@ If you already have a version installed manually:
 1. Open `Install Version`.
 2. Choose `Add Existing Version`.
 3. Pick the folder that contains the game exe.
-4. Enter the display name you want.
-5. Pick the original version from the dropdown.
+4. Let the launcher auto-detect the original version from the game files.
+5. Enter the display name you want.
 6. Save it.
 
 The launcher will detect whether the folder is:
@@ -95,6 +96,8 @@ The launcher will detect whether the folder is:
 - Below Zero
 
 and it will create the correct launcher info file for that game.
+
+If the launcher cannot match the folder to one exact known version, it will block the add instead of guessing.
 
 ## Launching A Version
 
@@ -238,6 +241,7 @@ Available for:
 - Below Zero
 
 It helps automate resetting runs depending on the selected gamemode and current game state.
+Its best played on 60+ fps and must be played on 1.00 In-Game UI Scale (Non 2.0+ version dont have this options)
 
 ### Explosion Reset Macro
 
@@ -248,6 +252,21 @@ Available for:
 It can automatically reset runs based on explosion timing ranges.
 
 The launcher also includes an explosion overlay and tracking support for that workflow.
+
+### Resolutions for Reset Macro on Windowed 
+
+Currently the Subnautica reset macro only supports windowed-mode scaling for the exact resolutions listed below. These are the only windowed resolutions that are currently supported. Subnautica: Below Zero does not support this windowed scaling yet.
+
+- 3840x2160
+- 2560x1440
+- 1920x1080
+- 1760x990
+- 1600x900
+- 1366x768
+- 1280x720
+- 1128x634
+
+Anything outside this list should be treated as unsupported for windowed reset-macro use right now. Fullscreen Subnautica still remains the safest option.
 
 ## Overlays And Speedrun Tools
 

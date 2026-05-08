@@ -7,6 +7,7 @@ namespace SubnauticaLauncher.Enums
         Min46_To_48,
         Min46_To_50,
         Under1Hour,
-        Over1Hour
+        Over1Hour,
+        Custom
     }
 }

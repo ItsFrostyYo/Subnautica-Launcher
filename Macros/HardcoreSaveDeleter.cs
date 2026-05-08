@@ -24,20 +24,13 @@ namespace SubnauticaLauncher.Macros
             if (mode != GameMode.Hardcore)
                 return null;
 
-            string savedGamesPath = Path.Combine(gameRoot, "SNAppData", "SavedGames");
-            if (!Directory.Exists(savedGamesPath))
-                return null;
-
-            var latestSlot = Directory.GetDirectories(savedGamesPath, "slot*")
-                .Where(IsSlotDirectory)
-                .Select(path => new { Path = path, Timestamp = GetSlotTimestamp(path) })
+            return GetSavedGamesPaths(gameRoot)
+                .SelectMany(savedGamesPath => Directory.GetDirectories(savedGamesPath, "slot*")
+                    .Where(IsSlotDirectory)
+                    .Select(path => new { Path = path, Timestamp = GetSlotTimestamp(path) }))
                 .OrderByDescending(x => x.Timestamp)
-                .FirstOrDefault();
-
-            if (latestSlot == null)
-                return null;
-
-            return IsHardcoreSlot(latestSlot.Path) ? latestSlot.Path : null;
+                .Select(x => x.Path)
+                .FirstOrDefault(IsHardcoreSlot);
         }
 
         public static async Task DeleteSlotAfterDelayAsync(
@@ -95,13 +88,35 @@ namespace SubnauticaLauncher.Macros
             if (string.IsNullOrWhiteSpace(gameRoot))
                 return Enumerable.Empty<string>();
 
-            string savedGamesPath = Path.Combine(gameRoot, "SNAppData", "SavedGames");
-            if (!Directory.Exists(savedGamesPath))
-                return Enumerable.Empty<string>();
-
-            return Directory.GetDirectories(savedGamesPath, "slot*")
+            return GetSavedGamesPaths(gameRoot)
+                .SelectMany(savedGamesPath => Directory.GetDirectories(savedGamesPath, "slot*"))
                 .Where(IsSlotDirectory)
                 .Where(IsHardcoreSlot)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+
+        private static IEnumerable<string> GetSavedGamesPaths(string gameRoot)
+        {
+            if (string.IsNullOrWhiteSpace(gameRoot) || !Directory.Exists(gameRoot))
+                return Enumerable.Empty<string>();
+
+            LauncherGameProfile? detectedProfile = LauncherGameProfiles.DetectFromFolder(gameRoot);
+            string primaryFolder = detectedProfile?.SaveDataFolderName
+                ?? LauncherGameProfiles.Subnautica.SaveDataFolderName;
+
+            var candidates = new List<string>
+            {
+                Path.Combine(gameRoot, primaryFolder, "SavedGames")
+            };
+
+            candidates.AddRange(
+                LauncherGameProfiles.All
+                    .Select(profile => Path.Combine(gameRoot, profile.SaveDataFolderName, "SavedGames")));
+
+            return candidates
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(Directory.Exists)
                 .ToArray();
         }
 

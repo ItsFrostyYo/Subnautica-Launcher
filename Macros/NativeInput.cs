@@ -28,6 +28,21 @@ namespace SubnauticaLauncher.Macros
             await Task.Delay(delayMs);
         }
 
+        public static async Task Click(Process process, Point logicalPoint, int delayMs = 10)
+        {
+            Point physical = GameWindowCoordinateMapper.TryMapLogicalPoint(process, logicalPoint, out Point mapped)
+                ? mapped
+                : DisplayInfo.GetPrimary().ScalePoint(logicalPoint);
+
+            FocusGame(process);
+            await Task.Delay(10);
+            SetCursorPos(physical.X, physical.Y);
+            MouseDown();
+            await Task.Delay(5);
+            MouseUp();
+            await Task.Delay(delayMs);
+        }
+
         public static void PressEsc()
         {
             KeyController.HoldStart(VK_ESCAPE);

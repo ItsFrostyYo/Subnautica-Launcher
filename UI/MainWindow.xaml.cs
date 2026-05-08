@@ -75,6 +75,7 @@ namespace SubnauticaLauncher.UI
         private bool _pendingVersionReloadRepair;
         private bool _pendingSteamFolderPolicyRefresh;
         private bool _startupStagesCompleted;
+        private bool _syncingExplosionCustomRangeInputs;
         private readonly RuntimeServiceCoordinator _runtimeServices;
         private readonly BackgroundCheckCoordinator _backgroundChecks =
             new(TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(10));
@@ -276,6 +277,8 @@ namespace SubnauticaLauncher.UI
                 ExplosionPresetDropdown.Items
                     .Cast<ComboBoxItem>()
                     .FirstOrDefault(i => (string)i.Tag == ExplosionResetSettings.Preset.ToString());
+
+            RefreshExplosionCustomRangeUi();
 
             ExplosionDisplayToggleButton.Content =
                 ExplosionResetSettings.OverlayEnabled ? "Enabled" : "Disabled";
@@ -909,7 +912,9 @@ namespace SubnauticaLauncher.UI
                     Text = $"{update.Version} ({update.Title})",
                     FontSize = 16,
                     FontWeight = FontWeights.Bold,
-                    Foreground = Brushes.White
+                    Foreground = Brushes.White,
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 760
                 });
 
                 panel.Children.Add(new TextBlock
@@ -918,16 +923,20 @@ namespace SubnauticaLauncher.UI
                     FontSize = 12,
                     FontWeight = FontWeights.ExtraLight,
                     Foreground = Brushes.White,
-                    Margin = new Thickness(0, 2, 0, 6)
+                    Margin = new Thickness(0, 2, 0, 6),
+                    TextWrapping = TextWrapping.Wrap,
+                    MaxWidth = 760
                 });
 
                 foreach (var change in update.Changes)
                 {
                     panel.Children.Add(new TextBlock
                     {
-                        Text = "• " + change,
+                        Text = "- " + change,
                         FontSize = 13,
-                        Foreground = Brushes.LightGray
+                        Foreground = Brushes.LightGray,
+                        TextWrapping = TextWrapping.Wrap,
+                        MaxWidth = 760
                     });
                 }
 
@@ -948,6 +957,7 @@ namespace SubnauticaLauncher.UI
                 ExplosionResetSettings.Enabled ? Brushes.Green : Brushes.DarkRed;
 
             ExplosionPresetDropdown.IsEnabled = ExplosionResetSettings.Enabled;
+            RefreshExplosionCustomRangeUi();
 
             Logger.Log($"Explosion reset enabled = {ExplosionResetSettings.Enabled}");
         }
@@ -959,9 +969,105 @@ namespace SubnauticaLauncher.UI
             {
                 ExplosionResetSettings.Preset = Enum.Parse<Enums.ExplosionResetPreset>(tag);
                 ExplosionResetSettings.Save();
+                RefreshExplosionCustomRangeUi();
+                _launcherOverlayWindow?.RefreshFromMain();
 
                 Logger.Log($"Explosion reset preset set to {ExplosionResetSettings.Preset}");
             }
+        }
+
+        private void RefreshExplosionCustomRangeUi()
+        {
+            bool isCustom = ExplosionResetSettings.Preset == ExplosionResetPreset.Custom;
+            bool isEnabled = ExplosionResetSettings.Enabled && isCustom;
+
+            ExplosionCustomRangePanel.Visibility = isCustom ? Visibility.Visible : Visibility.Collapsed;
+            ExplosionCustomMinBox.IsEnabled = isEnabled;
+            ExplosionCustomMaxBox.IsEnabled = isEnabled;
+            SyncExplosionCustomRangeTextBoxes();
+        }
+
+        private void SyncExplosionCustomRangeTextBoxes()
+        {
+            _syncingExplosionCustomRangeInputs = true;
+            try
+            {
+                string minText = ExplosionCustomRange.FormatSeconds(ExplosionResetSettings.CustomMinSeconds);
+                string maxText = ExplosionCustomRange.FormatSeconds(ExplosionResetSettings.CustomMaxSeconds);
+
+                if (!string.Equals(ExplosionCustomMinBox.Text, minText, StringComparison.Ordinal))
+                    ExplosionCustomMinBox.Text = minText;
+
+                if (!string.Equals(ExplosionCustomMaxBox.Text, maxText, StringComparison.Ordinal))
+                    ExplosionCustomMaxBox.Text = maxText;
+            }
+            finally
+            {
+                _syncingExplosionCustomRangeInputs = false;
+            }
+        }
+
+        private bool TryApplyExplosionCustomRange(string minimumText, string maximumText, bool showError, Window? ownerWindow = null)
+        {
+            if (!ExplosionCustomRange.TryParseAndValidate(
+                    minimumText,
+                    maximumText,
+                    out int minimumSeconds,
+                    out int maximumSeconds,
+                    out string errorMessage))
+            {
+                if (showError)
+                {
+                    SyncExplosionCustomRangeTextBoxes();
+                    MessageBox.Show(
+                        ownerWindow ?? this,
+                        errorMessage,
+                        "Invalid Custom Explosion Range",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                }
+
+                return false;
+            }
+
+            if (ExplosionResetSettings.CustomMinSeconds == minimumSeconds &&
+                ExplosionResetSettings.CustomMaxSeconds == maximumSeconds)
+            {
+                return true;
+            }
+
+            ExplosionResetSettings.SetCustomRange(minimumSeconds, maximumSeconds);
+            ExplosionResetSettings.Save();
+            _launcherOverlayWindow?.RefreshFromMain();
+            Logger.Log(
+                $"Explosion reset custom range set to {ExplosionCustomRange.FormatSeconds(minimumSeconds)} -> {ExplosionCustomRange.FormatSeconds(maximumSeconds)}");
+            return true;
+        }
+
+        private void ExplosionCustomRangeBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_syncingExplosionCustomRangeInputs)
+                return;
+
+            TryApplyExplosionCustomRange(ExplosionCustomMinBox.Text, ExplosionCustomMaxBox.Text, showError: false);
+        }
+
+        private void ExplosionCustomRangeBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (_syncingExplosionCustomRangeInputs)
+                return;
+
+            TryApplyExplosionCustomRange(ExplosionCustomMinBox.Text, ExplosionCustomMaxBox.Text, showError: true, ownerWindow: this);
+        }
+
+        private void ExplosionCustomRangeBox_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter)
+                return;
+
+            e.Handled = true;
+            TryApplyExplosionCustomRange(ExplosionCustomMinBox.Text, ExplosionCustomMaxBox.Text, showError: true, ownerWindow: this);
+            Keyboard.ClearFocus();
         }
 
         private void SyncThemeDropdown(string bg)
@@ -1730,7 +1836,6 @@ namespace SubnauticaLauncher.UI
             {
                 await ExplosionResetService.RunAsync(
                     mode,
-                    ExplosionResetSettings.Preset,
                     _explosionCts.Token);
             }
             finally
@@ -2333,6 +2438,9 @@ namespace SubnauticaLauncher.UI
         internal GameMode GetResetGameModeForOverlay() => GetSelectedGameMode(ResetGamemodeDropdown, LauncherSettings.Current.ResetGameMode);
         internal bool IsExplosionResetEnabledForOverlay() => ExplosionResetSettings.Enabled;
         internal ExplosionResetPreset GetExplosionPresetForOverlay() => ExplosionResetSettings.Preset;
+        internal string GetExplosionCustomMinTextForOverlay() => ExplosionCustomRange.FormatSeconds(ExplosionResetSettings.CustomMinSeconds);
+        internal string GetExplosionCustomMaxTextForOverlay() => ExplosionCustomRange.FormatSeconds(ExplosionResetSettings.CustomMaxSeconds);
+        internal bool IsExplosionCustomPresetForOverlay() => ExplosionResetSettings.Preset == ExplosionResetPreset.Custom;
         internal bool IsHardcoreSaveDeleterEnabledForOverlay() => LauncherSettings.Current.HardcoreSaveDeleterEnabled;
         internal string GetBackgroundPresetForOverlay() => LauncherSettings.Current.BackgroundPreset;
 
@@ -2412,6 +2520,21 @@ namespace SubnauticaLauncher.UI
             ExplosionPresetDropdown.SelectedItem = ExplosionPresetDropdown.Items
                 .Cast<ComboBoxItem>()
                 .FirstOrDefault(i => (string)i.Tag == preset.ToString());
+            RefreshExplosionCustomRangeUi();
+        }
+
+        internal bool TrySetExplosionCustomRangeFromOverlay(string minimumText, string maximumText)
+        {
+            bool applied = TryApplyExplosionCustomRange(minimumText, maximumText, showError: false);
+            if (applied)
+                RefreshExplosionCustomRangeUi();
+            return applied;
+        }
+
+        internal void CommitExplosionCustomRangeFromOverlay(string minimumText, string maximumText)
+        {
+            TryApplyExplosionCustomRange(minimumText, maximumText, showError: true, ownerWindow: _launcherOverlayWindow);
+            RefreshExplosionCustomRangeUi();
         }
 
         internal void LaunchSelectedFromOverlay() => _ = LaunchSelectedVersionAsync();

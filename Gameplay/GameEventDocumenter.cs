@@ -22,6 +22,7 @@ namespace SubnauticaLauncher.Gameplay
         private const int ForegroundPollIntervalMs = 16;
         private const int BackgroundPollIntervalMs = 50;
         private const int IdlePollIntervalMs = 250;
+        private const int EventDrainIntervalMs = 75;
 
         private static readonly object Sync = new();
         private static readonly Dictionary<string, DynamicMonoGameplayEventTracker> Trackers = new();
@@ -109,6 +110,32 @@ namespace SubnauticaLauncher.Gameplay
             }
         }
 
+        public static bool TryCaptureUnlockSnapshot(string processName, out GameplayUnlockSnapshot snapshot)
+        {
+            snapshot = new GameplayUnlockSnapshot(
+                new HashSet<int>(),
+                new HashSet<string>(StringComparer.Ordinal));
+
+            if (!GameProcessMonitor.TryOpenRunningProcess(processName, out Process? process) || process == null)
+                return false;
+
+            try
+            {
+                string trackerKey = processName + ":" + process.Id;
+                DynamicMonoGameplayEventTracker tracker = GetOrCreateTracker(processName, trackerKey);
+                return tracker.TryReadUnlockSnapshot(process, out snapshot);
+            }
+            catch (Exception ex)
+            {
+                LogPollErrorThrottled(processName, ex);
+                return false;
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
         private static async Task RunLoopAsync(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
@@ -157,7 +184,7 @@ namespace SubnauticaLauncher.Gameplay
                     if (batch.Count > 0)
                         WriteBatchAndNotify(batch);
 
-                    await Task.Delay(20, token);
+                    await Task.Delay(EventDrainIntervalMs, token);
                 }
                 catch (OperationCanceledException)
                 {

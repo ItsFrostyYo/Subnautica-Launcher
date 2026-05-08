@@ -35,7 +35,13 @@ namespace SubnauticaLauncher.Macros
 
         public static bool IsBlackScreen(GameStateProfile p, DisplayInfo display)
         {
-            Color c = GetPixel(display.ScalePoint(p.BlackPixel));
+            Color c = GetPixel(null, string.Empty, p.BlackPixel, display);
+            return c.R < 8 && c.G < 8 && c.B < 8;
+        }
+
+        public static bool IsBlackScreen(Process? process, GameStateProfile p, DisplayInfo display)
+        {
+            Color c = GetPixel(process, "Subnautica", p.BlackPixel, display);
             return c.R < 8 && c.G < 8 && c.B < 8;
         }
 
@@ -44,21 +50,19 @@ namespace SubnauticaLauncher.Macros
             if (focusGame)
                 FocusGame(process);
 
-            if (IsBlackScreen(p, display))
-                return GameState.BlackScreen;
-
             if (UsesMemoryStateDetection(processName))
             {
                 if (process != null && TryDetectFromMemory(processName, process, out GameState state))
                     return state;
-
-                return GameState.Unknown;
             }
 
-            if (Matches(display.ScalePoint(p.MainMenuPixel), p.MainMenuColor, p.ColorTolerance))
+            if (IsBlackScreen(process, p, display))
+                return GameState.BlackScreen;
+
+            if (Matches(process, processName, p.MainMenuPixel, p.MainMenuColor, p.ColorTolerance, display))
                 return GameState.MainMenu;
 
-            if (Matches(display.ScalePoint(p.InGamePixel), p.InGameColor, p.ColorTolerance))
+            if (Matches(process, processName, p.InGamePixel, p.InGameColor, p.ColorTolerance, display))
                 return GameState.InGame;
 
             return GameState.Unknown;
@@ -90,16 +94,21 @@ namespace SubnauticaLauncher.Macros
             return tracker.TryDetectState(process, out state);
         }
 
-        private static bool Matches(Point p, Color expected, int tolerance)
+        private static bool Matches(Process? process, string processName, Point logicalPoint, Color expected, int tolerance, DisplayInfo display)
         {
-            Color actual = GetPixel(p);
+            Color actual = GetPixel(process, processName, logicalPoint, display);
             return Math.Abs(actual.R - expected.R) <= tolerance &&
                    Math.Abs(actual.G - expected.G) <= tolerance &&
                    Math.Abs(actual.B - expected.B) <= tolerance;
         }
 
-        private static Color GetPixel(Point p)
+        private static Color GetPixel(Process? process, string processName, Point logicalPoint, DisplayInfo display)
         {
+            bool useWindowRelative = string.Equals(processName, "Subnautica", StringComparison.OrdinalIgnoreCase);
+            Point p = useWindowRelative && GameWindowCoordinateMapper.TryMapLogicalPoint(process, logicalPoint, out Point mapped)
+                ? mapped
+                : display.ScalePoint(logicalPoint);
+
             using var bmp = new Bitmap(1, 1);
             using var g = Graphics.FromImage(bmp);
             g.CopyFromScreen(p, Point.Empty, new Size(1, 1));

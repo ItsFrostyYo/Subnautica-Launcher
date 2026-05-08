@@ -13,9 +13,6 @@ namespace SubnauticaLauncher.Explosion
     [SupportedOSPlatform("windows")]
     public static class ExplosionResetService
     {
-        private static readonly string ToolsDir =
-            Path.Combine(AppContext.BaseDirectory, "tools");
-
         private static volatile bool _abortRequested;
 
         private const ResetMacroLogChannel LogChannel = ResetMacroLogChannel.Explosion;
@@ -43,7 +40,6 @@ namespace SubnauticaLauncher.Explosion
 
         public static async Task RunAsync(
             GameMode mode,
-            ExplosionResetPreset preset,
             CancellationToken token)
         {
             _abortRequested = false;
@@ -68,10 +64,11 @@ namespace SubnauticaLauncher.Explosion
 
                 var resolver = ExplosionResolverFactory.Get(yearGroup);
                 string resolverName = resolver.GetType().Name;
+                var (startingPreset, _, _) = ExplosionResetSettings.GetConfiguredRange();
 
                 ResetMacroLogger.Info(
                     LogChannel,
-                    $"Start explosion reset. Mode={mode}, Preset={preset}, PID={process.Id}, YearGroup={yearGroup}, Resolver={resolverName}.");
+                    $"Start explosion reset. Mode={mode}, Preset={startingPreset}, PID={process.Id}, YearGroup={yearGroup}, Resolver={resolverName}.");
 
                 ExplosionResetDisplayController.Start(process, resolver);
 
@@ -143,10 +140,10 @@ namespace SubnauticaLauncher.Explosion
                         break;
                     }
 
-                    var (min, max) = ExplosionPresetRanges.Get(preset);
+                    var (livePreset, min, max) = ExplosionResetSettings.GetConfiguredRange();
                     ResetMacroLogger.Info(
                         LogChannel,
-                        $"Cycle {cycle}: explosion={snapshot.ExplosionTime:F3}s, target={min:F3}s..{max:F3}s.");
+                        $"Cycle {cycle}: explosion={snapshot.ExplosionTime:F3}s, target={min:F3}s..{max:F3}s, preset={livePreset}.");
 
                     if (snapshot.ExplosionTime >= min && snapshot.ExplosionTime <= max)
                     {

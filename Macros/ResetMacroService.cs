@@ -47,14 +47,14 @@ namespace SubnauticaLauncher.Macros
                 {
                     ResetMacroLogger.Info(logChannel, "State=MainMenu. Running direct new-game flow.");
 
-                    await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
+                    await NativeInput.Click(process, steps.PlayButton, steps.ClickDelayFast);
                     await Task.Delay(50);
-                    await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
+                    await NativeInput.Click(process, steps.StartNewGame, steps.ClickDelaySlow);
                     await Task.Delay(50);
                     if (needsGameModeDelay)
                         await Task.Delay(100);
 
-                    await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
+                    await NativeInput.Click(process, steps.SelectGameMode, steps.ClickDelayMedium);
                     ResetMacroLogger.Info(logChannel, "Reset completed from main menu path.");
                     return;
                 }
@@ -66,11 +66,11 @@ namespace SubnauticaLauncher.Macros
                     NativeInput.PressEsc();
                     await Task.Delay(50);
 
-                    await NativeInput.Click(steps.QuitButton, steps.ClickDelayMedium);
+                    await NativeInput.Click(process, steps.QuitButton, steps.ClickDelayMedium);
                     await Task.Delay(50);
-                    await NativeInput.Click(steps.ConfirmQuit1, steps.ClickDelayMedium);
+                    await NativeInput.Click(process, steps.ConfirmQuit1, steps.ClickDelayMedium);
                     await Task.Delay(50);
-                    await NativeInput.Click(steps.ConfirmQuit2, steps.ClickDelayMedium);
+                    await NativeInput.Click(process, steps.ConfirmQuit2, steps.ClickDelayMedium);
                 }
                 else
                 {
@@ -80,55 +80,48 @@ namespace SubnauticaLauncher.Macros
                 }
 
                 bool sawBlackScreen = false;
-                var blackWait = Stopwatch.StartNew();
+                bool sawMenu = false;
+                var transitionWait = Stopwatch.StartNew();
 
-                while (blackWait.ElapsedMilliseconds < 5000)
+                while (transitionWait.ElapsedMilliseconds < 5000)
                 {
-                    if (GameStateDetector.IsBlackScreen(profile, display))
+                    GameState transitionState = GameStateDetector.Detect(
+                        process,
+                        "Subnautica",
+                        profile,
+                        display,
+                        focusGame: false);
+
+                    if (transitionState == GameState.MainMenu)
                     {
-                        sawBlackScreen = true;
+                        sawMenu = true;
                         break;
                     }
+
+                    if (transitionState == GameState.BlackScreen)
+                        sawBlackScreen = true;
 
                     await Task.Delay(50);
                 }
 
-                if (sawBlackScreen)
+                if (sawMenu)
                 {
                     ResetMacroLogger.Info(
                         logChannel,
-                        $"Black screen detected after {blackWait.ElapsedMilliseconds}ms. Waiting for menu return.");
-
-                    while (GameStateDetector.IsBlackScreen(profile, display))
-                        await Task.Delay(50);
-
-                    await Task.Delay(150);
+                        sawBlackScreen
+                            ? $"Main menu detected after black-screen transition in {transitionWait.ElapsedMilliseconds}ms."
+                            : $"Main menu detected directly in {transitionWait.ElapsedMilliseconds}ms.");
                 }
                 else
                 {
-                    var menuWait = Stopwatch.StartNew();
-                    bool sawMenu = false;
-
-                    while (menuWait.ElapsedMilliseconds < 5000)
-                    {
-                        if (GameStateDetector.Detect(process, "Subnautica", profile, display) == GameState.MainMenu)
-                        {
-                            sawMenu = true;
-                            break;
-                        }
-
-                        await Task.Delay(50);
-                    }
-
-                    if (!sawMenu)
-                    {
-                        ResetMacroLogger.Warn(
-                            logChannel,
-                            $"Main menu was not detected within {menuWait.ElapsedMilliseconds}ms.");
-                    }
-
-                    await Task.Delay(150);
+                    ResetMacroLogger.Warn(
+                        logChannel,
+                        sawBlackScreen
+                            ? $"Main menu was not detected within {transitionWait.ElapsedMilliseconds}ms after black-screen transition."
+                            : $"Main menu was not detected within {transitionWait.ElapsedMilliseconds}ms.");
                 }
+
+                await Task.Delay(150);
 
                 string? slotToDelete = startedInGame
                     ? HardcoreSaveDeleter.GetLatestHardcoreSlotToDelete(root, mode)
@@ -141,14 +134,14 @@ namespace SubnauticaLauncher.Macros
                         $"Queued hardcore slot delete after restart: {slotToDelete}");
                 }
 
-                await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
+                await NativeInput.Click(process, steps.PlayButton, steps.ClickDelayFast);
                 await Task.Delay(50);
-                await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
+                await NativeInput.Click(process, steps.StartNewGame, steps.ClickDelaySlow);
                 await Task.Delay(50);
                 if (needsGameModeDelay)
                     await Task.Delay(100);
 
-                await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
+                await NativeInput.Click(process, steps.SelectGameMode, steps.ClickDelayMedium);
                 await HardcoreSaveDeleter.DeleteSlotAfterDelayAsync(slotToDelete, logChannel: logChannel);
 
                 ResetMacroLogger.Info(logChannel, "Reset completed successfully.");

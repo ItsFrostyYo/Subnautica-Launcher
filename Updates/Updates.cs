@@ -32,6 +32,20 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.8.3",
+        Title = "Reset Macro Improvements",
+        Date = "May 8, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Reset Macro's for Subnautica now support Windowed Resolutions for 3840x2160, 2560x1440, 1920x1080, 1760x990, 1600x900, 1366x768, 1280x720, 1128x634",
+            "Explosion reset now supports a saved Custom time window with minimum and maximum inputs",
+            "Explosion reset refreshes the live configured range while it is running so preset changes apply mid-session",
+            "Improved Launcher Info update text wrapping so longer notes stay readable"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.8.2",
         Title = "Refresh and Window Behavior Fixes",
         Date = "Apr 19, 2026 | Contributors (1) - ItsFrosti.",

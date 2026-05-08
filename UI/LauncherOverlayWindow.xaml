@@ -381,7 +381,39 @@
                             <ComboBoxItem Content="46:00 to 50:00" Tag="Min46_To_50"/>
                             <ComboBoxItem Content="Under 1 Hour" Tag="Under1Hour"/>
                             <ComboBoxItem Content="Over 1 Hour" Tag="Over1Hour"/>
+                            <ComboBoxItem Content="Custom" Tag="Custom"/>
                         </ComboBox>
+                    </Grid>
+
+                    <Grid x:Name="OverlayExplosionCustomRangePanel"
+                          Margin="0,0,0,10"
+                          HorizontalAlignment="Center"
+                          Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="124"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="124"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox x:Name="OverlayExplosionCustomMinBox"
+                                 Grid.Column="0"
+                                 Style="{StaticResource OverlayTextbox}"
+                                 TextChanged="OverlayExplosionCustomRangeBox_TextChanged"
+                                 LostFocus="OverlayExplosionCustomRangeBox_LostFocus"
+                                 PreviewKeyDown="OverlayExplosionCustomRangeBox_PreviewKeyDown"/>
+
+                        <TextBlock Grid.Column="1"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   FontWeight="Bold"
+                                   Text="&#x2192;"/>
+
+                        <TextBox x:Name="OverlayExplosionCustomMaxBox"
+                                 Grid.Column="2"
+                                 Style="{StaticResource OverlayTextbox}"
+                                 TextChanged="OverlayExplosionCustomRangeBox_TextChanged"
+                                 LostFocus="OverlayExplosionCustomRangeBox_LostFocus"
+                                 PreviewKeyDown="OverlayExplosionCustomRangeBox_PreviewKeyDown"/>
                     </Grid>
 
                     <Grid Margin="0,0,0,10">
@@ -510,8 +542,6 @@
         </Grid>
     </Border>
 </Window>
-
-
 
 
 

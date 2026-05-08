@@ -74,6 +74,8 @@ namespace SubnauticaLauncher.Settings
         public bool ExplosionResetEnabled { get; set; } = false;
         public ExplosionResetPreset ExplosionPreset { get; set; } =
             ExplosionResetPreset.Min46_To_4630;
+        public int ExplosionCustomMinSeconds { get; set; } = 46 * 60;
+        public int ExplosionCustomMaxSeconds { get; set; } = (46 * 60) + 30;
         public bool ExplosionOverlayEnabled { get; set; } = true;
         public bool ExplosionTrackResets { get; set; } = false;
 
