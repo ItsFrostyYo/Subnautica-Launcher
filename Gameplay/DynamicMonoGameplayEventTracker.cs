@@ -107,6 +107,7 @@ namespace SubnauticaLauncher.Gameplay
         private StaticFieldRef _uGuiPdaMainField;
         private StaticFieldRef _uGuiCraftingMenuMainField;
         private StaticFieldRef _gameModeCurrentField;
+        private StaticFieldRef _largeWorldStreamerMainField;
         private StaticFieldRef _escapePodMainField;
         private StaticFieldRef _launchRocketMainField;
         private StaticFieldRef _launchRocketStartedField;
@@ -137,6 +138,8 @@ namespace SubnauticaLauncher.Gameplay
         private int _legacyDictionaryTouchedOffset;
         private bool _hasUGuiLoadingOffset;
         private int _uGuiLoadingOffset;
+        private bool _hasUnityObjectCachedPtrOffset;
+        private int _unityObjectCachedPtrOffset;
         private bool _hasSceneLoadingIsLoadingOffset;
         private int _sceneLoadingIsLoadingOffset;
         private bool _hasInventoryItemOffset;
@@ -153,6 +156,14 @@ namespace SubnauticaLauncher.Gameplay
         private int _playerCinematicModeOffset;
         private bool _hasPlayerGroundMotorOffset;
         private int _playerGroundMotorOffset;
+        private bool _hasPlayerLastPositionOffset;
+        private int _playerLastPositionOffset;
+        private bool _hasPlayerControllerOffset;
+        private int _playerControllerOffset;
+        private bool _hasPlayerControllerVelocityOffset;
+        private int _playerControllerVelocityOffset;
+        private bool _hasLargeWorldStreamerCachedCameraPositionOffset;
+        private int _largeWorldStreamerCachedCameraPositionOffset;
         private bool _hasGroundMotorJumpingOffset;
         private int _groundMotorJumpingOffset;
         private bool _hasCinematicModeActiveOffset;
@@ -225,6 +236,15 @@ namespace SubnauticaLauncher.Gameplay
         private bool _startedFromCreative;
         private bool _awaitingSurvivalAfterCreativeCutscene;
         private bool _startedBefore;
+        private bool _hasBelowZeroPositionAnchor;
+        private float _belowZeroAnchorX;
+        private float _belowZeroAnchorY;
+        private float _belowZeroAnchorZ;
+        private bool _hasBelowZeroPredictedPosition;
+        private float _belowZeroPredictedX;
+        private float _belowZeroPredictedY;
+        private float _belowZeroPredictedZ;
+        private DateTime _belowZeroPredictedAtUtc = DateTime.MinValue;
 
         public DynamicMonoGameplayEventTracker(string gameName)
         {
@@ -631,13 +651,125 @@ namespace SubnauticaLauncher.Gameplay
             if (!_ready)
                 return false;
 
+            if (TryDetectPlayerPosition(proc, out _, out y, out _))
+                return true;
+
             return TryReadPlayerPosition(proc, _modernPosX, _modernPosY, _modernPosZ, out _, out y, out _)
                 || TryReadPlayerPosition(proc, _legacyPosX, _legacyPosY, _legacyPosZ, out _, out y, out _);
+        }
+
+        public bool TryDetectPlayerPosition(Process proc, out float x, out float y, out float z)
+        {
+            x = 0f;
+            y = 0f;
+            z = 0f;
+
+            EnsureInitialized(proc);
+            if (!_ready)
+                return false;
+
+            if (string.Equals(_gameName, "SubnauticaZero", StringComparison.OrdinalIgnoreCase))
+            {
+                if (TryReadBelowZeroCachedCameraPosition(proc, out x, out y, out z))
+                    return true;
+
+                if (TryReadLiveStaticObject(proc, _uGuiMainMenuField, out var mainMenu) &&
+                    mainMenu != IntPtr.Zero)
+                {
+                    x = MainMenuPosX;
+                    y = MainMenuPosY;
+                    z = MainMenuPosZ;
+                    return true;
+                }
+            }
+
+            if (_hasPlayerLastPositionOffset &&
+                TryReadLiveStaticObject(proc, _playerMainField, out var playerMain) &&
+                playerMain != IntPtr.Zero)
+            {
+                IntPtr positionAddress = IntPtr.Add(playerMain, _playerLastPositionOffset);
+                if (MemoryReader.ReadFloat(proc, positionAddress, out float anchorX) &&
+                    MemoryReader.ReadFloat(proc, IntPtr.Add(positionAddress, 4), out float anchorY) &&
+                    MemoryReader.ReadFloat(proc, IntPtr.Add(positionAddress, 8), out float anchorZ))
+                {
+                    if (!string.Equals(_gameName, "SubnauticaZero", StringComparison.OrdinalIgnoreCase))
+                    {
+                        x = anchorX;
+                        y = anchorY;
+                        z = anchorZ;
+                        return true;
+                    }
+
+                    DateTime now = DateTime.UtcNow;
+                    bool anchorChanged = !_hasBelowZeroPositionAnchor ||
+                        Math.Abs(anchorX - _belowZeroAnchorX) > 0.001f ||
+                        Math.Abs(anchorY - _belowZeroAnchorY) > 0.001f ||
+                        Math.Abs(anchorZ - _belowZeroAnchorZ) > 0.001f;
+
+                    if (anchorChanged)
+                    {
+                        _belowZeroAnchorX = anchorX;
+                        _belowZeroAnchorY = anchorY;
+                        _belowZeroAnchorZ = anchorZ;
+                        _hasBelowZeroPositionAnchor = true;
+
+                        _belowZeroPredictedX = anchorX;
+                        _belowZeroPredictedY = anchorY;
+                        _belowZeroPredictedZ = anchorZ;
+                        _hasBelowZeroPredictedPosition = true;
+                        _belowZeroPredictedAtUtc = now;
+                    }
+
+                    if (_hasPlayerControllerOffset &&
+                        _hasPlayerControllerVelocityOffset &&
+                        MemoryReader.ReadIntPtr(proc, IntPtr.Add(playerMain, _playerControllerOffset), out IntPtr playerController) &&
+                        playerController != IntPtr.Zero)
+                    {
+                        IntPtr velocityAddress = IntPtr.Add(playerController, _playerControllerVelocityOffset);
+                        if (MemoryReader.ReadFloat(proc, velocityAddress, out float velocityX) &&
+                            MemoryReader.ReadFloat(proc, IntPtr.Add(velocityAddress, 4), out float velocityY) &&
+                            MemoryReader.ReadFloat(proc, IntPtr.Add(velocityAddress, 8), out float velocityZ))
+                        {
+                            if (_hasBelowZeroPredictedPosition)
+                            {
+                                double dt = Math.Clamp((now - _belowZeroPredictedAtUtc).TotalSeconds, 0d, 0.75d);
+                                _belowZeroPredictedX += velocityX * (float)dt;
+                                _belowZeroPredictedY += velocityY * (float)dt;
+                                _belowZeroPredictedZ += velocityZ * (float)dt;
+                                _belowZeroPredictedAtUtc = now;
+
+                                x = _belowZeroPredictedX;
+                                y = _belowZeroPredictedY;
+                                z = _belowZeroPredictedZ;
+                                return true;
+                            }
+                        }
+                    }
+
+                    x = anchorX;
+                    y = anchorY;
+                    z = anchorZ;
+                    return true;
+                }
+            }
+
+            return TryReadPlayerPosition(proc, _modernPosX, _modernPosY, _modernPosZ, out x, out y, out z)
+                || TryReadPlayerPosition(proc, _legacyPosX, _legacyPosY, _legacyPosZ, out x, out y, out z);
         }
 
         private bool TryReadState(Process proc, out GameState state)
         {
             state = GameState.Unknown;
+
+            if (TryReadLiveStaticObject(proc, _uGuiMainMenuField, out var mainMenu))
+            {
+                if (mainMenu != IntPtr.Zero)
+                {
+                    state = GameState.MainMenu;
+                    return true;
+                }
+            }
+
             if (TryReadMainMenuSignal(proc, out bool isMainMenu))
             {
                 state = isMainMenu ? GameState.MainMenu : GameState.InGame;
@@ -646,22 +778,12 @@ namespace SubnauticaLauncher.Gameplay
 
             bool hadAnySignal = false;
 
-            if (TryReadStaticObject(proc, _playerMainField, out var playerMain))
+            if (TryReadLiveStaticObject(proc, _playerMainField, out var playerMain))
             {
                 hadAnySignal = true;
                 if (playerMain != IntPtr.Zero)
                 {
                     state = GameState.InGame;
-                    return true;
-                }
-            }
-
-            if (TryReadStaticObject(proc, _uGuiMainMenuField, out var mainMenu))
-            {
-                hadAnySignal = true;
-                if (mainMenu != IntPtr.Zero)
-                {
-                    state = GameState.MainMenu;
                     return true;
                 }
             }
@@ -1261,6 +1383,42 @@ namespace SubnauticaLauncher.Gameplay
                 && zPtr.TryReadFloat(proc, out z);
         }
 
+        private bool TryReadBelowZeroCachedCameraPosition(Process proc, out float x, out float y, out float z)
+        {
+            x = 0f;
+            y = 0f;
+            z = 0f;
+
+            if (!_largeWorldStreamerMainField.IsValid || !_hasLargeWorldStreamerCachedCameraPositionOffset)
+                return false;
+
+            if (!TryReadLiveStaticObject(proc, _largeWorldStreamerMainField, out IntPtr streamerMain) ||
+                streamerMain == IntPtr.Zero)
+            {
+                return false;
+            }
+
+            return TryReadVector3(proc, IntPtr.Add(streamerMain, _largeWorldStreamerCachedCameraPositionOffset), out x, out y, out z);
+        }
+
+        private static bool TryReadVector3(Process proc, IntPtr address, out float x, out float y, out float z)
+        {
+            x = 0f;
+            y = 0f;
+            z = 0f;
+
+            if (!MemoryReader.ReadFloat(proc, address, out x) ||
+                !MemoryReader.ReadFloat(proc, IntPtr.Add(address, 4), out y) ||
+                !MemoryReader.ReadFloat(proc, IntPtr.Add(address, 8), out z))
+            {
+                return false;
+            }
+
+            return !float.IsNaN(x) && !float.IsInfinity(x)
+                && !float.IsNaN(y) && !float.IsInfinity(y)
+                && !float.IsNaN(z) && !float.IsInfinity(z);
+        }
+
         private GameplayEvent CreateEvent(GameplayEventType type, string key, int delta, DateTime now)
         {
             return new GameplayEvent
@@ -1385,6 +1543,7 @@ namespace SubnauticaLauncher.Gameplay
             _uGuiPdaMainField = default;
             _uGuiCraftingMenuMainField = default;
             _gameModeCurrentField = default;
+            _largeWorldStreamerMainField = default;
             _escapePodMainField = default;
             _launchRocketMainField = default;
             _launchRocketStartedField = default;
@@ -1431,6 +1590,14 @@ namespace SubnauticaLauncher.Gameplay
             _playerCinematicModeOffset = 0;
             _hasPlayerGroundMotorOffset = false;
             _playerGroundMotorOffset = 0;
+            _hasPlayerLastPositionOffset = false;
+            _playerLastPositionOffset = 0;
+            _hasPlayerControllerOffset = false;
+            _playerControllerOffset = 0;
+            _hasPlayerControllerVelocityOffset = false;
+            _playerControllerVelocityOffset = 0;
+            _hasLargeWorldStreamerCachedCameraPositionOffset = false;
+            _largeWorldStreamerCachedCameraPositionOffset = 0;
             _hasGroundMotorJumpingOffset = false;
             _groundMotorJumpingOffset = 0;
             _hasCinematicModeActiveOffset = false;
@@ -1480,6 +1647,9 @@ namespace SubnauticaLauncher.Gameplay
             _hasRocketLaunchBaseline = false;
             _lastRocketLaunchValue = -1;
             _rocketBuild = SubnauticaRocketBuild.Unknown;
+            _hasBelowZeroPositionAnchor = false;
+            _hasBelowZeroPredictedPosition = false;
+            _belowZeroPredictedAtUtc = DateTime.MinValue;
         }
 
         private bool TryInitialize(Process proc)
@@ -1517,6 +1687,7 @@ namespace SubnauticaLauncher.Gameplay
             IntPtr uGuiPdaClass = FindClass(proc, mainImage, "uGUI_PDA");
             IntPtr uGuiMainMenuClass = FindClass(proc, mainImage, "uGUI_MainMenu");
             IntPtr uGuiSceneLoadingClass = FindClass(proc, mainImage, "uGUI_SceneLoading");
+            IntPtr largeWorldStreamerClass = FindClass(proc, mainImage, "LargeWorldStreamer");
             IntPtr crafterClass = FindClass(proc, mainImage, "CrafterLogic");
             IntPtr craftingMenuClass = FindClass(proc, mainImage, "uGUI_CraftingMenu");
             IntPtr gameModeUtilsClass = FindClass(proc, mainImage, "GameModeUtils");
@@ -1535,6 +1706,11 @@ namespace SubnauticaLauncher.Gameplay
                 "System.Private.CoreLib.dll",
                 "netstandard",
                 "netstandard.dll");
+            IntPtr unityCoreImage = FindFirstAssemblyImage(proc, assembliesList,
+                "UnityEngine.CoreModule",
+                "UnityEngine.CoreModule.dll",
+                "UnityEngine",
+                "UnityEngine.dll");
 
             bool anyReadableSource = false;
 
@@ -1619,6 +1795,7 @@ namespace SubnauticaLauncher.Gameplay
             }
 
             ResolveCoreCollectionOffsets(proc, coreImage);
+            ResolveUnityObjectOffsets(proc, unityCoreImage);
 
             if (playerClass != IntPtr.Zero)
             {
@@ -1632,6 +1809,22 @@ namespace SubnauticaLauncher.Gameplay
                 _hasPlayerGroundMotorOffset = TryFindFieldOffsetAny(proc, playerClass,
                     new[] { "groundMotor", "_groundMotor", "m_groundMotor" },
                     out _playerGroundMotorOffset);
+
+                _hasPlayerLastPositionOffset = TryFindFieldOffsetAny(proc, playerClass,
+                    new[] { "lastPosition", "_lastPosition", "m_lastPosition" },
+                    out _playerLastPositionOffset);
+
+                _hasPlayerControllerOffset = TryFindFieldOffsetAny(proc, playerClass,
+                    new[] { "playerController", "<playerController>k__BackingField", "_playerController", "m_playerController" },
+                    out _playerControllerOffset);
+            }
+
+            IntPtr playerControllerClass = FindClass(proc, mainImage, "PlayerController");
+            if (playerControllerClass != IntPtr.Zero)
+            {
+                _hasPlayerControllerVelocityOffset = TryFindFieldOffsetAny(proc, playerControllerClass,
+                    new[] { "velocity", "_velocity", "m_velocity" },
+                    out _playerControllerVelocityOffset);
             }
 
             if (escapePodClass != IntPtr.Zero)
@@ -1703,6 +1896,16 @@ namespace SubnauticaLauncher.Gameplay
                     _hasSceneLoadingIsLoadingOffset = TryFindFieldOffsetByContainsAny(proc, uGuiSceneLoadingClass,
                         new[] { "loading" }, out _sceneLoadingIsLoadingOffset);
                 }
+            }
+
+            if (largeWorldStreamerClass != IntPtr.Zero)
+            {
+                TryResolveStaticFieldRef(proc, largeWorldStreamerClass,
+                    new[] { "main", "_main", "s_main", "<main>k__BackingField" }, out _largeWorldStreamerMainField);
+
+                _hasLargeWorldStreamerCachedCameraPositionOffset = TryFindFieldOffsetAny(proc, largeWorldStreamerClass,
+                    new[] { "<cachedCameraPosition>k__BackingField", "cachedCameraPosition" },
+                    out _largeWorldStreamerCachedCameraPositionOffset);
             }
 
             if (inventoryItemClass != IntPtr.Zero)
@@ -1852,6 +2055,22 @@ namespace SubnauticaLauncher.Gameplay
             _hasLegacyDictionaryTouchedOffset = TryFindFieldOffsetAny(proc, dictClass,
                 new[] { "touchedSlots", "_touchedSlots", "m_touchedSlots", "count", "_count", "m_count" },
                 out _legacyDictionaryTouchedOffset);
+        }
+
+        private void ResolveUnityObjectOffsets(Process proc, IntPtr unityCoreImage)
+        {
+            _hasUnityObjectCachedPtrOffset = false;
+            _unityObjectCachedPtrOffset = 0;
+
+            if (unityCoreImage == IntPtr.Zero)
+                return;
+
+            IntPtr objectClass = FindClass(proc, unityCoreImage, "Object");
+            if (objectClass == IntPtr.Zero)
+                return;
+
+            _hasUnityObjectCachedPtrOffset = TryFindFieldOffsetAny(proc, objectClass,
+                new[] { "m_CachedPtr", "m_cachedPtr", "cachedPtr" }, out _unityObjectCachedPtrOffset);
         }
 
         private bool TryReadBlueprints(Process proc, out HashSet<int> values)
@@ -3102,6 +3321,32 @@ namespace SubnauticaLauncher.Gameplay
                 return false;
 
             return MemoryReader.ReadIntPtr(proc, IntPtr.Add(fieldRef.StaticBase, fieldRef.FieldOffset), out value);
+        }
+
+        private bool TryReadLiveStaticObject(Process proc, StaticFieldRef fieldRef, out IntPtr value)
+        {
+            value = IntPtr.Zero;
+
+            if (!TryReadStaticObject(proc, fieldRef, out IntPtr rawValue))
+                return false;
+
+            if (rawValue == IntPtr.Zero)
+            {
+                value = IntPtr.Zero;
+                return true;
+            }
+
+            if (!_hasUnityObjectCachedPtrOffset)
+            {
+                value = rawValue;
+                return true;
+            }
+
+            if (!MemoryReader.ReadIntPtr(proc, IntPtr.Add(rawValue, _unityObjectCachedPtrOffset), out IntPtr cachedPtr))
+                return false;
+
+            value = cachedPtr != IntPtr.Zero ? rawValue : IntPtr.Zero;
+            return true;
         }
 
         private bool TryReadStaticIntField(Process proc, StaticFieldRef fieldRef, out int value)

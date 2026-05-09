@@ -91,56 +91,41 @@ namespace SubnauticaLauncher.Macros
                         $"State={state}. Continuing with fallback synchronization flow.");
                 }
 
-                bool sawBlack = false;
-                var blackWait = Stopwatch.StartNew();
+                bool sawMenu = false;
+                var transitionWait = Stopwatch.StartNew();
 
-                while (blackWait.ElapsedMilliseconds < 5000)
+                while (transitionWait.ElapsedMilliseconds < 5000)
                 {
-                    if (GameStateDetector.IsBlackScreen(profile, display))
+                    GameState transitionState = GameStateDetector.Detect(
+                        process,
+                        "SubnauticaZero",
+                        profile,
+                        display,
+                        focusGame: false);
+
+                    if (transitionState == GameState.MainMenu)
                     {
-                        sawBlack = true;
+                        sawMenu = true;
                         break;
                     }
 
                     await Task.Delay(50);
                 }
 
-                if (sawBlack)
+                if (sawMenu)
                 {
                     ResetMacroLogger.Info(
                         LogChannel,
-                        $"Black screen detected after {blackWait.ElapsedMilliseconds}ms. Waiting for menu return.");
-
-                    while (GameStateDetector.IsBlackScreen(profile, display))
-                        await Task.Delay(50);
-
-                    await Task.Delay(150);
+                        $"Main menu detected in {transitionWait.ElapsedMilliseconds}ms.");
                 }
                 else
                 {
-                    var menuWait = Stopwatch.StartNew();
-                    bool sawMenu = false;
-
-                    while (menuWait.ElapsedMilliseconds < 5000)
-                    {
-                        if (GameStateDetector.Detect("SubnauticaZero", profile, display) == GameState.MainMenu)
-                        {
-                            sawMenu = true;
-                            break;
-                        }
-
-                        await Task.Delay(50);
-                    }
-
-                    if (!sawMenu)
-                    {
-                        ResetMacroLogger.Warn(
-                            LogChannel,
-                            $"Main menu was not detected within {menuWait.ElapsedMilliseconds}ms.");
-                    }
-
-                    await Task.Delay(150);
+                    ResetMacroLogger.Warn(
+                        LogChannel,
+                        $"Main menu was not detected within {transitionWait.ElapsedMilliseconds}ms.");
                 }
+
+                await Task.Delay(150);
 
                 string? slotToDelete = startedInGame
                     ? HardcoreSaveDeleter.GetLatestHardcoreSlotToDelete(root, mode)

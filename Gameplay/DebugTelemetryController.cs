@@ -32,9 +32,11 @@ namespace SubnauticaLauncher.Gameplay
         private static CancellationTokenSource? _cts;
         private static Task? _pollTask;
         private static string _subnauticaState = "Unknown";
+        private static string _belowZeroState = "Unknown";
 
         private static int _resolverPid = -1;
         private static IExplosionResolver? _resolver;
+        private static readonly DynamicMonoGameplayEventTracker BelowZeroTelemetryTracker = new("SubnauticaZero");
 
         public static void Start()
         {
@@ -116,7 +118,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 try
                 {
-                    await Task.Delay(250, token);
+                    await Task.Delay(100, token);
                 }
                 catch (OperationCanceledException)
                 {
@@ -166,6 +168,17 @@ namespace SubnauticaLauncher.Gameplay
             {
                 _resolverPid = -1;
                 _resolver = null;
+
+                if (snapshot.BelowZero.ProcessId is int belowZeroPid)
+                {
+                    using Process bz = Process.GetProcessById(belowZeroPid);
+                    if (BelowZeroTelemetryTracker.TryDetectPlayerPosition(bz, out float bzX, out float bzY, out float bzZ))
+                    {
+                        x = bzX;
+                        y = bzY;
+                        z = bzZ;
+                    }
+                }
             }
 
             Application.Current.Dispatcher.Invoke(() =>
@@ -184,9 +197,15 @@ namespace SubnauticaLauncher.Gameplay
         {
             foreach (var evt in events)
             {
-                if (evt.Type == GameplayEventType.GameStateChanged &&
-                    evt.Game.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
+                if (evt.Type != GameplayEventType.GameStateChanged)
+                    continue;
+
+                if (evt.Game.Equals("Subnautica", StringComparison.OrdinalIgnoreCase))
                     _subnauticaState = evt.Key;
+                else if (evt.Game.Equals("BelowZero", StringComparison.OrdinalIgnoreCase) ||
+                         evt.Game.Equals("SubnauticaZero", StringComparison.OrdinalIgnoreCase) ||
+                         evt.Game.Equals("Below Zero", StringComparison.OrdinalIgnoreCase))
+                    _belowZeroState = evt.Key;
             }
 
             var snapshot = events;
@@ -199,7 +218,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private static string BuildStateText()
         {
-            return $"Subnautica={_subnauticaState} | Below Zero tracking disabled";
+            return $"Subnautica={_subnauticaState} | Below Zero={_belowZeroState}";
         }
     }
 }

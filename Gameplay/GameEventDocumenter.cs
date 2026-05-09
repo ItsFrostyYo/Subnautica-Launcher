@@ -140,19 +140,30 @@ namespace SubnauticaLauncher.Gameplay
         {
             while (!token.IsCancellationRequested)
             {
-                PollMode pollMode = PollMode.Idle;
+                PollMode subnauticaMode = PollMode.Idle;
+                PollMode belowZeroMode = PollMode.Idle;
 
                 try
                 {
-                    pollMode = PollGame("Subnautica", token);
+                    subnauticaMode = PollGame("Subnautica", token);
                 }
                 catch (Exception ex)
                 {
-                    Logger.Exception(ex, "Game event documenter loop error");
+                    Logger.Exception(ex, "Game event documenter loop error for Subnautica");
                 }
 
                 try
                 {
+                    belowZeroMode = PollGame("SubnauticaZero", token);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Exception(ex, "Game event documenter loop error for Below Zero");
+                }
+
+                try
+                {
+                    PollMode pollMode = CombinePollModes(subnauticaMode, belowZeroMode);
                     int delay = pollMode switch
                     {
                         PollMode.Foreground => ForegroundPollIntervalMs,
@@ -167,6 +178,17 @@ namespace SubnauticaLauncher.Gameplay
                     break;
                 }
             }
+        }
+
+        private static PollMode CombinePollModes(PollMode first, PollMode second)
+        {
+            if (first == PollMode.Foreground || second == PollMode.Foreground)
+                return PollMode.Foreground;
+
+            if (first == PollMode.Background || second == PollMode.Background)
+                return PollMode.Background;
+
+            return PollMode.Idle;
         }
 
         private static async Task DrainQueueAsync(CancellationToken token)

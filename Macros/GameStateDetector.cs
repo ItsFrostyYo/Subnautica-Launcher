@@ -70,7 +70,8 @@ namespace SubnauticaLauncher.Macros
 
         private static bool UsesMemoryStateDetection(string processName)
         {
-            return processName.Equals("Subnautica", StringComparison.OrdinalIgnoreCase);
+            return processName.Equals("Subnautica", StringComparison.OrdinalIgnoreCase)
+                || processName.Equals("SubnauticaZero", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool TryDetectFromMemory(string processName, Process process, out GameState state)

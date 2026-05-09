@@ -32,6 +32,18 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.8.4",
+        Title = "Below Zero Reset and Game Tracking Updates",
+        Date = "May 9, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Improved Below Zero reset macro reliability when moving between in-game and main menu states",
+            "Cleaned up Below Zero support so version handling and reset behavior stay more consistent"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.8.3",
         Title = "Reset Macro Improvements",
         Date = "May 8, 2026 | Contributors (1) - ItsFrosti.",

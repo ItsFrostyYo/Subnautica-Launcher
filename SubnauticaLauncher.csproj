@@ -6,7 +6,7 @@
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 
-		<Version>2.8.3</Version>
+		<Version>2.8.4</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 
@@ -34,6 +34,7 @@
 	  <Compile Remove="tools\SNLUpdater\**\*.cs" />
 	  <EmbeddedResource Remove="tools\SNLUpdater\**\*" />
 	  <None Remove="tools\SNLUpdater\**\*" />
+	  <Compile Remove="External Research\**\*.cs" />
 	  <Compile Remove="SprinterAutosplitter\**\*.cs" />
 	  <EmbeddedResource Remove="SprinterAutosplitter\**\*" />
 	  <None Remove="SprinterAutosplitter\**\*" />
