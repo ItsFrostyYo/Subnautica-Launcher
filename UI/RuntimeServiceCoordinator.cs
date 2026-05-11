@@ -88,7 +88,6 @@ internal sealed class RuntimeServiceCoordinator
             return;
 
         _stopStatusRefreshTimer();
-        DebugTelemetryController.Stop();
         GameEventDocumenter.Stop();
     }
 
@@ -102,7 +101,6 @@ internal sealed class RuntimeServiceCoordinator
             return;
 
         GameEventDocumenter.Start();
-        DebugTelemetryController.Start();
         _startStatusRefreshTimer();
     }
 }

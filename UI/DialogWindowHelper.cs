@@ -1,10 +1,14 @@
 using System.Windows;
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace SubnauticaLauncher.UI
 {
     internal static class DialogWindowHelper
     {
+        private static readonly Dictionary<Window, bool?> ModelessResults = new();
+
         public static bool? ShowDialog(Window owner, Window dialog)
         {
             Window modalOwner = owner is MainWindow ? owner : owner.Owner ?? owner;
@@ -40,6 +44,40 @@ namespace SubnauticaLauncher.UI
             }
         }
 
+        public static Task<bool?> ShowModelessAsync(Window owner, Window window)
+        {
+            Window modelessOwner = owner is MainWindow ? owner : owner.Owner ?? owner;
+            window.Owner = modelessOwner;
+            window.WindowStartupLocation = WindowStartupLocation.Manual;
+            PositionDialogOver(owner, window);
+
+            var tcs = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (ModelessResults)
+            {
+                ModelessResults[window] = null;
+            }
+
+            void OnClosed(object? sender, EventArgs args)
+            {
+                window.Closed -= OnClosed;
+
+                bool? result;
+                lock (ModelessResults)
+                {
+                    ModelessResults.TryGetValue(window, out result);
+                    ModelessResults.Remove(window);
+                }
+
+                RestoreWindow(modelessOwner);
+                tcs.TrySetResult(result);
+            }
+
+            window.Closed += OnClosed;
+            window.Show();
+            window.Activate();
+            return tcs.Task;
+        }
+
         public static void Finish(Window window, bool? dialogResult = null)
         {
             if (dialogResult.HasValue)
@@ -51,6 +89,11 @@ namespace SubnauticaLauncher.UI
                 }
                 catch (InvalidOperationException)
                 {
+                    lock (ModelessResults)
+                    {
+                        if (ModelessResults.ContainsKey(window))
+                            ModelessResults[window] = dialogResult.Value;
+                    }
                 }
             }
 

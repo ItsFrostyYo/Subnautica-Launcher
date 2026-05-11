@@ -110,6 +110,7 @@ The launcher will:
 
 - close the currently running game if needed
 - launch the selected version directly from its own folder
+- apply any saved per-version launch options when launching directly
 - keep a usable `Subnautica` Steam-visible folder around automatically so Steam does not try to replace your managed versions
 
 If a game is already open, the main button changes to `Close Game`.
@@ -134,9 +135,13 @@ In the edit window you can:
 
 - change the display name
 - change the folder name
+- set per-version launch options such as `-novr`
+- auto-detect Steam launch options for that game and copy them in
 - delete the version from the launcher
 - delete the full game folder
 - open the mods window for that version
+
+Launch options are saved per version. They are only used when the launcher starts the game directly, so this is useful if you want Steam-style arguments like `-novr` even when launching outside Steam.
 
 ## Mod Support
 

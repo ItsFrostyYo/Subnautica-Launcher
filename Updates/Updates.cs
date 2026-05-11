@@ -32,6 +32,17 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "2.8.5",
+        Title = "Launch Options Update",
+        Date = "May 11, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Added the ability to specify Launch Options to the version you are launching so you dont lose that feature when launching without steam, now you can use stuff like -high and hopefully not see any worse performance of the game"
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "2.8.4",
         Title = "Below Zero Reset and Game Tracking Updates",
         Date = "May 9, 2026 | Contributors (1) - ItsFrosti.",

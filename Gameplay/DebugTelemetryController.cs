@@ -33,7 +33,6 @@ namespace SubnauticaLauncher.Gameplay
         private static Task? _pollTask;
         private static string _subnauticaState = "Unknown";
         private static string _belowZeroState = "Unknown";
-
         private static int _resolverPid = -1;
         private static IExplosionResolver? _resolver;
         private static readonly DynamicMonoGameplayEventTracker BelowZeroTelemetryTracker = new("SubnauticaZero");
@@ -50,9 +49,7 @@ namespace SubnauticaLauncher.Gameplay
 
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    _window = new DebugTelemetryWindow();
-                    _window.Show();
-                    _window.SetState(BuildStateText());
+                    EnsureWindowVisible(activate: false);
                 });
 
                 GameEventDocumenter.BatchEventWritten += OnBatchEventWritten;
@@ -103,6 +100,20 @@ namespace SubnauticaLauncher.Gameplay
             });
         }
 
+        public static void ShowForGameLaunch()
+        {
+            if (!IsEnabled)
+                return;
+
+            lock (Sync)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    EnsureWindowVisible(activate: true);
+                });
+            }
+        }
+
         private static async Task PollLoopAsync(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
@@ -124,6 +135,38 @@ namespace SubnauticaLauncher.Gameplay
                 {
                     break;
                 }
+            }
+        }
+
+        private static void EnsureWindowVisible(bool activate)
+        {
+            if (_window == null)
+            {
+                _window = new DebugTelemetryWindow();
+                _window.Closed += DebugTelemetryWindow_Closed;
+                _window.Show();
+            }
+
+            _window.SetState(BuildStateText());
+
+            if (activate)
+            {
+                if (!_window.IsVisible)
+                    _window.Show();
+
+                _window.Activate();
+                _window.Focus();
+            }
+        }
+
+        private static void DebugTelemetryWindow_Closed(object? sender, EventArgs e)
+        {
+            lock (Sync)
+            {
+                if (_window != null)
+                    _window.Closed -= DebugTelemetryWindow_Closed;
+
+                _window = null;
             }
         }
 

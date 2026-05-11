@@ -3,16 +3,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Width="520"
-        Height="335"
+        Height="430"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
         FontFamily="{DynamicResource AppFontFamily}"
         WindowStyle="None"
-        AllowsTransparency="True">
+        AllowsTransparency="True"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True">
 
-    <!-- ================= RESOURCES ================= -->
     <Window.Resources>
-
         <ImageBrush x:Key="BackgroundBrush"
                     Stretch="UniformToFill"/>
 
@@ -27,73 +27,69 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8"/>
         </Style>
-
     </Window.Resources>
 
-    <!-- ================= WINDOW CHROME ================= -->
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome
-            CaptionHeight="28"
-            ResizeBorderThickness="0"
+            CaptionHeight="25"
+            ResizeBorderThickness="6"
+            CornerRadius="0"
             GlassFrameThickness="0"
             UseAeroCaptionButtons="False"/>
     </shell:WindowChrome.WindowChrome>
 
-    <!-- ================= ROOT ================= -->
     <Grid>
-
-        <!-- ===== BLURRED BACKGROUND ===== -->
         <Rectangle Fill="{StaticResource BackgroundBrush}">
             <Rectangle.Effect>
                 <BlurEffect Radius="8"/>
             </Rectangle.Effect>
         </Rectangle>
 
-        <!-- ===== WINDOW CONTENT ===== -->
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="28"/>
+                <RowDefinition Height="25"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- ================= TITLE BAR ================= -->
             <Grid Grid.Row="0"
                   Background="#40000000"
                   MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- TITLE TEXT -->
+                <Image Source="pack://application:,,,/Assets/Icons/SNLIcon.png"
+                       Width="16"
+                       Height="16"
+                       Margin="12,0,8,0"
+                       VerticalAlignment="Center"/>
+
                 <TextBlock x:Name="TitleBarText"
-                           Margin="12,0,0,0"
+                           Grid.Column="1"
                            VerticalAlignment="Center"
                            FontSize="13"
+                           Margin="0,3,0,0"
                            FontWeight="SemiBold"/>
 
-                <!-- CLOSE BUTTON (BIG HIT AREA) -->
-                <Button Grid.Column="1"
+                <Button Grid.Column="2"
                         Content="&#x2715;"
                         Width="44"
-                        Height="28"
-                        Margin="4,0,4,0"
+                        Height="25"
                         Background="#8B2C2C"
-                        BorderThickness="0"
+                        BorderBrush="#55000000"
+                        BorderThickness="1"
                         Click="Close_Click"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
             </Grid>
 
-            <!-- ================= CONTENT ================= -->
             <Border Grid.Row="1"
                     Background="#90000000"
                     CornerRadius="14"
-                    Padding="18"
-                    Margin="18">
-
+                    Padding="16"
+                    Margin="16,12,16,16">
                 <StackPanel>
-
                     <TextBlock Text="Display Name"
                                FontWeight="SemiBold"/>
 
@@ -111,12 +107,32 @@
                                FontSize="11"
                                Foreground="#D0E7F2"
                                TextWrapping="Wrap"
-                               Margin="0,0,0,16"/>
+                               Margin="0,0,0,12"/>
 
-                    <!-- ACTION BUTTONS -->
+                    <TextBlock Text="Launch Options"
+                               FontWeight="SemiBold"/>
+
+                    <TextBox x:Name="LaunchOptionsBox"
+                             Margin="0,4,0,6"/>
+
+                    <TextBlock Text="Use Game Launch Arguments, Recommended: -high -nosplash. These are only applied when the game launches without steam, as a replacement."
+                               FontSize="11"
+                               Foreground="#D0E7F2"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8"/>
+
+                    <Button x:Name="DetectSteamLaunchOptionsButton"
+                            Content="Detect Steam Launch Options"
+                            MinWidth="250"
+                            Padding="18,0"
+                            HorizontalAlignment="Left"
+                            Margin="0,0,0,16"
+                            Background="{StaticResource DialogNeutralButtonBrush}"
+                            Style="{StaticResource RoundedButton}"
+                            Click="DetectSteamLaunchOptions_Click"/>
+
                     <StackPanel Orientation="Horizontal"
                                 HorizontalAlignment="Center">
-
                         <Button Content="Save"
                                 Width="100"
                                 Margin="0,0,10,0"
@@ -144,14 +160,8 @@
                                 Style="{StaticResource RoundedButton}"
                                 Click="Cancel_Click"/>
                     </StackPanel>
-
                 </StackPanel>
             </Border>
-
         </Grid>
     </Grid>
 </Window>
-
-
-
-

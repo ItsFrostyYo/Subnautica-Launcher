@@ -34,6 +34,7 @@ namespace SubnauticaLauncher.UI
             TitleBarText.Text = $"Editing Subnautica Version \"{version.DisplayLabel}\"";
             DisplayNameBox.Text = InstalledVersionNaming.NormalizeSavedDisplayName(version.DisplayName);
             FolderNameBox.Text = version.FolderName;
+            LaunchOptionsBox.Text = version.LaunchOptions?.Trim() ?? string.Empty;
 
             Loaded += EditVersionWindow_Loaded;
         }
@@ -46,6 +47,7 @@ namespace SubnauticaLauncher.UI
             TitleBarText.Text = $"Editing Below Zero Version \"{version.DisplayLabel}\"";
             DisplayNameBox.Text = InstalledVersionNaming.NormalizeSavedDisplayName(version.DisplayName);
             FolderNameBox.Text = version.FolderName;
+            LaunchOptionsBox.Text = version.LaunchOptions?.Trim() ?? string.Empty;
 
             Loaded += EditVersionWindow_Loaded;
         }
@@ -55,6 +57,8 @@ namespace SubnauticaLauncher.UI
         private string CurrentDisplayName => IsBelowZero ? _bzVersion!.DisplayName : _snVersion!.DisplayName;
 
         private string CurrentFolderName => IsBelowZero ? _bzVersion!.FolderName : _snVersion!.FolderName;
+
+        private string CurrentLaunchOptions => IsBelowZero ? _bzVersion!.LaunchOptions : _snVersion!.LaunchOptions;
 
         private void EditVersionWindow_Loaded(object sender, RoutedEventArgs e)
         {
@@ -128,7 +132,9 @@ namespace SubnauticaLauncher.UI
 
             string newDisplay = InstalledVersionNaming.NormalizeSavedDisplayName(DisplayNameBox.Text);
             string newFolder = FolderNameBox.Text.Trim();
+            string newLaunchOptions = LaunchOptionsBox.Text.Trim();
             DisplayNameBox.Text = newDisplay;
+            LaunchOptionsBox.Text = newLaunchOptions;
 
             if (string.IsNullOrWhiteSpace(newDisplay) || string.IsNullOrWhiteSpace(newFolder))
             {
@@ -163,8 +169,9 @@ namespace SubnauticaLauncher.UI
 
             bool displayChanged = !string.Equals(newDisplay, CurrentDisplayName, StringComparison.Ordinal);
             bool folderChanged = !string.Equals(newFolder, CurrentFolderName, StringComparison.Ordinal);
+            bool launchOptionsChanged = !string.Equals(newLaunchOptions, CurrentLaunchOptions ?? string.Empty, StringComparison.Ordinal);
 
-            if (!displayChanged && !folderChanged)
+            if (!displayChanged && !folderChanged && !launchOptionsChanged)
             {
                 DialogWindowHelper.Finish(this, false);
                 return;
@@ -208,12 +215,40 @@ namespace SubnauticaLauncher.UI
                     _snVersion!.DisplayName = newDisplay;
             }
 
+            if (launchOptionsChanged)
+            {
+                if (IsBelowZero)
+                    _bzVersion!.LaunchOptions = newLaunchOptions;
+                else
+                    _snVersion!.LaunchOptions = newLaunchOptions;
+            }
+
             using (LauncherBusyCoordinator.Begin($"Save metadata {CurrentFolderName}"))
             {
                 InstalledVersionStore.Save(CurrentProfile.Game, IsBelowZero ? _bzVersion! : _snVersion!);
             }
 
             DialogWindowHelper.Finish(this, true);
+        }
+
+        private void DetectSteamLaunchOptions_Click(object sender, RoutedEventArgs e)
+        {
+            if (SteamLaunchOptionsDetector.TryDetect(CurrentProfile.SteamAppId, out string detected, out string sourcePath))
+            {
+                LaunchOptionsBox.Text = detected;
+                MessageBox.Show(
+                    $"Detected Steam launch options from:{Environment.NewLine}{sourcePath}{Environment.NewLine}{Environment.NewLine}{detected}",
+                    "Launch Options Detected",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
+
+            MessageBox.Show(
+                "No Steam launch options were found for this game.\n\nIf Steam has none set, you can still type your own launch options here manually.",
+                "No Launch Options Found",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
         }
 
         private static bool IsReservedActiveFolderName(string folderName)

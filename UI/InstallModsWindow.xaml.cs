@@ -259,7 +259,7 @@ namespace SubnauticaLauncher.UI
 
         private void ExistingModComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e) => UpdateButtonStates();
 
-        private void InstallNewModded_Click(object sender, RoutedEventArgs e)
+        private async void InstallNewModded_Click(object sender, RoutedEventArgs e)
         {
             if (NewVersionsList.SelectedItem is not InstallCandidate candidate ||
                 !TryGetSelectedModId(NewModComboBox, out string? modId, out bool isPlaceholder) ||
@@ -307,7 +307,7 @@ namespace SubnauticaLauncher.UI
                 };
 
                 var installWindow = new DepotDownloaderInstallWindow(displayName, installAction);
-                bool? result = DialogWindowHelper.ShowDialog(this, installWindow);
+                bool? result = await DialogWindowHelper.ShowModelessAsync(this, installWindow);
                 if (result == true)
                 {
                     LauncherSettings.Current.DepotDownloaderRememberedLoginSeeded = true;
@@ -331,7 +331,7 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        private void InstallExistingMod_Click(object sender, RoutedEventArgs e)
+        private async void InstallExistingMod_Click(object sender, RoutedEventArgs e)
         {
             if (ExistingVersionsList.SelectedItem is not InstalledVersion version ||
                 !TryGetSelectedModId(ExistingModComboBox, out string? modId, out bool isPlaceholder) ||
@@ -372,7 +372,7 @@ namespace SubnauticaLauncher.UI
                 };
 
                 var installWindow = new DepotDownloaderInstallWindow(version.DisplayName, installAction);
-                if (DialogWindowHelper.ShowDialog(this, installWindow) == true)
+                if (await DialogWindowHelper.ShowModelessAsync(this, installWindow) == true)
                     DialogWindowHelper.Finish(this, true);
             }
             catch (Exception ex)

@@ -73,6 +73,7 @@ internal static class InstalledVersionFileService
         string DisplayName,
         string FolderName,
         string OriginalDownload,
+        string LaunchOptions,
         bool IsModded,
         string InstalledModId,
         long? ManifestId);
@@ -86,6 +87,7 @@ internal static class InstalledVersionFileService
             version.DisplayName,
             version.FolderName,
             version.OriginalDownload,
+            version.LaunchOptions,
             version.IsModded,
             version.InstalledModId);
     }
@@ -96,6 +98,7 @@ internal static class InstalledVersionFileService
         string displayName,
         string folderName,
         string originalDownload,
+        string launchOptions = "",
         bool isModded = false,
         string installedModId = "",
         long? manifestId = null)
@@ -107,6 +110,7 @@ internal static class InstalledVersionFileService
             displayName,
             folderName,
             originalDownload,
+            launchOptions,
             isModded,
             installedModId,
             manifestId);
@@ -118,6 +122,7 @@ internal static class InstalledVersionFileService
         string displayName,
         string folderName,
         string originalDownload,
+        string launchOptions = "",
         bool isModded = false,
         string installedModId = "",
         long? manifestId = null)
@@ -127,6 +132,7 @@ internal static class InstalledVersionFileService
             .AppendLine($"DisplayName={InstalledVersionNaming.NormalizeSavedDisplayName(displayName)}")
             .AppendLine($"FolderName={folderName}")
             .AppendLine($"OriginalDownload={originalDownload}")
+            .AppendLine($"LaunchOptions={launchOptions?.Trim() ?? string.Empty}")
             .AppendLine($"Modded={isModded}");
 
         if (!string.IsNullOrWhiteSpace(installedModId))
@@ -230,6 +236,7 @@ internal static class InstalledVersionFileService
                         resolvedDisplayName,
                         parsed.FolderName,
                         resolvedOriginalDownload,
+                        parsed.LaunchOptions,
                         parsed.IsModded,
                         parsed.InstalledModId,
                         parsed.ManifestId);
@@ -261,6 +268,7 @@ internal static class InstalledVersionFileService
             string displayName = "";
             string folderName = "";
             string originalDownload = "";
+            string launchOptions = "";
             bool isModded = false;
             string installedModId = "";
             long? manifestId = null;
@@ -273,6 +281,8 @@ internal static class InstalledVersionFileService
                     folderName = line["FolderName=".Length..];
                 else if (line.StartsWith("OriginalDownload=", StringComparison.Ordinal))
                     originalDownload = line["OriginalDownload=".Length..];
+                else if (line.StartsWith("LaunchOptions=", StringComparison.Ordinal))
+                    launchOptions = line["LaunchOptions=".Length..];
                 else if (line.StartsWith("Modded=", StringComparison.Ordinal))
                     isModded = bool.TryParse(line["Modded=".Length..], out bool parsed) && parsed;
                 else if (line.StartsWith("InstalledMod=", StringComparison.Ordinal))
@@ -293,6 +303,7 @@ internal static class InstalledVersionFileService
                 displayName,
                 folderName,
                 originalDownload,
+                launchOptions,
                 isModded,
                 installedModId,
                 manifestId);

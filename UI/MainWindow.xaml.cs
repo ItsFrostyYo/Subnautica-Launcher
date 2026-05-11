@@ -1227,11 +1227,14 @@ namespace SubnauticaLauncher.UI
                 {
                     FileName = targetExe,
                     WorkingDirectory = launchFolder,
+                    Arguments = (target.LaunchOptions ?? string.Empty).Trim(),
                     UseShellExecute = false
                 });
 
                 if (process == null)
                     throw new InvalidOperationException($"Failed to launch {profile.DisplayName}.");
+
+                DebugTelemetryController.ShowForGameLaunch();
 
                 bool launched = await WaitForLaunchedAsync(process);
                 SetStatus(target, launched ? VersionStatus.Launched : VersionStatus.Active);
@@ -1689,8 +1692,8 @@ namespace SubnauticaLauncher.UI
 
         private async void InstallVersion_Click(object sender, RoutedEventArgs e)
         {
-            DialogWindowHelper.ShowDialog(this, new AddVersionWindow());
-            await NotifyActionCompletedAsync(reloadVersions: true);
+            bool? result = await DialogWindowHelper.ShowModelessAsync(this, new AddVersionWindow());
+            await NotifyActionCompletedAsync(reloadVersions: result == true);
         }
 
         private void OpenInstallFolder_Click(object sender, RoutedEventArgs e)
@@ -1773,8 +1776,8 @@ namespace SubnauticaLauncher.UI
                 ? new EditVersionWindow(bzVersion)
                 : new EditVersionWindow(version);
 
-            DialogWindowHelper.ShowDialog(this, editWindow);
-            await NotifyActionCompletedAsync(reloadVersions: true);
+            bool? result = await DialogWindowHelper.ShowModelessAsync(this, editWindow);
+            await NotifyActionCompletedAsync(reloadVersions: result == true);
         }
 
         private async Task OnResetHotkeyPressed()

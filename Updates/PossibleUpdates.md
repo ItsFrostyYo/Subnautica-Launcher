@@ -1,7 +1,7 @@
-#### Last Updated 5/10/2026 at 10:55 AM EST
+#### Last Updated 5/11/2026 at 5:04 AM EST
 # Possible Updates in the Future!
 
-- Any Bug Fixed Obv 😭
+- Any Bug Fixes Obv 😭
 - Add Steam Launch Options to help with Steam_AppId.txt issue
 - Still possibly add an option/fix for the Steam_AppId.txt ONLY issue (folder permission issue)
 - BZ full tracking with 100% Tracker
@@ -13,11 +13,10 @@
       - a new tool anyway so it doesnt matter
   - If Revamp add splits/full autosplitter stuff (i guess why livesplit?)
 - Too lazy to think of more rn
-.
-.
-.
-.
-### **Callback 1** "Add Steam Launch Option to help with Steam_AppId.txt issue"
+
+
+
+## **Callback 1** "Add Steam Launch Option to help with Steam_AppId.txt issue"
 Auto Detect Launch Option from `"LaunchOptions" "***"`, 
 inside of `C:\Program Files (x86)\Steam\userdata\<YOUR_STEAM_ID>\config\localconfig.vdf`
 
@@ -40,3 +39,6 @@ Example from mine,
 						"LaunchOptions"		"-novr"
 						"PlaytimeDisconnected"		"996"
 					}`
+
+### **Callback 2** "Add Steam Launch Option to help with Steam_AppId.txt issue"
+! Done !

@@ -9,6 +9,7 @@ public class InstalledVersion
     public string DisplayName { get; set; } = "";
     public string FolderName { get; set; } = "";
     public string OriginalDownload { get; set; } = "";
+    public string LaunchOptions { get; set; } = "";
     public bool IsModded { get; set; }
     public string InstalledModId { get; set; } = "";
     public bool HasBepInEx { get; set; }
@@ -44,6 +45,8 @@ public class InstalledVersion
                 version.FolderName = line["FolderName=".Length..];
             else if (line.StartsWith("OriginalDownload="))
                 version.OriginalDownload = line["OriginalDownload=".Length..];
+            else if (line.StartsWith("LaunchOptions="))
+                version.LaunchOptions = line["LaunchOptions=".Length..];
             else if (line.StartsWith("Modded="))
                 version.IsModded = bool.TryParse(line["Modded=".Length..], out bool isModded) && isModded;
             else if (line.StartsWith("InstalledMod="))

@@ -163,7 +163,7 @@ namespace SubnauticaLauncher.UI
             Close();
         }
 
-        private void Install_Click(object sender, RoutedEventArgs e)
+        private async void Install_Click(object sender, RoutedEventArgs e)
         {
             var candidate = GetSelectedCandidate();
             if (candidate == null)
@@ -195,7 +195,7 @@ namespace SubnauticaLauncher.UI
                     candidate.DisplayName,
                     installAction);
 
-                bool? installResult = DialogWindowHelper.ShowDialog(this, installWindow);
+                bool? installResult = await DialogWindowHelper.ShowModelessAsync(this, installWindow);
                 if (installResult != true)
                 {
                     if (installWindow.WasCancelled)
@@ -230,21 +230,21 @@ namespace SubnauticaLauncher.UI
             }
         }
 
-        private void AddUnmanaged_Click(object sender, RoutedEventArgs e)
+        private async void AddUnmanaged_Click(object sender, RoutedEventArgs e)
         {
             var win = new AddUnmanagedVersionWindow();
 
-            if (DialogWindowHelper.ShowDialog(this, win) == true)
+            if (await DialogWindowHelper.ShowModelessAsync(this, win) == true)
             {
                 DialogWindowHelper.Finish(this, true);
             }
         }
 
-        private void InstallMods_Click(object sender, RoutedEventArgs e)
+        private async void InstallMods_Click(object sender, RoutedEventArgs e)
         {
             var win = new InstallModsWindow();
 
-            if (DialogWindowHelper.ShowDialog(this, win) == true)
+            if (await DialogWindowHelper.ShowModelessAsync(this, win) == true)
                 DialogWindowHelper.Finish(this, true);
         }
 
