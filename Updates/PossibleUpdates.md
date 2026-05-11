@@ -2,7 +2,7 @@
 # Possible Updates in the Future!
 
 - Any Bug Fixes Obv 😭
-- Add Steam Launch Options to help with Steam_AppId.txt issue
+- `Complete` Add Steam Launch Options to help with Steam_AppId.txt issue
 - Still possibly add an option/fix for the Steam_AppId.txt ONLY issue (folder permission issue)
 - BZ full tracking with 100% Tracker
 - Revamp the Main Menu Overlay Version
