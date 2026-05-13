@@ -6,7 +6,7 @@ It is built for players and speedrunners who want an easier way to:
 
 - keep many versions installed at once
 - swap between versions without manually renaming folders
-- launch older versions cleanly
+- download older versions cleanly
 - use built-in reset tools and overlays
 - manage supported mods
 - stay up to date through the launcher itself
