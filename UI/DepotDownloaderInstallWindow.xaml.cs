@@ -218,6 +218,7 @@ namespace SubnauticaLauncher.UI
 
                 EnqueueLogSafe("Install failed:");
                 EnqueueLogSafe(ex.Message);
+                Logger.Error($"[DepotInstallWindow] Failure message: {ex.Message}");
                 Logger.Exception(ex, "Depot install window install failure");
             }
             finally
@@ -464,8 +465,7 @@ namespace SubnauticaLauncher.UI
         private void Done_Click(object sender, RoutedEventArgs e)
         {
             _allowClose = true;
-            DialogResult = Succeeded;
-            Close();
+            DialogWindowHelper.Finish(this, Succeeded);
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)
@@ -477,7 +477,7 @@ namespace SubnauticaLauncher.UI
             }
 
             _allowClose = true;
-            Close();
+            DialogWindowHelper.Finish(this, Succeeded);
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

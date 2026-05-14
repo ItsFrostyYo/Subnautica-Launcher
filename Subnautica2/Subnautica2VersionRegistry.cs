@@ -10,6 +10,7 @@ public static class Subnautica2VersionRegistry
             new(
                 "Subnautica2_May2026",
                 "*First Release* May, 2026 (Early Access Launch)",
-                0)
+                4222263125962173451,
+                113109)
         };
 }

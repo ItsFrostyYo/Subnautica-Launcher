@@ -11,6 +11,7 @@ public static class DepotDownloaderInstaller
 {
     private const string DepotDownloaderZipUrl =
         "https://github.com/SteamRE/DepotDownloader/releases/latest/download/DepotDownloader-windows-x64.zip";
+    private static readonly TimeSpan StaleToolAge = TimeSpan.FromDays(90);
 
     // Root tools folder
     public static string ToolsPath => AppPaths.ToolsPath;
@@ -33,10 +34,32 @@ public static class DepotDownloaderInstaller
         return File.Exists(DepotDownloaderExe);
     }
 
-    public static async Task EnsureInstalledAsync()
+    public static bool IsLikelyStale()
     {
-        if (IsInstalled())
+        try
+        {
+            if (!IsInstalled())
+                return true;
+
+            DateTime lastWriteUtc = File.GetLastWriteTimeUtc(DepotDownloaderExe);
+            if (lastWriteUtc <= DateTime.UnixEpoch)
+                return true;
+
+            return DateTime.UtcNow - lastWriteUtc > StaleToolAge;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    public static async Task EnsureInstalledAsync(bool refreshIfStale = false)
+    {
+        if (IsInstalled() && (!refreshIfStale || !IsLikelyStale()))
             return;
+
+        if (refreshIfStale && IsInstalled())
+            Logger.Log("[DepotDownloader] Installed tool is stale, refreshing latest release.");
 
         Directory.CreateDirectory(ToolsPath);
 
@@ -58,5 +81,7 @@ public static class DepotDownloaderInstaller
 
         if (!IsInstalled())
             throw new FileNotFoundException("DepotDownloader.exe was not found after extraction.", DepotDownloaderExe);
+
+        Logger.Log("[DepotDownloader] Tool installed/refreshed successfully.");
     }
 }

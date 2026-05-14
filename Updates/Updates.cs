@@ -40,7 +40,7 @@ public static class Updates
         {
             "Added SN2 to the Launcher",
             "Revamped UI for Game Seperation",
-            "UI is not Customizable for each Game",
+            "UI is now Customizable for each Game",
             "Tools Section is Revamped for easy access to showing only tools that are accessible for each game",
             "Improved the Updater to show exactly what its doing after the launcher restarts"
         }

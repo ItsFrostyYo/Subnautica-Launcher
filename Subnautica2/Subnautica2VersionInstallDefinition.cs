@@ -6,11 +6,16 @@ public sealed class Subnautica2VersionInstallDefinition : GameVersionInstallDefi
 {
     public const int AppId = 1962700;
 
-    // TODO: Replace with the real depot id when public depot/version downloading is wired.
-    public const int DepotId = 1962702;
+    public const int DepotId = 1962701;
+    public long? BuildChangelist { get; }
 
-    public Subnautica2VersionInstallDefinition(string id, string displayName, long manifestId)
+    public Subnautica2VersionInstallDefinition(
+        string id,
+        string displayName,
+        long manifestId,
+        long? buildChangelist = null)
         : base(id, displayName, manifestId, AppId, DepotId)
     {
+        BuildChangelist = buildChangelist;
     }
 }

@@ -70,6 +70,7 @@ internal static class DepotInstallWorkflow
     {
         // Legacy behavior: keep native console flow for existing call sites.
         ValidateBasicAuth(username, password);
+        await DepotDownloaderInstaller.EnsureInstalledAsync(refreshIfStale: true);
         Directory.CreateDirectory(installDir);
 
         string args =
@@ -107,6 +108,9 @@ internal static class DepotInstallWorkflow
         CancellationToken cancellationToken)
     {
         ValidateAuthOptions(auth);
+
+        callbacks?.OnStatus?.Invoke("Checking DepotDownloader...");
+        await DepotDownloaderInstaller.EnsureInstalledAsync(refreshIfStale: true);
 
         Directory.CreateDirectory(installDir);
 
@@ -248,6 +252,9 @@ internal static class DepotInstallWorkflow
             string detail = recentLines.Count == 0
                 ? "No detailed output was captured."
                 : string.Join(Environment.NewLine, recentLines);
+
+            Logger.Error(
+                $"[DepotDownloader] Install failed for app={version.SteamAppId} depot={version.SteamDepotId} manifest={version.ManifestId}.{Environment.NewLine}{detail}");
 
             throw new Exception(
                 $"DepotDownloader failed (exit code {process.ExitCode}).{Environment.NewLine}{detail}");
