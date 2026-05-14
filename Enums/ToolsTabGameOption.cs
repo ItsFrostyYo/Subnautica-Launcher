@@ -1,6 +1,6 @@
 namespace SubnauticaLauncher.Enums
 {
-    public enum LauncherGame
+    public enum ToolsTabGameOption
     {
         Subnautica,
         BelowZero,

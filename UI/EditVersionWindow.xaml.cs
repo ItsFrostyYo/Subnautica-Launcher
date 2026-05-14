@@ -22,16 +22,18 @@ namespace SubnauticaLauncher.UI
 
         private readonly InstalledVersion? _snVersion;
         private readonly BZInstalledVersion? _bzVersion;
+        private readonly LauncherGameProfile _profile;
 
-        private bool IsBelowZero => _bzVersion != null;
-        private LauncherGameProfile CurrentProfile => LauncherGameProfiles.Get(IsBelowZero ? LauncherGame.BelowZero : LauncherGame.Subnautica);
+        private bool IsBelowZero => _profile.Game == LauncherGame.BelowZero;
+        private LauncherGameProfile CurrentProfile => _profile;
 
         public EditVersionWindow(InstalledVersion version)
         {
             InitializeComponent();
 
             _snVersion = version;
-            TitleBarText.Text = $"Editing Subnautica Version \"{version.DisplayLabel}\"";
+            _profile = LauncherGameProfiles.DetectFromFolder(version.HomeFolder) ?? LauncherGameProfiles.Subnautica;
+            TitleBarText.Text = $"Editing {_profile.DisplayName} Version \"{version.DisplayLabel}\"";
             DisplayNameBox.Text = InstalledVersionNaming.NormalizeSavedDisplayName(version.DisplayName);
             FolderNameBox.Text = version.FolderName;
             LaunchOptionsBox.Text = version.LaunchOptions?.Trim() ?? string.Empty;
@@ -44,6 +46,7 @@ namespace SubnauticaLauncher.UI
             InitializeComponent();
 
             _bzVersion = version;
+            _profile = LauncherGameProfiles.BelowZero;
             TitleBarText.Text = $"Editing Below Zero Version \"{version.DisplayLabel}\"";
             DisplayNameBox.Text = InstalledVersionNaming.NormalizeSavedDisplayName(version.DisplayName);
             FolderNameBox.Text = version.FolderName;
@@ -159,7 +162,7 @@ namespace SubnauticaLauncher.UI
             if (IsReservedActiveFolderName(newFolder))
             {
                 MessageBox.Show(
-                    "Folder name cannot be 'Subnautica' or 'SubnauticaZero'.\n\n" +
+                    $"Folder name cannot be {LauncherGameProfiles.GetReservedActiveFolderNamesDisplay()}.\n\n" +
                     "Those names are reserved for active game folders.",
                     "Invalid Folder Name",
                     MessageBoxButton.OK,

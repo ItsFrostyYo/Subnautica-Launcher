@@ -134,6 +134,7 @@ namespace SubnauticaLauncher.UI
         private void ValidateFolder(string folder)
         {
             _detectedOriginalDownloadId = null;
+            _detectedGame = null;
             DetectedOriginalVersionText.Text = "Detecting version from build files...";
             FolderPathBox.Text = "";
             FolderNameBox.Text = "";
@@ -142,10 +143,11 @@ namespace SubnauticaLauncher.UI
 
             string sourceFolderName = Path.GetFileName(folder);
 
-            bool hasSubnauticaExe = File.Exists(Path.Combine(folder, "Subnautica.exe"));
-            bool hasBelowZeroExe = File.Exists(Path.Combine(folder, "SubnauticaZero.exe"));
+            List<LauncherGameProfile> matchingProfiles = LauncherGameProfiles.All
+                .Where(profile => profile.HasExpectedExecutable(folder))
+                .ToList();
 
-            if (!hasSubnauticaExe && !hasBelowZeroExe)
+            if (matchingProfiles.Count == 0)
             {
                 MessageBox.Show(
                     "Selected folder does not contain a supported game executable.",
@@ -156,10 +158,10 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (hasSubnauticaExe && hasBelowZeroExe)
+            if (matchingProfiles.Count > 1)
             {
                 MessageBox.Show(
-                    "Selected folder contains both Subnautica.exe and SubnauticaZero.exe.\n\n" +
+                    "Selected folder contains more than one supported launcher game executable.\n\n" +
                     "Please choose a folder for one game only.",
                     "Invalid Folder",
                     MessageBoxButton.OK,
@@ -168,7 +170,8 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            _detectedGame = hasSubnauticaExe ? LauncherGame.Subnautica : LauncherGame.BelowZero;
+            LauncherGameProfile profile = matchingProfiles[0];
+            _detectedGame = profile.Game;
 
             if (LauncherGameProfiles.All.Any(profile =>
                     File.Exists(Path.Combine(folder, profile.InfoFileName))))
@@ -182,7 +185,6 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            LauncherGameProfile profile = LauncherGameProfiles.Get(_detectedGame.Value);
             if (!VersionIdentityResolver.TryDetectOriginalVersion(
                     folder,
                     profile,
@@ -276,7 +278,7 @@ namespace SubnauticaLauncher.UI
             if (IsReservedActiveFolderName(folderName))
             {
                 MessageBox.Show(
-                    "Folder name cannot be 'Subnautica' or 'SubnauticaZero'.",
+                    $"Folder name cannot be {LauncherGameProfiles.GetReservedActiveFolderNamesDisplay()}.",
                     "Invalid Folder Name",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);

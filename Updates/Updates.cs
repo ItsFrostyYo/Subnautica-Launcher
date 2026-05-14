@@ -30,6 +30,22 @@ public static class Updates
 
     public static readonly UpdateEntry[] History =
     {
+        
+        new UpdateEntry
+    {
+        Version = "3.0.0",
+        Title = "Subnautica 2 Game Launch and Launcher Revamp",
+        Date = "May 14, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Added SN2 to the Launcher",
+            "Revamped UI for Game Seperation",
+            "UI is not Customizable for each Game",
+            "Tools Section is Revamped for easy access to showing only tools that are accessible for each game",
+            "Improved the Updater to show exactly what its doing after the launcher restarts"
+        }
+    },
+
         new UpdateEntry
     {
         Version = "2.8.5",

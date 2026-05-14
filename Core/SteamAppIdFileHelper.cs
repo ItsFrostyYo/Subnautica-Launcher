@@ -7,6 +7,7 @@ internal static class SteamAppIdFileHelper
 {
     public const string SubnauticaAppId = "264710";
     public const string BelowZeroAppId = "848450";
+    public const string Subnautica2AppId = "1962700";
     private const string SteamAppIdFileName = "steam_appid.txt";
 
     public static void EnsureSubnauticaSteamAppIdFile(string gameFolder)
@@ -17,6 +18,11 @@ internal static class SteamAppIdFileHelper
     public static void EnsureBelowZeroSteamAppIdFile(string gameFolder)
     {
         EnsureSteamAppIdFile(gameFolder, BelowZeroAppId);
+    }
+
+    public static void EnsureSubnautica2SteamAppIdFile(string gameFolder)
+    {
+        EnsureSteamAppIdFile(gameFolder, Subnautica2AppId);
     }
 
     internal static void EnsureSteamAppIdFile(string gameFolder, string appId)

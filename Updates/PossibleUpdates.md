@@ -13,6 +13,7 @@
       - a new tool anyway so it doesnt matter
   - If Revamp add splits/full autosplitter stuff (i guess why livesplit?)
 - Too lazy to think of more rn
+- `Complete` Add SN2 on Launch
 
 
 

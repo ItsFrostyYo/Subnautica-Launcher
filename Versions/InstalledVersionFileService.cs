@@ -180,12 +180,6 @@ internal static class InstalledVersionFileService
             try
             {
                 LauncherGameProfile? detectedProfile = LauncherGameProfiles.DetectFromFolder(dir);
-                bool hasSubnauticaExe = LauncherGameProfiles.Subnautica.HasExpectedExecutable(dir);
-                bool hasBelowZeroExe = LauncherGameProfiles.BelowZero.HasExpectedExecutable(dir);
-
-                if (hasSubnauticaExe == hasBelowZeroExe)
-                    continue;
-
                 if (detectedProfile == null)
                     continue;
 
@@ -193,18 +187,20 @@ internal static class InstalledVersionFileService
 
                 string expectedInfoName = detectedProfile.InfoFileName;
                 string expectedMarker = detectedProfile.LauncherMarker;
-                string? conflictingInfoName = GetConflictingInfoName(detectedProfile.InfoFileName);
-                if (string.IsNullOrWhiteSpace(conflictingInfoName))
-                    continue;
-
                 string expectedInfoPath = Path.Combine(dir, expectedInfoName);
-                string conflictingInfoPath = Path.Combine(dir, conflictingInfoName);
-
                 bool expectedExists = File.Exists(expectedInfoPath);
-                bool conflictingExists = File.Exists(conflictingInfoPath);
+                List<string> conflictingInfoPaths = GetConflictingInfoPaths(dir, expectedInfoName);
 
-                ParsedInfo? parsed = TryParseInfoFile(expectedInfoPath) ??
-                                     TryParseInfoFile(conflictingInfoPath);
+                ParsedInfo? parsed = TryParseInfoFile(expectedInfoPath);
+                if (parsed == null)
+                {
+                    foreach (string conflictingInfoPath in conflictingInfoPaths)
+                    {
+                        parsed = TryParseInfoFile(conflictingInfoPath);
+                        if (parsed != null)
+                            break;
+                    }
+                }
 
                 string resolvedOriginalDownload = parsed != null
                     ? ResolveOriginalDownload(dir, detectedProfile, parsed.OriginalDownload)
@@ -245,10 +241,13 @@ internal static class InstalledVersionFileService
                     continue;
                 }
 
-                if (expectedExists && conflictingExists)
+                if (expectedExists)
                 {
-                    File.Delete(conflictingInfoPath);
-                    Logger.Log($"Removed conflicting metadata file '{conflictingInfoPath}'.");
+                    foreach (string conflictingInfoPath in conflictingInfoPaths.Where(File.Exists))
+                    {
+                        File.Delete(conflictingInfoPath);
+                        Logger.Log($"Removed conflicting metadata file '{conflictingInfoPath}'.");
+                    }
                 }
             }
             catch (Exception ex)
@@ -321,22 +320,21 @@ internal static class InstalledVersionFileService
         if (string.IsNullOrWhiteSpace(directory) || string.IsNullOrWhiteSpace(fileName))
             return;
 
-        string? conflictingName = GetConflictingInfoName(fileName);
-
-        if (string.IsNullOrWhiteSpace(conflictingName))
-            return;
-
-        string conflictingPath = Path.Combine(directory, conflictingName);
-        if (File.Exists(conflictingPath))
-            File.Delete(conflictingPath);
+        foreach (string conflictingPath in GetConflictingInfoPaths(directory, fileName))
+        {
+            if (File.Exists(conflictingPath))
+                File.Delete(conflictingPath);
+        }
     }
 
-    private static string? GetConflictingInfoName(string fileName)
+    private static List<string> GetConflictingInfoPaths(string directory, string fileName)
     {
         return LauncherGameProfiles.All
             .Select(profile => profile.InfoFileName)
-            .FirstOrDefault(infoName =>
-                !string.Equals(infoName, fileName, StringComparison.OrdinalIgnoreCase));
+            .Where(infoName => !string.Equals(infoName, fileName, StringComparison.OrdinalIgnoreCase))
+            .Select(infoName => Path.Combine(directory, infoName))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static string ResolveOriginalDownload(

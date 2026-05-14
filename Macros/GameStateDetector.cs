@@ -39,9 +39,9 @@ namespace SubnauticaLauncher.Macros
             return c.R < 8 && c.G < 8 && c.B < 8;
         }
 
-        public static bool IsBlackScreen(Process? process, GameStateProfile p, DisplayInfo display)
+        public static bool IsBlackScreen(Process? process, string processName, GameStateProfile p, DisplayInfo display)
         {
-            Color c = GetPixel(process, "Subnautica", p.BlackPixel, display);
+            Color c = GetPixel(process, processName, p.BlackPixel, display);
             return c.R < 8 && c.G < 8 && c.B < 8;
         }
 
@@ -56,7 +56,7 @@ namespace SubnauticaLauncher.Macros
                     return state;
             }
 
-            if (IsBlackScreen(process, p, display))
+            if (IsBlackScreen(process, processName, p, display))
                 return GameState.BlackScreen;
 
             if (Matches(process, processName, p.MainMenuPixel, p.MainMenuColor, p.ColorTolerance, display))
@@ -105,7 +105,9 @@ namespace SubnauticaLauncher.Macros
 
         private static Color GetPixel(Process? process, string processName, Point logicalPoint, DisplayInfo display)
         {
-            bool useWindowRelative = string.Equals(processName, "Subnautica", StringComparison.OrdinalIgnoreCase);
+            bool useWindowRelative =
+                string.Equals(processName, "Subnautica", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(processName, "SubnauticaZero", StringComparison.OrdinalIgnoreCase);
             Point p = useWindowRelative && GameWindowCoordinateMapper.TryMapLogicalPoint(process, logicalPoint, out Point mapped)
                 ? mapped
                 : display.ScalePoint(logicalPoint);

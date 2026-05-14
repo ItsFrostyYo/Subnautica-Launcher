@@ -2,6 +2,7 @@ using SubnauticaLauncher.Core;
 using System.IO;
 using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace SubnauticaLauncher.Versions;
 
@@ -70,17 +71,13 @@ internal static class VersionIdentityResolver
             try
             {
                 string raw = File.ReadAllText(candidatePath).Trim();
-                if (DateTime.TryParse(
-                        raw,
-                        CultureInfo.InvariantCulture,
-                        DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeLocal,
-                        out DateTime parsed) ||
-                    DateTime.TryParse(raw, out parsed))
+                if (TryParseRawBuildTime(raw, out DateTime parsedBuildTime))
                 {
-                    buildTimeUtc = parsed;
+                    buildTimeUtc = parsedBuildTime;
                     failureReason = string.Empty;
                     return true;
                 }
+
             }
             catch
             {
@@ -99,6 +96,40 @@ internal static class VersionIdentityResolver
 
         yield return Path.Combine(versionFolder, "__buildtime.txt");
         yield return Path.Combine(versionFolder, $"{exeStem}_Data", "StreamingAssets", "__buildtime.txt");
+
+        if (profile.Game == Enums.LauncherGame.Subnautica2)
+            yield return Path.Combine(versionFolder, "version.txt");
+    }
+
+    private static bool TryParseRawBuildTime(string raw, out DateTime parsed)
+    {
+        if (DateTime.TryParse(
+                raw,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeLocal,
+                out parsed) ||
+            DateTime.TryParse(raw, out parsed))
+        {
+            return true;
+        }
+
+        string? token = raw
+            .Split([' ', '\r', '\n', '\t'], StringSplitOptions.RemoveEmptyEntries)
+            .FirstOrDefault(part => part.Contains('T') && part.Contains('-') && part.Contains(':'));
+
+        if (!string.IsNullOrWhiteSpace(token) &&
+            (DateTime.TryParse(
+                 token,
+                 CultureInfo.InvariantCulture,
+                 DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.AssumeLocal,
+                 out parsed) ||
+             DateTime.TryParse(token, out parsed)))
+        {
+            return true;
+        }
+
+        parsed = default;
+        return false;
     }
 
     private static bool TryParseMonthYear(string displayName, out int month, out int year)

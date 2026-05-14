@@ -24,6 +24,7 @@ internal static class InstalledVersionScanService
 
             LauncherGameProfile subnauticaProfile = LauncherGameProfiles.Get(LauncherGame.Subnautica);
             LauncherGameProfile belowZeroProfile = LauncherGameProfiles.Get(LauncherGame.BelowZero);
+            LauncherGameProfile subnautica2Profile = LauncherGameProfiles.Get(LauncherGame.Subnautica2);
 
             List<InstalledVersion> subnautica = InstalledVersionStore.LoadInstalledFromRoots(
                 commonPaths,
@@ -37,12 +38,19 @@ internal static class InstalledVersionScanService
                 .ToList();
             cancellationToken.ThrowIfCancellationRequested();
 
+            List<InstalledVersion> subnautica2 = InstalledVersionStore.LoadInstalledFromRoots(
+                commonPaths,
+                subnautica2Profile);
+            cancellationToken.ThrowIfCancellationRequested();
+
             return new InstalledVersionScanSnapshot
             {
                 SubnauticaProfile = subnauticaProfile,
                 BelowZeroProfile = belowZeroProfile,
+                Subnautica2Profile = subnautica2Profile,
                 SubnauticaVersions = subnautica,
                 BelowZeroVersions = belowZero,
+                Subnautica2Versions = subnautica2,
                 MetadataRepaired = repairMetadata
             };
         }, cancellationToken);

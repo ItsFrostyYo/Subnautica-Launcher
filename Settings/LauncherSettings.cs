@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -86,6 +87,13 @@ namespace SubnauticaLauncher.Settings
         public bool DepotDownloaderPreferTwoFactorCode { get; set; } = true;
         public bool DepotDownloaderRememberedLoginSeeded { get; set; } = false;
         public string DepotDownloaderLastInstallCommonPath { get; set; } = "";
+
+        // Play tab view preferences
+        public PlayTabGameViewOption PlayTabGame1 { get; set; } = PlayTabGameViewOption.Subnautica;
+        public PlayTabGameViewOption PlayTabGame2 { get; set; } = PlayTabGameViewOption.BelowZero;
+        public PlayTabListViewMode PlayTabListView { get; set; } = PlayTabListViewMode.Labeled;
+        public List<ToolsTabGameOption> ToolsTabVisibleGames { get; set; } =
+            new() { ToolsTabGameOption.Subnautica, ToolsTabGameOption.BelowZero, ToolsTabGameOption.Subnautica2 };
 
         public static void Load()
         {

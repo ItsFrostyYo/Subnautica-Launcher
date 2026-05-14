@@ -41,9 +41,11 @@ namespace SubnauticaLauncher.UI
     {
         private readonly List<InstalledVersion> _subnauticaInstalledVersions = new();
         private readonly List<BZInstalledVersion> _belowZeroInstalledVersions = new();
+        private readonly List<InstalledVersion> _subnautica2InstalledVersions = new();
         private const string DefaultBg = "Lifepod";
         private static LauncherGameProfile SubnauticaProfile => LauncherGameProfiles.Subnautica;
         private static LauncherGameProfile BelowZeroProfile => LauncherGameProfiles.BelowZero;
+        private static LauncherGameProfile Subnautica2Profile => LauncherGameProfiles.Subnautica2;
 
         private const int HotkeyIdReset = 9001;
         private const int HotkeyIdOverlayToggle = 9002;
@@ -76,6 +78,8 @@ namespace SubnauticaLauncher.UI
         private bool _pendingSteamFolderPolicyRefresh;
         private bool _startupStagesCompleted;
         private bool _syncingExplosionCustomRangeInputs;
+        private bool _syncingPlayViewSelectors;
+        private bool _syncingToolsTabVisibleGamesUi;
         private readonly RuntimeServiceCoordinator _runtimeServices;
         private readonly BackgroundCheckCoordinator _backgroundChecks =
             new(TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(10));
@@ -215,12 +219,267 @@ namespace SubnauticaLauncher.UI
         {
             InitializeTrayIcon();
             LoadOverlayModeSettings();
+            LoadPlayTabViewSettings();
+            LoadToolsTabViewSettings();
             ApplyConfiguredBackground();
             LoadMacroSettings();
             ApplyExplosionResetVisualState();
             UpdateHardcoreSaveDeleterVisualState();
             UpdateSubnautica100TrackerVisualState();
             UpdateSidebarState();
+        }
+
+        private void LoadPlayTabViewSettings()
+        {
+            NormalizePlayTabViewSettings();
+            ApplyPlayTabViewSettingsToUi();
+        }
+
+        private void LoadToolsTabViewSettings()
+        {
+            NormalizeToolsTabViewSettings();
+            RefreshToolsTabGameSelectorUi();
+            RefreshToolsTabSectionVisibility();
+        }
+
+        private void NormalizePlayTabViewSettings()
+        {
+            var settings = LauncherSettings.Current;
+
+            if (settings.PlayTabGame1 == settings.PlayTabGame2 &&
+                settings.PlayTabGame1 != PlayTabGameViewOption.None)
+            {
+                settings.PlayTabGame2 = PlayTabGameViewOption.None;
+            }
+        }
+
+        private void ApplyPlayTabViewSettingsToUi()
+        {
+            _syncingPlayViewSelectors = true;
+            try
+            {
+                SelectPlayTabGameChoice(Game1ViewDropdown, LauncherSettings.Current.PlayTabGame1);
+                SelectPlayTabGameChoice(Game2ViewDropdown, LauncherSettings.Current.PlayTabGame2);
+                SelectPlayTabListViewChoice(ListViewDropdown, LauncherSettings.Current.PlayTabListView);
+            }
+            finally
+            {
+                _syncingPlayViewSelectors = false;
+            }
+        }
+
+        private void NormalizeToolsTabViewSettings()
+        {
+            var settings = LauncherSettings.Current;
+            if (settings.ToolsTabVisibleGames is null)
+            {
+                settings.ToolsTabVisibleGames = new List<ToolsTabGameOption>
+                {
+                    ToolsTabGameOption.Subnautica,
+                    ToolsTabGameOption.BelowZero,
+                    ToolsTabGameOption.Subnautica2
+                };
+                return;
+            }
+
+            var normalized = new List<ToolsTabGameOption>();
+
+            foreach (ToolsTabGameOption option in settings.ToolsTabVisibleGames)
+            {
+                if (!normalized.Contains(option))
+                    normalized.Add(option);
+            }
+
+            settings.ToolsTabVisibleGames = normalized;
+        }
+
+        private void RefreshToolsTabGameSelectorUi()
+        {
+            _syncingToolsTabVisibleGamesUi = true;
+            try
+            {
+                ToolsVisibleGamesPanel.Children.Clear();
+
+                foreach (ToolsTabGameOption option in LauncherSettings.Current.ToolsTabVisibleGames)
+                    ToolsVisibleGamesPanel.Children.Add(CreateToolsGameChip(option));
+
+                ToolsAddGameButton.Visibility = GetAvailableToolsTabGameOptions().Any()
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+            }
+            finally
+            {
+                _syncingToolsTabVisibleGamesUi = false;
+            }
+        }
+
+        private Border CreateToolsGameChip(ToolsTabGameOption option)
+        {
+            var removeButton = new System.Windows.Controls.Button
+            {
+                Content = "×",
+                Width = 28,
+                Height = 28,
+                Margin = new Thickness(8, 0, 0, 0),
+                Padding = new Thickness(0),
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground = Brushes.White,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Visibility = Visibility.Visible,
+                ToolTip = $"Remove {GetToolsTabGameLabel(option)}"
+            };
+            removeButton.Click += (_, _) => RemoveToolsTabGame(option);
+
+            var textBlock = new TextBlock
+            {
+                Text = GetToolsTabGameLabel(option),
+                VerticalAlignment = VerticalAlignment.Center,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White
+            };
+
+            var content = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            content.Children.Add(textBlock);
+            content.Children.Add(removeButton);
+
+            var chip = new Border
+            {
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(190, 30, 42, 65)),
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(190, 109, 136, 168)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10, 4, 6, 4),
+                Margin = new Thickness(0, 0, 8, 0),
+                Child = content
+            };
+
+            chip.MouseEnter += (_, _) => removeButton.Opacity = 1.0;
+            chip.MouseLeave += (_, _) => removeButton.Opacity = 0.8;
+            removeButton.Opacity = 0.8;
+
+            return chip;
+        }
+
+        private void RefreshToolsTabSectionVisibility()
+        {
+            List<ToolsTabGameOption> visibleGames = LauncherSettings.Current.ToolsTabVisibleGames;
+            bool showSubnauticaTools = visibleGames.Contains(ToolsTabGameOption.Subnautica);
+            bool showBelowZeroTools = visibleGames.Contains(ToolsTabGameOption.BelowZero);
+
+            bool showResetMacro = showSubnauticaTools || showBelowZeroTools;
+            bool showExplosionReset = showSubnauticaTools;
+            bool showHardcoreSaveDeleter = showSubnauticaTools || showBelowZeroTools;
+            bool showTrackersAndTimers = showSubnauticaTools;
+
+            ResetMacroSectionPanel.Visibility = showResetMacro ? Visibility.Visible : Visibility.Collapsed;
+            ExplosionResetSectionPanel.Visibility = showExplosionReset ? Visibility.Visible : Visibility.Collapsed;
+            ResetExplosionSeparator.Visibility =
+                showResetMacro && showExplosionReset ? Visibility.Visible : Visibility.Collapsed;
+
+            HardcoreSaveDeleterSectionPanel.Visibility =
+                showHardcoreSaveDeleter ? Visibility.Visible : Visibility.Collapsed;
+            TrackersAndTimersSectionPanel.Visibility =
+                showTrackersAndTimers ? Visibility.Visible : Visibility.Collapsed;
+            HardcoreTrackerSeparator.Visibility =
+                showHardcoreSaveDeleter && showTrackersAndTimers ? Visibility.Visible : Visibility.Collapsed;
+
+            bool showLeftColumn = showResetMacro || showExplosionReset;
+            bool showRightColumn = showHardcoreSaveDeleter || showTrackersAndTimers;
+
+            LeftToolsColumnBorder.Visibility = showLeftColumn ? Visibility.Visible : Visibility.Collapsed;
+            RightToolsColumnBorder.Visibility = showRightColumn ? Visibility.Visible : Visibility.Collapsed;
+            ToolsEmptyStateText.Visibility = showLeftColumn || showRightColumn
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+        }
+
+        private IEnumerable<ToolsTabGameOption> GetAvailableToolsTabGameOptions()
+        {
+            ToolsTabGameOption[] allOptions =
+            [
+                ToolsTabGameOption.Subnautica,
+                ToolsTabGameOption.BelowZero,
+                ToolsTabGameOption.Subnautica2
+            ];
+
+            return allOptions.Where(option => !LauncherSettings.Current.ToolsTabVisibleGames.Contains(option));
+        }
+
+        private static string GetToolsTabGameLabel(ToolsTabGameOption option)
+        {
+            return option switch
+            {
+                ToolsTabGameOption.Subnautica => "Subnautica",
+                ToolsTabGameOption.BelowZero => "Below Zero",
+                ToolsTabGameOption.Subnautica2 => "Subnautica 2",
+                _ => option.ToString()
+            };
+        }
+
+        private void AddToolsTabGame(ToolsTabGameOption option)
+        {
+            if (LauncherSettings.Current.ToolsTabVisibleGames.Contains(option))
+                return;
+
+            LauncherSettings.Current.ToolsTabVisibleGames.Add(option);
+            NormalizeToolsTabViewSettings();
+            LauncherSettings.Save();
+            RefreshToolsTabGameSelectorUi();
+            RefreshToolsTabSectionVisibility();
+        }
+
+        private void RemoveToolsTabGame(ToolsTabGameOption option)
+        {
+            LauncherSettings.Current.ToolsTabVisibleGames.Remove(option);
+            NormalizeToolsTabViewSettings();
+            LauncherSettings.Save();
+            RefreshToolsTabGameSelectorUi();
+            RefreshToolsTabSectionVisibility();
+        }
+
+        private static void SelectPlayTabGameChoice(System.Windows.Controls.ComboBox comboBox, PlayTabGameViewOption choice)
+        {
+            comboBox.SelectedItem = comboBox.Items
+                .Cast<ComboBoxItem>()
+                .FirstOrDefault(item => string.Equals(item.Tag as string, choice.ToString(), StringComparison.Ordinal));
+        }
+
+        private static void SelectPlayTabListViewChoice(System.Windows.Controls.ComboBox comboBox, PlayTabListViewMode choice)
+        {
+            comboBox.SelectedItem = comboBox.Items
+                .Cast<ComboBoxItem>()
+                .FirstOrDefault(item => string.Equals(item.Tag as string, choice.ToString(), StringComparison.Ordinal));
+        }
+
+        private static PlayTabGameViewOption GetPlayTabGameChoice(System.Windows.Controls.ComboBox comboBox, PlayTabGameViewOption fallback)
+        {
+            if (comboBox.SelectedItem is ComboBoxItem item &&
+                item.Tag is string tag &&
+                Enum.TryParse(tag, out PlayTabGameViewOption parsed))
+            {
+                return parsed;
+            }
+
+            return fallback;
+        }
+
+        private static PlayTabListViewMode GetPlayTabListViewChoice(System.Windows.Controls.ComboBox comboBox, PlayTabListViewMode fallback)
+        {
+            if (comboBox.SelectedItem is ComboBoxItem item &&
+                item.Tag is string tag &&
+                Enum.TryParse(tag, out PlayTabListViewMode parsed))
+            {
+                return parsed;
+            }
+
+            return fallback;
         }
 
         private void LauncherBusyCoordinator_BusyStateChanged(object? sender, bool isBusy)
@@ -365,19 +624,19 @@ namespace SubnauticaLauncher.UI
             System.Windows.Media.Brush statusBrush = Brushes.White;
             bool anyGameRunning = IsAnyGameProcessRunning();
 
-            if (InstalledVersionsList.SelectedItem is InstalledVersion snVersion)
+            if (InstalledVersionsList.SelectedItem is InstalledVersion leftVersion)
             {
                 hasSelection = true;
-                selectionText = snVersion.DisplayLabel;
-                selectionBrush = GetStatusBrush(snVersion.Status);
-                statusText = BuildSidebarStatusText(snVersion.Status, snVersion.DisplayLabel);
-                statusBrush = GetStatusBrush(snVersion.Status);
+                selectionText = leftVersion.DisplayLabel;
+                selectionBrush = GetStatusBrush(leftVersion.Status);
+                statusText = BuildSidebarStatusText(leftVersion.Status, leftVersion.DisplayLabel);
+                statusBrush = GetStatusBrush(leftVersion.Status);
             }
-            else if (BZInstalledVersionsList.SelectedItem is BZInstalledVersion bzVersion)
+            else if (BZInstalledVersionsList.SelectedItem is InstalledVersion rightVersion)
             {
                 hasSelection = true;
-                selectionText = bzVersion.DisplayLabel;
-                selectionBrush = GetStatusBrush(bzVersion.Status);
+                selectionText = rightVersion.DisplayLabel;
+                selectionBrush = GetStatusBrush(rightVersion.Status);
             }
 
             InstalledVersion? statusVersion = GetMostRelevantStatusVersion();
@@ -389,8 +648,8 @@ namespace SubnauticaLauncher.UI
             else if (hasSelection)
             {
                 statusText = BuildSidebarStatusText(
-                    InstalledVersionsList.SelectedItem is InstalledVersion sn ? sn.Status :
-                    BZInstalledVersionsList.SelectedItem is BZInstalledVersion bz ? bz.Status :
+                    InstalledVersionsList.SelectedItem is InstalledVersion left ? left.Status :
+                    BZInstalledVersionsList.SelectedItem is InstalledVersion right ? right.Status :
                     VersionStatus.Idle,
                     selectionText);
                 statusBrush = selectionBrush;
@@ -429,6 +688,7 @@ namespace SubnauticaLauncher.UI
             return _subnauticaInstalledVersions
                 .Cast<InstalledVersion>()
                 .Concat(_belowZeroInstalledVersions)
+                .Concat(_subnautica2InstalledVersions)
                 .Where(version => version.Status != VersionStatus.Idle)
                 .OrderByDescending(version => GetStatusPriority(version.Status))
                 .FirstOrDefault();
@@ -448,6 +708,14 @@ namespace SubnauticaLauncher.UI
         }
 
         private static bool IsAnyGameProcessRunning() => GameProcessMonitor.GetSnapshot().AnyRunning;
+
+        private static LauncherGameProfile GetProfileForVersion(InstalledVersion version)
+        {
+            if (version is BZInstalledVersion)
+                return BelowZeroProfile;
+
+            return LauncherGameProfiles.DetectFromFolder(version.HomeFolder) ?? SubnauticaProfile;
+        }
 
         private static System.Windows.Media.Brush GetStatusBrush(VersionStatus status)
         {
@@ -727,8 +995,8 @@ namespace SubnauticaLauncher.UI
                     "SubnauticaLauncher.new.exe",
                     downloadProgress);
 
-                statusProgress.Report("Launching updater...");
-                progressWindow.SetIndeterminate("Finalizing...");
+                statusProgress.Report("Closing launcher and continuing in updater...");
+                progressWindow.SetIndeterminate("Handing off to updater...");
 
                 await Task.Delay(200);
                 UpdateHelper.ApplyUpdate(newExe, updaterPath);
@@ -1131,15 +1399,15 @@ namespace SubnauticaLauncher.UI
 
         private async Task LaunchSelectedVersionAsync()
         {
-            if (InstalledVersionsList.SelectedItem is InstalledVersion snVersion)
+            if (InstalledVersionsList.SelectedItem is InstalledVersion leftVersion)
             {
-                await LaunchVersionAsync(snVersion, SubnauticaProfile);
+                await LaunchVersionAsync(leftVersion, GetProfileForVersion(leftVersion));
                 return;
             }
 
-            if (BZInstalledVersionsList.SelectedItem is BZInstalledVersion bzVersion)
+            if (BZInstalledVersionsList.SelectedItem is InstalledVersion rightVersion)
             {
-                await LaunchVersionAsync(bzVersion, BelowZeroProfile);
+                await LaunchVersionAsync(rightVersion, GetProfileForVersion(rightVersion));
                 return;
             }
         }
@@ -1177,7 +1445,7 @@ namespace SubnauticaLauncher.UI
             string common = AppPaths.GetSteamCommonPathFor(target.HomeFolder);
             string activePath = profile.GetActiveFolderPath(common);
             string launchFolder = target.HomeFolder;
-            string targetExe = Path.Combine(launchFolder, profile.ExecutableName);
+            string targetExe = profile.GetLaunchExecutablePath(launchFolder);
             using IDisposable busyOperation = LauncherBusyCoordinator.Begin($"Launch {target.FolderName}");
 
             PauseFolderSwitchServices();
@@ -1206,7 +1474,7 @@ namespace SubnauticaLauncher.UI
                 if (isAlreadyActive)
                 {
                     launchFolder = activePath;
-                    targetExe = Path.Combine(launchFolder, profile.ExecutableName);
+                    targetExe = profile.GetLaunchExecutablePath(launchFolder);
                     SetTrackedDirectLaunchFolder(profile, null);
                 }
                 else
@@ -1216,7 +1484,7 @@ namespace SubnauticaLauncher.UI
                 }
 
                 if (!File.Exists(targetExe))
-                    throw new FileNotFoundException($"{profile.ExecutableName} not found in the selected version folder.", targetExe);
+                    throw new FileNotFoundException($"{Path.GetFileName(targetExe)} not found in the selected version folder.", targetExe);
 
                 profile.EnsureSteamAppIdFile(launchFolder);
 
@@ -1226,7 +1494,7 @@ namespace SubnauticaLauncher.UI
                 Process? process = Process.Start(new ProcessStartInfo
                 {
                     FileName = targetExe,
-                    WorkingDirectory = launchFolder,
+                    WorkingDirectory = profile.GetLaunchWorkingDirectory(launchFolder),
                     Arguments = (target.LaunchOptions ?? string.Empty).Trim(),
                     UseShellExecute = false
                 });
@@ -1329,7 +1597,7 @@ namespace SubnauticaLauncher.UI
 
                     (string? selectedSnFolder, string? selectedBzFolder) = await Dispatcher.InvokeAsync(() => (
                         (InstalledVersionsList.SelectedItem as InstalledVersion)?.HomeFolder,
-                        (BZInstalledVersionsList.SelectedItem as BZInstalledVersion)?.HomeFolder));
+                        (BZInstalledVersionsList.SelectedItem as InstalledVersion)?.HomeFolder));
 
                     bool repairMetadata = _pendingVersionReloadRepair;
                     _pendingVersionReloadRepair = false;
@@ -1375,40 +1643,67 @@ namespace SubnauticaLauncher.UI
             _belowZeroInstalledVersions.AddRange(snapshot.BelowZeroVersions);
             ApplySnapshotStatuses(_belowZeroInstalledVersions, BelowZeroProfile, runningBzFolder);
 
-            BindGroupedVersions(InstalledVersionsList, _subnauticaInstalledVersions);
-            BindGroupedVersions(BZInstalledVersionsList, _belowZeroInstalledVersions);
+            _subnautica2InstalledVersions.Clear();
+            _subnautica2InstalledVersions.AddRange(snapshot.Subnautica2Versions);
+            ApplySnapshotStatuses(_subnautica2InstalledVersions, Subnautica2Profile, runningFolder: null);
 
-            if (!string.IsNullOrWhiteSpace(selectedSnFolder))
-            {
-                InstalledVersionsList.SelectedItem = _subnauticaInstalledVersions
-                    .FirstOrDefault(v => PathsAreEqual(v.HomeFolder, selectedSnFolder));
-            }
-
-            if (!string.IsNullOrWhiteSpace(selectedBzFolder))
-            {
-                BZInstalledVersionsList.SelectedItem = _belowZeroInstalledVersions
-                    .FirstOrDefault(v => PathsAreEqual(v.HomeFolder, selectedBzFolder));
-            }
+            RefreshPlayTabLists(selectedSnFolder, selectedBzFolder);
 
             RefreshRunningStatusIndicators();
             UpdateSidebarState();
             _launcherOverlayWindow?.RefreshFromMain();
         }
 
-        private static void BindGroupedVersions<TVersion>(System.Windows.Controls.ListBox listBox, List<TVersion> versions)
-            where TVersion : InstalledVersion
+        private void RefreshPlayTabLists(string? selectedLeftFolder = null, string? selectedRightFolder = null)
+        {
+            PlayTabListViewMode listView = LauncherSettings.Current.PlayTabListView;
+            BindVersionsForDisplay(InstalledVersionsList, GetVersionsForPlayTabChoice(LauncherSettings.Current.PlayTabGame1), listView);
+            BindVersionsForDisplay(BZInstalledVersionsList, GetVersionsForPlayTabChoice(LauncherSettings.Current.PlayTabGame2), listView);
+
+            RestoreSelectionForList(InstalledVersionsList, selectedLeftFolder);
+            RestoreSelectionForList(BZInstalledVersionsList, selectedRightFolder);
+        }
+
+        private IReadOnlyList<InstalledVersion> GetVersionsForPlayTabChoice(PlayTabGameViewOption choice)
+        {
+            return choice switch
+            {
+                PlayTabGameViewOption.Subnautica => _subnauticaInstalledVersions.Cast<InstalledVersion>().ToList(),
+                PlayTabGameViewOption.BelowZero => _belowZeroInstalledVersions.Cast<InstalledVersion>().ToList(),
+                PlayTabGameViewOption.Subnautica2 => _subnautica2InstalledVersions.Cast<InstalledVersion>().ToList(),
+                _ => Array.Empty<InstalledVersion>()
+            };
+        }
+
+        private static void RestoreSelectionForList(System.Windows.Controls.ListBox listBox, string? selectedFolder)
+        {
+            if (string.IsNullOrWhiteSpace(selectedFolder))
+            {
+                listBox.SelectedItem = null;
+                return;
+            }
+
+            listBox.SelectedItem = listBox.Items
+                .OfType<InstalledVersion>()
+                .FirstOrDefault(v => PathsAreEqual(v.HomeFolder, selectedFolder));
+        }
+
+        private static void BindVersionsForDisplay(System.Windows.Controls.ListBox listBox, IReadOnlyList<InstalledVersion> versions, PlayTabListViewMode listView)
         {
             listBox.ItemsSource = null;
 
-            var displayItems = versions.Cast<InstalledVersion>().ToList();
+            var displayItems = versions.ToList();
             var view = new ListCollectionView(displayItems);
             view.GroupDescriptions.Clear();
             view.SortDescriptions.Clear();
-            if (displayItems.Any(v => v.IsModded))
+
+            bool useLabels = listView == PlayTabListViewMode.Labeled && displayItems.Any(v => v.IsModded);
+            if (useLabels)
             {
                 view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(InstalledVersion.GroupLabel)));
                 view.SortDescriptions.Add(new SortDescription(nameof(InstalledVersion.IsModded), ListSortDirection.Descending));
             }
+
             view.SortDescriptions.Add(new SortDescription(nameof(InstalledVersion.DisplayName), ListSortDirection.Ascending));
             listBox.ItemsSource = view;
             listBox.Items.Refresh();
@@ -1690,6 +1985,86 @@ namespace SubnauticaLauncher.UI
             _launcherOverlayWindow?.RefreshFromMain();
         }
 
+        private void GameViewDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncingPlayViewSelectors)
+                return;
+
+            var settings = LauncherSettings.Current;
+            settings.PlayTabGame1 = GetPlayTabGameChoice(Game1ViewDropdown, settings.PlayTabGame1);
+            settings.PlayTabGame2 = GetPlayTabGameChoice(Game2ViewDropdown, settings.PlayTabGame2);
+
+            if (settings.PlayTabGame1 == settings.PlayTabGame2 &&
+                settings.PlayTabGame1 != PlayTabGameViewOption.None)
+            {
+                if (ReferenceEquals(sender, Game1ViewDropdown))
+                {
+                    settings.PlayTabGame2 = PlayTabGameViewOption.None;
+                    _syncingPlayViewSelectors = true;
+                    try
+                    {
+                        SelectPlayTabGameChoice(Game2ViewDropdown, settings.PlayTabGame2);
+                    }
+                    finally
+                    {
+                        _syncingPlayViewSelectors = false;
+                    }
+                }
+                else
+                {
+                    settings.PlayTabGame1 = PlayTabGameViewOption.None;
+                    _syncingPlayViewSelectors = true;
+                    try
+                    {
+                        SelectPlayTabGameChoice(Game1ViewDropdown, settings.PlayTabGame1);
+                    }
+                    finally
+                    {
+                        _syncingPlayViewSelectors = false;
+                    }
+                }
+            }
+
+            LauncherSettings.Save();
+            RefreshPlayTabLists();
+            UpdateSidebarState();
+        }
+
+        private void ListViewDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_syncingPlayViewSelectors)
+                return;
+
+            LauncherSettings.Current.PlayTabListView =
+                GetPlayTabListViewChoice(ListViewDropdown, LauncherSettings.Current.PlayTabListView);
+            LauncherSettings.Save();
+            RefreshPlayTabLists();
+            UpdateSidebarState();
+        }
+
+        private void SelectVisibleListForVersion(InstalledVersion version)
+        {
+            if (ListContainsVersion(InstalledVersionsList, version))
+            {
+                InstalledVersionsList.SelectedItem = version;
+                BZInstalledVersionsList.SelectedItem = null;
+                return;
+            }
+
+            if (ListContainsVersion(BZInstalledVersionsList, version))
+            {
+                BZInstalledVersionsList.SelectedItem = version;
+                InstalledVersionsList.SelectedItem = null;
+            }
+        }
+
+        private static bool ListContainsVersion(System.Windows.Controls.ListBox listBox, InstalledVersion version)
+        {
+            return listBox.Items
+                .OfType<InstalledVersion>()
+                .Any(item => ReferenceEquals(item, version) || PathsAreEqual(item.HomeFolder, version.HomeFolder));
+        }
+
         private async void InstallVersion_Click(object sender, RoutedEventArgs e)
         {
             bool? result = await DialogWindowHelper.ShowModelessAsync(this, new AddVersionWindow());
@@ -1705,15 +2080,15 @@ namespace SubnauticaLauncher.UI
 
         private async void EditVersion_Click(object sender, RoutedEventArgs e)
         {
-            if (InstalledVersionsList.SelectedItem is InstalledVersion snVersion)
+            if (InstalledVersionsList.SelectedItem is InstalledVersion leftVersion)
             {
-                await EditVersionInternalAsync(snVersion, SubnauticaProfile);
+                await EditVersionInternalAsync(leftVersion, GetProfileForVersion(leftVersion));
                 return;
             }
 
-            if (BZInstalledVersionsList.SelectedItem is BZInstalledVersion bzVersion)
+            if (BZInstalledVersionsList.SelectedItem is InstalledVersion rightVersion)
             {
-                await EditVersionInternalAsync(bzVersion, BelowZeroProfile);
+                await EditVersionInternalAsync(rightVersion, GetProfileForVersion(rightVersion));
             }
         }
 
@@ -1722,10 +2097,7 @@ namespace SubnauticaLauncher.UI
             if (sender is not System.Windows.Controls.Button button || button.Tag is not InstalledVersion version)
                 return;
 
-            if (version is BZInstalledVersion bzVersion)
-                BZInstalledVersionsList.SelectedItem = bzVersion;
-            else
-                InstalledVersionsList.SelectedItem = version;
+            SelectVisibleListForVersion(version);
 
             OpenInstallFolderForVersion(version);
         }
@@ -1735,15 +2107,8 @@ namespace SubnauticaLauncher.UI
             if (sender is not System.Windows.Controls.Button button || button.Tag is not InstalledVersion version)
                 return;
 
-            if (version is BZInstalledVersion bzVersion)
-            {
-                BZInstalledVersionsList.SelectedItem = bzVersion;
-                await EditVersionInternalAsync(bzVersion, BelowZeroProfile);
-                return;
-            }
-
-            InstalledVersionsList.SelectedItem = version;
-            await EditVersionInternalAsync(version, SubnauticaProfile);
+            SelectVisibleListForVersion(version);
+            await EditVersionInternalAsync(version, GetProfileForVersion(version));
         }
 
         private void OpenInstallFolderForVersion(InstalledVersion? version)
@@ -2410,24 +2775,39 @@ namespace SubnauticaLauncher.UI
         internal IEnumerable<BZInstalledVersion> GetBelowZeroVersionsForOverlay() =>
             _belowZeroInstalledVersions;
 
-        internal InstalledVersion? GetSelectedSubnauticaVersionForOverlay() =>
-            InstalledVersionsList.SelectedItem as InstalledVersion;
+        internal InstalledVersion? GetSelectedSubnauticaVersionForOverlay()
+        {
+            if (InstalledVersionsList.SelectedItem is InstalledVersion leftVersion &&
+                leftVersion is not BZInstalledVersion &&
+                GetProfileForVersion(leftVersion).Game == LauncherGame.Subnautica)
+            {
+                return leftVersion;
+            }
+
+            if (BZInstalledVersionsList.SelectedItem is InstalledVersion rightVersion &&
+                rightVersion is not BZInstalledVersion &&
+                GetProfileForVersion(rightVersion).Game == LauncherGame.Subnautica)
+            {
+                return rightVersion;
+            }
+
+            return null;
+        }
 
         internal BZInstalledVersion? GetSelectedBelowZeroVersionForOverlay() =>
-            BZInstalledVersionsList.SelectedItem as BZInstalledVersion;
+            InstalledVersionsList.SelectedItem as BZInstalledVersion
+            ?? BZInstalledVersionsList.SelectedItem as BZInstalledVersion;
 
         internal void SetSelectedVersionsFromOverlay(InstalledVersion? snVersion, BZInstalledVersion? bzVersion)
         {
             if (snVersion != null)
             {
-                InstalledVersionsList.SelectedItem = snVersion;
-                BZInstalledVersionsList.SelectedItem = null;
+                SelectVisibleListForVersion(snVersion);
             }
 
             if (bzVersion != null)
             {
-                BZInstalledVersionsList.SelectedItem = bzVersion;
-                InstalledVersionsList.SelectedItem = null;
+                SelectVisibleListForVersion(bzVersion);
             }
         }
 
@@ -2618,7 +2998,41 @@ namespace SubnauticaLauncher.UI
 
         private void ToolsTab_Click(object sender, RoutedEventArgs e)
         {
+            RefreshToolsTabSectionVisibility();
             ShowView(ToolsView);
+        }
+
+        private void ToolsAddGameButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_syncingToolsTabVisibleGamesUi)
+                return;
+
+            var availableOptions = GetAvailableToolsTabGameOptions().ToList();
+            if (availableOptions.Count == 0)
+                return;
+
+            var menu = new ContextMenu();
+
+            foreach (ToolsTabGameOption option in availableOptions)
+            {
+                var menuItem = new MenuItem
+                {
+                    Header = GetToolsTabGameLabel(option),
+                    Tag = option
+                };
+                menuItem.Click += ToolsAddGameMenuItem_Click;
+                menu.Items.Add(menuItem);
+            }
+
+            ToolsAddGameButton.ContextMenu = menu;
+            menu.PlacementTarget = ToolsAddGameButton;
+            menu.IsOpen = true;
+        }
+
+        private void ToolsAddGameMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem { Tag: ToolsTabGameOption option })
+                AddToolsTabGame(option);
         }
 
         private void InfoTab_Click(object sender, RoutedEventArgs e)

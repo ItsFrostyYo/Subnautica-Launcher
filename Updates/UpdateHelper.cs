@@ -24,9 +24,7 @@ public static class UpdateHelper
         {
             FileName = updaterExePath,
             Arguments = $"\"{newExe}\" \"{currentExe}\" {currentPid}",
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            WindowStyle = ProcessWindowStyle.Hidden
+            UseShellExecute = false
         });
 
         Environment.Exit(0);

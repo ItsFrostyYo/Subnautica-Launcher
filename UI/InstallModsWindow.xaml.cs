@@ -123,23 +123,30 @@ namespace SubnauticaLauncher.UI
             return new[]
             {
                 CreateComboItem("Subnautica", LauncherGame.Subnautica),
-                CreateComboItem("Below Zero", LauncherGame.BelowZero)
+                CreateComboItem("Below Zero", LauncherGame.BelowZero),
+                CreateComboItem("Subnautica 2", LauncherGame.Subnautica2)
             };
         }
 
         private void RefreshLists()
         {
             LauncherGame newGame = GetSelectedGame(NewGameComboBox);
-            NewVersionsList.ItemsSource = newGame == LauncherGame.Subnautica
-                ? _subnauticaCandidates
-                : _belowZeroCandidates;
+            NewVersionsList.ItemsSource = newGame switch
+            {
+                LauncherGame.Subnautica => _subnauticaCandidates,
+                LauncherGame.BelowZero => _belowZeroCandidates,
+                _ => Array.Empty<InstallCandidate>()
+            };
             NewVersionsList.SelectedIndex = NewVersionsList.Items.Count > 0 ? 0 : -1;
             RefreshNewModChoices();
 
             LauncherGame existingGame = GetSelectedGame(ExistingGameComboBox);
-            ExistingVersionsList.ItemsSource = existingGame == LauncherGame.Subnautica
-                ? _subnauticaInstalled.Cast<InstalledVersion>().ToList()
-                : _belowZeroInstalled.Cast<InstalledVersion>().ToList();
+            ExistingVersionsList.ItemsSource = existingGame switch
+            {
+                LauncherGame.Subnautica => _subnauticaInstalled.Cast<InstalledVersion>().ToList(),
+                LauncherGame.BelowZero => _belowZeroInstalled.Cast<InstalledVersion>().ToList(),
+                _ => Array.Empty<InstalledVersion>()
+            };
             ExistingVersionsList.SelectedIndex = ExistingVersionsList.Items.Count > 0 ? 0 : -1;
             RefreshExistingModChoices();
         }

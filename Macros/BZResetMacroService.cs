@@ -39,8 +39,9 @@ namespace SubnauticaLauncher.Macros
                 var profile = GameStateDetectorRegistry.Get(BzGroup);
                 var steps = MacroRegistry.Get(BzGroup, mode);
                 var display = DisplayInfo.GetPrimary();
+                bool needsGameModeDelay = buildYear >= 2022;
 
-                var state = GameStateDetector.Detect("SubnauticaZero", profile, display);
+                var state = GameStateDetector.Detect(process, "SubnauticaZero", profile, display);
                 bool startedInGame = state == GameState.InGame;
 
                 ResetMacroLogger.Info(
@@ -51,10 +52,14 @@ namespace SubnauticaLauncher.Macros
                 {
                     ResetMacroLogger.Info(LogChannel, "State=MainMenu. Running direct new-game flow.");
 
-                    await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
-                    await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
-                    await Task.Delay(150);
-                    await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
+                    await NativeInput.Click(process, steps.PlayButton, steps.ClickDelayFast);
+                    await Task.Delay(50);
+                    await NativeInput.Click(process, steps.StartNewGame, steps.ClickDelaySlow);
+                    await Task.Delay(50);
+                    if (needsGameModeDelay)
+                        await Task.Delay(100);
+
+                    await NativeInput.Click(process, steps.SelectGameMode, steps.ClickDelayMedium);
 
                     ResetMacroLogger.Info(LogChannel, "Reset completed from main menu path.");
                     return;
@@ -71,17 +76,19 @@ namespace SubnauticaLauncher.Macros
 
                     if (isLegacy)
                     {
-                        await NativeInput.Click(steps.QuitButton2, steps.ClickDelayMedium);
-                        await NativeInput.Click(steps.ConfirmQuit1, steps.ClickDelayMedium);
-                        await Task.Delay(25);
-                        await NativeInput.Click(steps.ConfirmQuit2, steps.ClickDelayMedium);
+                        await NativeInput.Click(process, steps.QuitButton2, steps.ClickDelayMedium);
+                        await Task.Delay(50);
+                        await NativeInput.Click(process, steps.ConfirmQuit1, steps.ClickDelayMedium);
+                        await Task.Delay(50);
+                        await NativeInput.Click(process, steps.ConfirmQuit2, steps.ClickDelayMedium);
                     }
                     else if (isModern)
                     {
-                        await NativeInput.Click(steps.QuitButton, steps.ClickDelayMedium);
-                        await NativeInput.Click(steps.ConfirmQuit1, steps.ClickDelayMedium);
-                        await Task.Delay(25);
-                        await NativeInput.Click(steps.ConfirmQuit2, steps.ClickDelayMedium);
+                        await NativeInput.Click(process, steps.QuitButton, steps.ClickDelayMedium);
+                        await Task.Delay(50);
+                        await NativeInput.Click(process, steps.ConfirmQuit1, steps.ClickDelayMedium);
+                        await Task.Delay(50);
+                        await NativeInput.Click(process, steps.ConfirmQuit2, steps.ClickDelayMedium);
                     }
                 }
                 else
@@ -138,10 +145,14 @@ namespace SubnauticaLauncher.Macros
                         $"Queued hardcore slot delete after restart: {slotToDelete}");
                 }
 
-                await NativeInput.Click(steps.PlayButton, steps.ClickDelayFast);
-                await NativeInput.Click(steps.StartNewGame, steps.ClickDelaySlow);
-                await Task.Delay(150);
-                await NativeInput.Click(steps.SelectGameMode, steps.ClickDelayMedium);
+                await NativeInput.Click(process, steps.PlayButton, steps.ClickDelayFast);
+                await Task.Delay(50);
+                await NativeInput.Click(process, steps.StartNewGame, steps.ClickDelaySlow);
+                await Task.Delay(50);
+                if (needsGameModeDelay)
+                    await Task.Delay(100);
+
+                await NativeInput.Click(process, steps.SelectGameMode, steps.ClickDelayMedium);
                 await HardcoreSaveDeleter.DeleteSlotAfterDelayAsync(slotToDelete, logChannel: LogChannel);
 
                 ResetMacroLogger.Info(LogChannel, "Reset completed successfully.");

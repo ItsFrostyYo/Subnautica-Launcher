@@ -3,6 +3,7 @@ using SubnauticaLauncher.Core;
 using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Installer;
 using SubnauticaLauncher.Settings;
+using SubnauticaLauncher.Subnautica2;
 using SubnauticaLauncher.Versions;
 using System;
 using System.Collections.Generic;
@@ -97,39 +98,69 @@ namespace SubnauticaLauncher.UI
 
         private void LoadVersionLists()
         {
-            IReadOnlyList<InstallCandidate> snItems = LauncherGameProfiles.Subnautica.InstallDefinitions
-                .Select(v => CreateCandidate(LauncherGame.Subnautica, v))
-                .ToList();
-
-            IReadOnlyList<InstallCandidate> bzItems = LauncherGameProfiles.BelowZero.InstallDefinitions
-                .Select(v => CreateCandidate(LauncherGame.BelowZero, v))
-                .ToList();
-
-            SnAvailableVersionsList.ItemsSource = snItems;
-            BzAvailableVersionsList.ItemsSource = bzItems;
-        }
-
-        private void SnAvailableVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (SnAvailableVersionsList.SelectedItem != null && BzAvailableVersionsList.SelectedItem != null)
-                BzAvailableVersionsList.SelectedItem = null;
-        }
-
-        private void BzAvailableVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (BzAvailableVersionsList.SelectedItem != null && SnAvailableVersionsList.SelectedItem != null)
-                SnAvailableVersionsList.SelectedItem = null;
+            GameDropdown.ItemsSource = BuildGameChoices();
+            GameDropdown.SelectedIndex = 0;
+            RefreshAvailableVersionsList();
         }
 
         private InstallCandidate? GetSelectedCandidate()
         {
-            if (SnAvailableVersionsList.SelectedItem is InstallCandidate sn)
-                return sn;
+            return AvailableVersionsList.SelectedItem as InstallCandidate;
+        }
 
-            if (BzAvailableVersionsList.SelectedItem is InstallCandidate bz)
-                return bz;
+        private static IReadOnlyList<ComboBoxItem> BuildGameChoices()
+        {
+            return new[]
+            {
+                CreateGameChoice("Subnautica", LauncherGame.Subnautica),
+                CreateGameChoice("Below Zero", LauncherGame.BelowZero),
+                CreateGameChoice("Subnautica 2", LauncherGame.Subnautica2)
+            };
+        }
 
-            return null;
+        private static ComboBoxItem CreateGameChoice(string content, LauncherGame game)
+        {
+            return new ComboBoxItem
+            {
+                Content = content,
+                Tag = game
+            };
+        }
+
+        private LauncherGame GetSelectedGame()
+        {
+            return GameDropdown.SelectedItem is ComboBoxItem item && item.Tag is LauncherGame game
+                ? game
+                : LauncherGame.Subnautica;
+        }
+
+        private void RefreshAvailableVersionsList()
+        {
+            LauncherGame game = GetSelectedGame();
+            IReadOnlyList<InstallCandidate> items = GetInstallableDefinitions(game)
+                .Select(v => CreateCandidate(game, v))
+                .ToList();
+
+            AvailableVersionsList.ItemsSource = items;
+            AvailableVersionsList.SelectedIndex = items.Count > 0 ? 0 : -1;
+            InstallButton.IsEnabled = items.Count > 0;
+        }
+
+        private static IReadOnlyList<GameVersionInstallDefinition> GetInstallableDefinitions(LauncherGame game)
+        {
+            return LauncherGameProfiles.Get(game).InstallDefinitions
+                .Where(def => def.ManifestId > 0 && def.SteamDepotId > 0)
+                .ToList();
+        }
+
+        private void GameDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            RefreshAvailableVersionsList();
+        }
+
+        private void AvailableVersionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            InstallButton.IsEnabled = AvailableVersionsList.SelectedItem is InstallCandidate;
         }
 
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

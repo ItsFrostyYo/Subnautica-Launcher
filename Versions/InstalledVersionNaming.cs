@@ -7,7 +7,7 @@ internal static class InstalledVersionNaming
     public const int MaxDisplayNameLength = 25;
 
     private static readonly Regex InstalledNameFromIdRegex = new(
-        @"^(SubnauticaZero|Subnautica)_?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$",
+        @"^(SubnauticaZero|Subnautica2|Subnautica)_?(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(\d{4})$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex MonthYearRegex = new(
@@ -18,7 +18,7 @@ internal static class InstalledVersionNaming
     private static readonly Regex ParentheticalRegex = new(@"\([^)]*\)", RegexOptions.Compiled);
     private static readonly Regex MultiWhitespaceRegex = new(@"\s+", RegexOptions.Compiled);
     private static readonly Regex LeadingGameNameRegex = new(
-        @"^(Subnautica|Below Zero)\s+",
+        @"^(Subnautica 2|Subnautica|Below Zero)\s+",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex StatusSuffixRegex = new(
