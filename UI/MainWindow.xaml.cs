@@ -67,6 +67,7 @@ namespace SubnauticaLauncher.UI
         private bool _updatePromptRunning;
         private string? _directLaunchedSubnauticaFolder;
         private string? _directLaunchedBelowZeroFolder;
+        private string? _directLaunchedSubnautica2Folder;
         private bool _subnauticaFolderSwapPerformedThisSession = false;
         private bool _belowZeroFolderSwapPerformedThisSession = false;
         private readonly object _versionReloadSync = new();
@@ -372,8 +373,9 @@ namespace SubnauticaLauncher.UI
             List<ToolsTabGameOption> visibleGames = LauncherSettings.Current.ToolsTabVisibleGames;
             bool showSubnauticaTools = visibleGames.Contains(ToolsTabGameOption.Subnautica);
             bool showBelowZeroTools = visibleGames.Contains(ToolsTabGameOption.BelowZero);
+            bool showSubnautica2Tools = visibleGames.Contains(ToolsTabGameOption.Subnautica2);
 
-            bool showResetMacro = showSubnauticaTools || showBelowZeroTools;
+            bool showResetMacro = showSubnauticaTools || showBelowZeroTools || showSubnautica2Tools;
             bool showExplosionReset = showSubnauticaTools;
             bool showHardcoreSaveDeleter = showSubnauticaTools || showBelowZeroTools;
             bool showTrackersAndTimers = showSubnauticaTools;
@@ -1526,17 +1528,28 @@ namespace SubnauticaLauncher.UI
 
         private string? GetTrackedDirectLaunchFolder(LauncherGameProfile profile)
         {
-            return profile.Game == LauncherGame.BelowZero
-                ? _directLaunchedBelowZeroFolder
-                : _directLaunchedSubnauticaFolder;
+            return profile.Game switch
+            {
+                LauncherGame.BelowZero => _directLaunchedBelowZeroFolder,
+                LauncherGame.Subnautica2 => _directLaunchedSubnautica2Folder,
+                _ => _directLaunchedSubnauticaFolder
+            };
         }
 
         private void SetTrackedDirectLaunchFolder(LauncherGameProfile profile, string? folderPath)
         {
-            if (profile.Game == LauncherGame.BelowZero)
-                _directLaunchedBelowZeroFolder = folderPath;
-            else
-                _directLaunchedSubnauticaFolder = folderPath;
+            switch (profile.Game)
+            {
+                case LauncherGame.BelowZero:
+                    _directLaunchedBelowZeroFolder = folderPath;
+                    break;
+                case LauncherGame.Subnautica2:
+                    _directLaunchedSubnautica2Folder = folderPath;
+                    break;
+                default:
+                    _directLaunchedSubnauticaFolder = folderPath;
+                    break;
+            }
         }
 
         private static bool PathsAreEqual(string a, string b)
@@ -1634,6 +1647,7 @@ namespace SubnauticaLauncher.UI
             GameProcessSnapshot processSnapshot = GameProcessMonitor.GetSnapshot();
             string? runningSnFolder = processSnapshot.Subnautica.FolderPath ?? GetTrackedDirectLaunchFolder(SubnauticaProfile);
             string? runningBzFolder = processSnapshot.BelowZero.FolderPath ?? GetTrackedDirectLaunchFolder(BelowZeroProfile);
+            string? runningSn2Folder = processSnapshot.Subnautica2.FolderPath ?? GetTrackedDirectLaunchFolder(Subnautica2Profile);
 
             _subnauticaInstalledVersions.Clear();
             _subnauticaInstalledVersions.AddRange(snapshot.SubnauticaVersions);
@@ -1645,7 +1659,7 @@ namespace SubnauticaLauncher.UI
 
             _subnautica2InstalledVersions.Clear();
             _subnautica2InstalledVersions.AddRange(snapshot.Subnautica2Versions);
-            ApplySnapshotStatuses(_subnautica2InstalledVersions, Subnautica2Profile, runningFolder: null);
+            ApplySnapshotStatuses(_subnautica2InstalledVersions, Subnautica2Profile, runningSn2Folder);
 
             RefreshPlayTabLists(selectedSnFolder, selectedBzFolder);
 
@@ -1745,6 +1759,7 @@ namespace SubnauticaLauncher.UI
         {
             bool snChanged = false;
             bool bzChanged = false;
+            bool sn2Changed = false;
 
             if (_subnauticaInstalledVersions.Count > 0)
             {
@@ -1770,14 +1785,27 @@ namespace SubnauticaLauncher.UI
                 }
             }
 
-            if (snChanged || bzChanged)
-                RefreshVersionStatusUi(refreshSnList: snChanged, refreshBzList: bzChanged);
+            if (_subnautica2InstalledVersions.Count > 0)
+            {
+                foreach (var v in _subnautica2InstalledVersions)
+                {
+                    if (v.Status is VersionStatus.Launched or VersionStatus.Active)
+                    {
+                        v.Status = VersionStatus.Closing;
+                        sn2Changed = true;
+                    }
+                }
+            }
+
+            if (snChanged || bzChanged || sn2Changed)
+                RefreshVersionStatusUi(refreshSnList: true, refreshBzList: true);
         }
 
         private void ClearClosingStatus()
         {
             bool snChanged = false;
             bool bzChanged = false;
+            bool sn2Changed = false;
 
             if (_subnauticaInstalledVersions.Count > 0)
             {
@@ -1803,8 +1831,20 @@ namespace SubnauticaLauncher.UI
                 }
             }
 
-            if (snChanged || bzChanged)
-                RefreshVersionStatusUi(refreshSnList: snChanged, refreshBzList: bzChanged);
+            if (_subnautica2InstalledVersions.Count > 0)
+            {
+                foreach (var v in _subnautica2InstalledVersions)
+                {
+                    if (v.Status == VersionStatus.Closing)
+                    {
+                        v.Status = VersionStatus.Idle;
+                        sn2Changed = true;
+                    }
+                }
+            }
+
+            if (snChanged || bzChanged || sn2Changed)
+                RefreshVersionStatusUi(refreshSnList: true, refreshBzList: true);
         }
 
         private static bool IsProcessRunning(string processName)
@@ -1844,18 +1884,23 @@ namespace SubnauticaLauncher.UI
             GameProcessSnapshot processSnapshot = GameProcessMonitor.GetSnapshot();
             bool snRunning = processSnapshot.Subnautica.IsRunning;
             bool bzRunning = processSnapshot.BelowZero.IsRunning;
+            bool sn2Running = processSnapshot.Subnautica2.IsRunning;
             if (!snRunning)
                 SetTrackedDirectLaunchFolder(SubnauticaProfile, null);
             if (!bzRunning)
                 SetTrackedDirectLaunchFolder(BelowZeroProfile, null);
+            if (!sn2Running)
+                SetTrackedDirectLaunchFolder(Subnautica2Profile, null);
 
             string? runningSnFolder = snRunning ? processSnapshot.Subnautica.FolderPath ?? GetTrackedDirectLaunchFolder(SubnauticaProfile) : null;
             string? runningBzFolder = bzRunning ? processSnapshot.BelowZero.FolderPath ?? GetTrackedDirectLaunchFolder(BelowZeroProfile) : null;
+            string? runningSn2Folder = sn2Running ? processSnapshot.Subnautica2.FolderPath ?? GetTrackedDirectLaunchFolder(Subnautica2Profile) : null;
             bool snChanged = RefreshStatusesForProfile(_subnauticaInstalledVersions, SubnauticaProfile, snRunning, runningSnFolder);
             bool bzChanged = RefreshStatusesForProfile(_belowZeroInstalledVersions, BelowZeroProfile, bzRunning, runningBzFolder);
+            bool sn2Changed = RefreshStatusesForProfile(_subnautica2InstalledVersions, Subnautica2Profile, sn2Running, runningSn2Folder);
 
-            if (snChanged || bzChanged)
-                RefreshVersionStatusUi(refreshSnList: snChanged, refreshBzList: bzChanged);
+            if (snChanged || bzChanged || sn2Changed)
+                RefreshVersionStatusUi(refreshSnList: true, refreshBzList: true);
         }
 
         private static bool RefreshStatusesForProfile<TVersion>(
@@ -1950,6 +1995,8 @@ namespace SubnauticaLauncher.UI
                 SetTrackedDirectLaunchFolder(SubnauticaProfile, null);
             if (!processSnapshot.BelowZero.IsRunning)
                 SetTrackedDirectLaunchFolder(BelowZeroProfile, null);
+            if (!processSnapshot.Subnautica2.IsRunning)
+                SetTrackedDirectLaunchFolder(Subnautica2Profile, null);
         }
 
         private static VersionStatus GetVersionStatus(string versionFolder, string activeFolder, string? runningFolder)
@@ -2163,9 +2210,9 @@ namespace SubnauticaLauncher.UI
             }
 
             var runningState = GetRunningGameState();
-            if (runningState == RunningGameState.Both)
+            if (runningState == RunningGameState.Multiple)
             {
-                Logger.Warn("Reset macro blocked: both Subnautica and Below Zero are running.");
+                Logger.Warn("Reset macro blocked: multiple supported games are running.");
                 return;
             }
 
@@ -2183,6 +2230,20 @@ namespace SubnauticaLauncher.UI
                 catch (Exception ex)
                 {
                     Logger.Exception(ex, "BZ reset macro failed");
+                }
+
+                return;
+            }
+
+            if (runningState == RunningGameState.Subnautica2Only)
+            {
+                try
+                {
+                    await Subnautica2ResetMacroService.RunAsync(mode);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Exception(ex, "SN2 reset macro failed");
                 }
 
                 return;
@@ -2218,7 +2279,8 @@ namespace SubnauticaLauncher.UI
             None,
             SubnauticaOnly,
             BelowZeroOnly,
-            Both
+            Subnautica2Only,
+            Multiple
         }
 
         private static RunningGameState GetRunningGameState()
@@ -2227,15 +2289,20 @@ namespace SubnauticaLauncher.UI
             GameProcessSnapshot snapshot = GameProcessMonitor.GetSnapshot();
             bool snRunning = snapshot.Subnautica.IsRunning;
             bool bzRunning = snapshot.BelowZero.IsRunning;
+            bool sn2Running = snapshot.Subnautica2.IsRunning;
 
-            if (snRunning && bzRunning)
-                return RunningGameState.Both;
+            int runningCount = (snRunning ? 1 : 0) + (bzRunning ? 1 : 0) + (sn2Running ? 1 : 0);
+            if (runningCount > 1)
+                return RunningGameState.Multiple;
 
             if (snRunning)
                 return RunningGameState.SubnauticaOnly;
 
             if (bzRunning)
                 return RunningGameState.BelowZeroOnly;
+
+            if (sn2Running)
+                return RunningGameState.Subnautica2Only;
 
             return RunningGameState.None;
         }

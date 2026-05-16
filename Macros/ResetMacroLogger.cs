@@ -8,6 +8,7 @@ namespace SubnauticaLauncher.Macros
     {
         Subnautica,
         BelowZero,
+        Subnautica2,
         Explosion
     }
 
@@ -42,6 +43,7 @@ namespace SubnauticaLauncher.Macros
             {
                 ResetMacroLogChannel.Subnautica => "subnautica-reset-macro.log",
                 ResetMacroLogChannel.BelowZero => "below-zero-reset-macro.log",
+                ResetMacroLogChannel.Subnautica2 => "subnautica2-reset-macro.log",
                 ResetMacroLogChannel.Explosion => "explosion-reset-macro.log",
                 _ => "reset-macro.log"
             };
@@ -55,6 +57,7 @@ namespace SubnauticaLauncher.Macros
             {
                 ResetMacroLogChannel.Subnautica => "SN",
                 ResetMacroLogChannel.BelowZero => "BZ",
+                ResetMacroLogChannel.Subnautica2 => "SN2",
                 ResetMacroLogChannel.Explosion => "EX",
                 _ => "RM"
             };

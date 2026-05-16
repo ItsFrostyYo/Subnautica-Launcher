@@ -30,7 +30,20 @@ public static class Updates
 
     public static readonly UpdateEntry[] History =
     {
-        
+        new UpdateEntry
+    {
+        Version = "3.0.1",
+        Title = "Subnautica 2 Cleanup and Reset Macro",
+        Date = "May 16, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Updated SN2 Detection",
+            "Added earlier version of SN2 to launcher",
+            "Added SN2 Reset macro for current available gamemodes [60fps required] (Survival, Creative)"
+            
+        }
+    },
+
         new UpdateEntry
     {
         Version = "3.0.0",

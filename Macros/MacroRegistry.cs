@@ -15,6 +15,7 @@ namespace SubnauticaLauncher.Macros
         public Point PlayButton { get; init; }
         public Point StartNewGame { get; init; }
         public Point SelectGameMode { get; init; }
+        public Point ConfirmStart { get; init; }
 
         public int ClickDelayFast { get; init; } = 10;
         public int ClickDelayMedium { get; init; } = 20;
@@ -319,7 +320,30 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1176, 932),
                     SelectGameMode = new Point(1160, 932)
                 }           
-              }
+              },
+
+            // ================= SUBNAUTICA 2 =================
+            [BuildYearResolver.SUBNAUTICA2_GROUP] = new Dictionary<GameMode, MacroSteps>
+            {
+                [GameMode.Survival] = new MacroSteps
+                {
+                    QuitButton = new Point(950, 736),
+                    ConfirmQuit1 = new Point(955, 566),
+                    PlayButton = new Point(771, 420),
+                    StartNewGame = new Point(1199, 367),
+                    SelectGameMode = new Point(965, 453),
+                    ConfirmStart = new Point(938, 789)
+                },
+                [GameMode.Creative] = new MacroSteps
+                {
+                    QuitButton = new Point(950, 736),
+                    ConfirmQuit1 = new Point(955, 566),
+                    PlayButton = new Point(771, 420),
+                    StartNewGame = new Point(1199, 367),
+                    SelectGameMode = new Point(955, 568),
+                    ConfirmStart = new Point(938, 789)
+                }
+            }
             };
 
         public static MacroSteps Get(int yearGroup, GameMode mode)

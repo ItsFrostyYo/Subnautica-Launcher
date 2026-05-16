@@ -55,7 +55,7 @@ The left sidebar shows:
 - `Launch`
 - `Switch`
 
-The Play tab now uses configurable game slots instead of being hardwired to just two games. You can choose what appears in `Game 1` and `Game 2`, and you can also switch between labeled and unlabeled list grouping.
+The Play tab uses configurable game slots instead of being hardwired to just two games. You can choose what appears in `Game 1` and `Game 2`, and you can also switch between labeled and unlabeled list grouping.
 
 ## Play Tab
 
@@ -100,7 +100,7 @@ To install a version:
 4. Choose the version you want from the list.
 5. Choose the Steam library/common path you want to install into.
 6. Enter your Steam login when prompted.
-7. Complete any Steam Guard / email code prompts if Steam asks for them.
+7. Complete any Steam Guard or email code prompts if Steam asks for them.
 8. Wait for the install to finish.
 
 The install window uses a single game selector and one version list, so the workflow stays the same across all supported games.
@@ -129,7 +129,7 @@ To launch a version:
 
 The launcher will:
 
-- launch the game directly from that version’s own folder
+- launch the game directly from that version's own folder
 - apply saved per-version launch options
 - keep Steam-sensitive folder behavior handled automatically
 
@@ -214,7 +214,7 @@ It also removes stale preset files that no longer belong to the current mod bund
 
 ## Tools Tab
 
-The Tools tab now uses a game-filter chip bar at the top.
+The Tools tab uses a game-filter chip bar at the top.
 
 You can:
 
@@ -238,7 +238,9 @@ Below Zero supports:
 - `Reset Macro`
 - `Hardcore Save Deleter`
 
-Subnautica 2 support is already built into the launcher layout and game filtering, so new tools can be added cleanly as that support expands.
+Subnautica 2 supports:
+
+- `Reset Macro`
 
 ## Reset Macros
 
@@ -250,8 +252,16 @@ Available for:
 
 - Subnautica
 - Below Zero
+- Subnautica 2
 
 This handles reset flow based on the selected gamemode and current detected game state.
+
+Subnautica 2 currently supports:
+
+- `Survival`
+- `Creative`
+
+The Subnautica 2 reset path uses live log-state detection and waits for the front-end lobby to be ready before continuing after a quit-to-menu reset.
 
 ### Explosion Reset
 
@@ -323,7 +333,7 @@ Launcher updates are checked first. Mod update checks run after launcher startup
 
 ### Update Flow
 
-The launcher update flow now clearly shows both stages:
+The launcher update flow clearly shows both stages:
 
 1. the launcher-side update window while the download and handoff happen
 2. the updater window while the launcher is closed, files are replaced, and the new launcher is reopened
@@ -363,7 +373,7 @@ This usually means one of these:
 
 ### Launch options are not applying
 
-Launch options are only applied when the launcher starts the game directly. If you launch the game through Steam instead, Steam’s own launch handling applies.
+Launch options are only applied when the launcher starts the game directly. If you launch the game through Steam instead, Steam's own launch handling applies.
 
 ### A folder name is blocked
 

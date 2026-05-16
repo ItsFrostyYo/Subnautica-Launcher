@@ -33,6 +33,7 @@ namespace SubnauticaLauncher.Gameplay
         private static Task? _pollTask;
         private static string _subnauticaState = "Unknown";
         private static string _belowZeroState = "Unknown";
+        private static string _subnautica2State = "Unknown";
         private static int _resolverPid = -1;
         private static IExplosionResolver? _resolver;
         private static readonly DynamicMonoGameplayEventTracker BelowZeroTelemetryTracker = new("SubnauticaZero");
@@ -176,7 +177,7 @@ namespace SubnauticaLauncher.Gameplay
 
             string processText = !snapshot.AnyRunning
                 ? "none"
-                : $"Subnautica={(snapshot.Subnautica.ProcessId?.ToString() ?? "not running")} | Below Zero={(snapshot.BelowZero.ProcessId?.ToString() ?? "not running")}";
+                : $"Subnautica={(snapshot.Subnautica.ProcessId?.ToString() ?? "not running")} | Below Zero={(snapshot.BelowZero.ProcessId?.ToString() ?? "not running")} | Subnautica 2={(snapshot.Subnautica2.ProcessId?.ToString() ?? "not running")}";
 
             double? explosionSeconds = null;
             float? x = null;
@@ -224,6 +225,25 @@ namespace SubnauticaLauncher.Gameplay
                 }
             }
 
+            if (snapshot.Subnautica2.IsRunning)
+            {
+                try
+                {
+                    using Process sn2 = Process.GetProcessById(snapshot.Subnautica2.ProcessId!.Value);
+                    Subnautica2LogSnapshot sn2Snapshot = Subnautica2LogStateReader.Shared.Update(sn2.StartTime.ToUniversalTime());
+                    _subnautica2State = sn2Snapshot.State.ToString();
+                }
+                catch
+                {
+                    Subnautica2LogSnapshot sn2Snapshot = Subnautica2LogStateReader.Shared.Update();
+                    _subnautica2State = sn2Snapshot.State.ToString();
+                }
+            }
+            else
+            {
+                _subnautica2State = "Unknown";
+            }
+
             Application.Current.Dispatcher.Invoke(() =>
             {
                 if (_window == null)
@@ -249,6 +269,9 @@ namespace SubnauticaLauncher.Gameplay
                          evt.Game.Equals("SubnauticaZero", StringComparison.OrdinalIgnoreCase) ||
                          evt.Game.Equals("Below Zero", StringComparison.OrdinalIgnoreCase))
                     _belowZeroState = evt.Key;
+                else if (evt.Game.Equals("Subnautica2", StringComparison.OrdinalIgnoreCase) ||
+                         evt.Game.Equals("Subnautica 2", StringComparison.OrdinalIgnoreCase))
+                    _subnautica2State = evt.Key;
             }
 
             var snapshot = events;
@@ -261,7 +284,7 @@ namespace SubnauticaLauncher.Gameplay
 
         private static string BuildStateText()
         {
-            return $"Subnautica={_subnauticaState} | Below Zero={_belowZeroState}";
+            return $"Subnautica={_subnauticaState} | Below Zero={_belowZeroState} | Subnautica 2={_subnautica2State}";
         }
     }
 }

@@ -1,3 +1,4 @@
+using SubnauticaLauncher.Core;
 using System.Diagnostics;
 using System.IO;
 
@@ -132,7 +133,8 @@ public static class GameProcessMonitor
     {
         return new GameProcessSnapshot(
             CaptureProcess("Subnautica"),
-            CaptureProcess("SubnauticaZero"));
+            CaptureProcess("SubnauticaZero"),
+            CaptureProcess("Subnautica2-Win64-Shipping"));
     }
 
     private static GameProcessInfo CaptureProcess(string processName)
@@ -154,7 +156,9 @@ public static class GameProcessMonitor
                         exePath = process.MainModule?.FileName;
                         folderPath = string.IsNullOrWhiteSpace(exePath)
                             ? null
-                            : Path.GetDirectoryName(exePath);
+                            : LauncherGameProfiles
+                                .GetByProcessName(processName)
+                                .TryResolveVersionFolderFromExecutablePath(exePath);
                     }
                     catch
                     {
@@ -193,16 +197,24 @@ public sealed record GameProcessInfo(
 
 public sealed record GameProcessSnapshot(
     GameProcessInfo Subnautica,
-    GameProcessInfo BelowZero)
+    GameProcessInfo BelowZero,
+    GameProcessInfo Subnautica2)
 {
     public static GameProcessSnapshot Empty { get; } = new(
         new GameProcessInfo("Subnautica", false, null, null, null),
-        new GameProcessInfo("SubnauticaZero", false, null, null, null));
+        new GameProcessInfo("SubnauticaZero", false, null, null, null),
+        new GameProcessInfo("Subnautica2-Win64-Shipping", false, null, null, null));
 
-    public bool AnyRunning => Subnautica.IsRunning || BelowZero.IsRunning;
+    public bool AnyRunning => Subnautica.IsRunning || BelowZero.IsRunning || Subnautica2.IsRunning;
 
     public GameProcessInfo Get(string processName)
     {
+        if (processName.Equals("Subnautica2-Win64-Shipping", StringComparison.OrdinalIgnoreCase) ||
+            processName.Equals("Subnautica2", StringComparison.OrdinalIgnoreCase))
+        {
+            return Subnautica2;
+        }
+
         return processName.Equals("SubnauticaZero", StringComparison.OrdinalIgnoreCase)
             ? BelowZero
             : Subnautica;

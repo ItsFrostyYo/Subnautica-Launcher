@@ -25,6 +25,7 @@ namespace SubnauticaLauncher.Macros
         }
 
         public const int BELOW_ZERO_GROUP = -1;
+        public const int SUBNAUTICA2_GROUP = -2;
 
         private static int Normalize(int year)
         {

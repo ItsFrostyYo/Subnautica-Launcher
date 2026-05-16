@@ -41,6 +41,36 @@ internal sealed class LauncherGameProfile
         return Path.GetDirectoryName(launchExecutablePath) ?? versionFolder;
     }
 
+    public string? TryResolveVersionFolderFromExecutablePath(string? executablePath)
+    {
+        if (string.IsNullOrWhiteSpace(executablePath))
+            return null;
+
+        string normalizedExecutablePath = Path.GetFullPath(executablePath);
+
+        foreach (string relativePath in EnumerateDetectExecutableRelativePaths())
+        {
+            string normalizedRelativePath = relativePath
+                .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
+                .TrimStart(Path.DirectorySeparatorChar);
+
+            if (!normalizedExecutablePath.EndsWith(
+                    normalizedRelativePath,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string versionFolder = normalizedExecutablePath[..^normalizedRelativePath.Length]
+                .TrimEnd(Path.DirectorySeparatorChar);
+
+            if (!string.IsNullOrWhiteSpace(versionFolder))
+                return versionFolder;
+        }
+
+        return Path.GetDirectoryName(normalizedExecutablePath);
+    }
+
     public string GetActiveFolderPath(string commonPath)
     {
         return Path.Combine(commonPath, ActiveFolderName);
@@ -73,16 +103,19 @@ internal sealed class LauncherGameProfile
 
     private IEnumerable<string> EnumerateDetectExecutablePaths(string versionFolder)
     {
-        IEnumerable<string> relativePaths = DetectExecutableRelativePaths.Count > 0
-            ? DetectExecutableRelativePaths
-            : [ExecutableName];
-
-        foreach (string relativePath in relativePaths
-                     .Where(path => !string.IsNullOrWhiteSpace(path))
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (string relativePath in EnumerateDetectExecutableRelativePaths())
         {
             yield return Path.Combine(versionFolder, relativePath);
         }
+    }
+
+    private IEnumerable<string> EnumerateDetectExecutableRelativePaths()
+    {
+        return (DetectExecutableRelativePaths.Count > 0
+                ? DetectExecutableRelativePaths
+                : [ExecutableName])
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
     }
 }
 
