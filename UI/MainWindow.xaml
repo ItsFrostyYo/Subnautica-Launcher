@@ -916,20 +916,30 @@ Click="ExplosionTrackToggle_Click"/>
                                             Background="{StaticResource SoftDividerBrush}"
                                             Margin="0,12,0,10"/>
 
-                                    <TextBlock Text="Launcher Startup Mode"
-                                               FontWeight="SemiBold"
-                                               Margin="0,0,0,4"/>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
 
-                                    <ComboBox x:Name="StartupModeDropdown"
-                                              Style="{StaticResource MainDarkComboBox}"
-                                              SelectionChanged="StartupModeDropdown_SelectionChanged">
-                                        <ComboBoxItem Content="Startup as Window"/>
-                                        <ComboBoxItem Content="Startup as Overlay"/>
-                                    </ComboBox>
+                                        <TextBlock Text="Launcher Overlay"
+                                                   VerticalAlignment="Center"
+                                                   FontWeight="SemiBold"/>
+
+                                        <Button x:Name="GameOverlayToggleButton"
+                                                Grid.Column="1"
+                                                Width="138"
+                                                Height="38"
+                                                Margin="8,0,0,0"
+                                                Background="{StaticResource DangerRedBrush}"
+                                                Content="Disabled"
+                                                Style="{StaticResource ToggleActionButtonStyle}"
+                                                Click="GameOverlayToggleButton_Click"/>
+                                    </Grid>
 
                                     <TextBlock Text="Overlay Toggle Hotkey"
                                                FontWeight="SemiBold"
-                                               Margin="0,10,0,4"/>
+                                               Margin="0,0,0,4"/>
 
                                     <Grid Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>

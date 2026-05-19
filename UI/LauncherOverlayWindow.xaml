@@ -3,545 +3,254 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:converters="clr-namespace:SubnauticaLauncher.Converters"
         Title="Subnautica Launcher Overlay"
-        Width="1920"
-        Height="320"
+        Width="1280"
+        Height="720"
         WindowStyle="None"
         ResizeMode="NoResize"
         WindowStartupLocation="Manual"
         AllowsTransparency="True"
         Background="Transparent"
         Topmost="True"
-        ShowInTaskbar="True">
+        ShowInTaskbar="False">
 
     <Window.Resources>
         <converters:ActiveColorConverter x:Key="ActiveColorConverter"/>
-        
+        <converters:StringLengthToFontSizeConverter x:Key="StringLengthToFontSizeConverter"/>
+        <SolidColorBrush x:Key="OverlayMainShellButtonBrush" Color="#E1192236"/>
+        <SolidColorBrush x:Key="OverlayVersionListCardBrush" Color="#C4121826"/>
+        <SolidColorBrush x:Key="OverlayLaunchAccentBrush" Color="#C951D68F"/>
+        <SolidColorBrush x:Key="OverlayAccentBlueBrush" Color="#C83D76D4"/>
 
         <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="Foreground" Value="White"/>
         </Style>
 
-        <Style TargetType="ComboBoxItem">
+        <Style x:Key="OverlayToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Background" Value="{StaticResource PureBlackBrush}"/>
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="FontSize" Value="12"/>
-        </Style>
-
-        <Style x:Key="OverlayButton" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Margin" Value="0,0,0,5"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="6,0"/>
-        </Style>
-
-        <Style x:Key="OverlayTextbox" TargetType="TextBox">
-            <Setter Property="Height" Value="26"/>
-            <Setter Property="Foreground" Value="{StaticResource OverlayInputForegroundBrush}"/>
-            <Setter Property="Background" Value="{StaticResource InputBackgroundBrush}"/>
-            <Setter Property="BorderBrush" Value="White"/>
+            <Setter Property="Background" Value="#E1192236"/>
+            <Setter Property="BorderBrush" Value="#7298C8"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="8,4"/>
         </Style>
 
-    </Window.Resources>
+        <Style x:Key="OverlayPanelButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="{StaticResource OverlayMainShellButtonBrush}"/>
+            <Setter Property="BorderBrush" Value="#7298C8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
 
-    <Border x:Name="OverlayRoot"
-            Margin="6"
-            Padding="8"
-            CornerRadius="12"
-            Background="{StaticResource StrongPanelBackgroundBrush}"
-            BorderBrush="Transparent"
-            BorderThickness="0">
+        <Style x:Key="OverlayPanelIconButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Background" Value="#22000000"/>
+            <Setter Property="BorderBrush" Value="#7096C8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2.2*"/>
-                <ColumnDefinition Width="6"/>
-                <ColumnDefinition Width="1.8*"/>
-                <ColumnDefinition Width="6"/>
-                <ColumnDefinition Width="1.85*"/>
-                <ColumnDefinition Width="6"/>
-                <ColumnDefinition Width="1.45*"/>
-            </Grid.ColumnDefinitions>
+        <Style x:Key="OverlayReadOnlyTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Foreground" Value="{StaticResource ReadOnlyInputForegroundBrush}"/>
+            <Setter Property="Background" Value="#C8111623"/>
+            <Setter Property="BorderBrush" Value="#88A0C6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
 
-            <Grid Grid.Column="0">
+        <Style x:Key="OverlayEditableTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource OverlayReadOnlyTextBoxStyle}">
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+
+        <Style x:Key="OverlayComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource OverlayDarkComboBox}">
+            <Setter Property="Height" Value="30"/>
+        </Style>
+
+        <Style x:Key="OverlayVersionListItemStyle" TargetType="ListBoxItem" BasedOn="{StaticResource VersionListItemStyle}"/>
+
+        <Style x:Key="OverlayVersionRowIconButtonStyle" TargetType="Button" BasedOn="{StaticResource RoundedButtonBase}">
+            <Setter Property="Width" Value="26"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="5,0,0,0"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="#8FA5C9"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#F3F8FF"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="IconBorder"
+                                Background="Transparent"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="IconBorder" Property="BorderBrush" Value="#D7E5FF"/>
+                                <Setter TargetName="IconBorder" Property="Background" Value="#14FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="IconBorder" Property="BorderBrush" Value="#EAF4FF"/>
+                                <Setter TargetName="IconBorder" Property="Background" Value="#20FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="IconBorder" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DataTemplate x:Key="OverlayVersionRowFolderIconTemplate">
+            <Viewbox Width="12" Height="12" Stretch="Uniform">
+                <Canvas Width="16" Height="16">
+                    <Path Stroke="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                          StrokeThickness="1.4"
+                          StrokeLineJoin="Round"
+                          Data="M1.7,5.2 L5.8,5.2 L7.1,3.7 L14.1,3.7 C14.8,3.7 15.3,4.2 15.3,4.9 L15.3,12.6 C15.3,13.3 14.8,13.8 14.1,13.8 L1.9,13.8 C1.2,13.8 0.7,13.3 0.7,12.6 L0.7,6.4 C0.7,5.7 1.2,5.2 1.9,5.2 Z"/>
+                </Canvas>
+            </Viewbox>
+        </DataTemplate>
+
+        <DataTemplate x:Key="OverlayVersionRowCogIconTemplate">
+            <Viewbox Width="12" Height="12" Stretch="Uniform">
+                <Canvas Width="16" Height="16">
+                    <Path Fill="{Binding RelativeSource={RelativeSource AncestorType=Button}, Path=Foreground}"
+                          Data="M6.9,0.9 L9.1,0.9 L9.5,2.5 C10,2.7 10.4,2.9 10.8,3.2 L12.3,2.4 L13.9,4.0 L13.1,5.5 C13.4,5.9 13.6,6.3 13.8,6.8 L15.4,7.2 L15.4,9.4 L13.8,9.8 C13.6,10.3 13.4,10.7 13.1,11.1 L13.9,12.6 L12.3,14.2 L10.8,13.4 C10.4,13.7 10,13.9 9.5,14.1 L9.1,15.7 L6.9,15.7 L6.5,14.1 C6,13.9 5.6,13.7 5.2,13.4 L3.7,14.2 L2.1,12.6 L2.9,11.1 C2.6,10.7 2.4,10.3 2.2,9.8 L0.6,9.4 L0.6,7.2 L2.2,6.8 C2.4,6.3 2.6,5.9 2.9,5.5 L2.1,4.0 L3.7,2.4 L5.2,3.2 C5.6,2.9 6,2.7 6.5,2.5 Z M8.0,5.2 C6.5,5.2 5.2,6.5 5.2,8.0 C5.2,9.5 6.5,10.8 8.0,10.8 C9.5,10.8 10.8,9.5 10.8,8.0 C10.8,6.5 9.5,5.2 8.0,5.2 Z"/>
+                </Canvas>
+            </Viewbox>
+        </DataTemplate>
+
+        <DataTemplate x:Key="OverlayVersionHeaderTemplate">
+            <TextBlock Text="{Binding Name}"
+                       Margin="6,8,6,4"
+                       FontSize="15"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"
+                       Foreground="White"/>
+        </DataTemplate>
+
+        <DataTemplate x:Key="OverlayVersionRowTemplate">
+            <Grid Margin="4,2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="58"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                    <TextBlock Text="Subnautica"
-                               FontSize="16"
-                               FontWeight="Bold"
-                               Margin="65,0,0,6"/>
-                    <Border Background="{StaticResource CardBackgroundBrush}"
-                            CornerRadius="10"
-                            Padding="4"
-                            Height="250">
-                        <ListBox x:Name="OverlaySnVersionsList"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 FontSize="13"
-                                 ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 SelectionChanged="OverlaySnVersionsList_SelectionChanged">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplayLabel}"
-                                               Margin="4,2"
-                                               TextTrimming="CharacterEllipsis"
-                                               Foreground="{Binding Status, Converter={StaticResource ActiveColorConverter}}"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Border>
-                </StackPanel>
-
-                <StackPanel Grid.Column="1"
-                            VerticalAlignment="Center"
-                            Margin="0,24,0,0">
-                    <Button x:Name="OverlayLaunchButton"
-                            Content="Launch"
-                            Width="112"
-                            Background="{StaticResource SuccessGreenBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayLaunchButton_Click"/>
-                    <Button x:Name="OverlayCloseGameButton"
-                            Content="Close Game"
-                            Width="112"
-                            Background="{StaticResource WarningOrangeBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayCloseGameButton_Click"/>
-                    <Button x:Name="OverlayAddButton"
-                            Content="Add"
-                            Width="112"
-                            Background="{StaticResource AccentBlueBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayAddButton_Click"/>
-                    <Button x:Name="OverlayEditButton"
-                            Content="Edit"
-                            Width="112"
-                            Background="{StaticResource AccentBlueBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayEditButton_Click"/>
-                    <Button x:Name="OverlayOpenFolderButton"
-                            Content="Open Folder"
-                            Width="112"
-                            Background="{StaticResource AccentBlueBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayOpenFolderButton_Click"/>
-                    <Button x:Name="OverlayCloseOverlayButton"
-                            Content="Close Overlay"
-                            Width="112"
-                            Background="{StaticResource DangerRedBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayCloseOverlayButton_Click"/>
-                </StackPanel>
-
-                <StackPanel Grid.Column="2" Margin="8,0,0,0">
-                    <TextBlock Text="Below Zero"
-                               FontSize="16"
-                               FontWeight="Bold"
-                               Margin="65,0,0,6"/>
-                    <Border Background="{StaticResource CardBackgroundBrush}"
-                            CornerRadius="10"
-                            Padding="4"
-                            Height="250">
-                        <ListBox x:Name="OverlayBzVersionsList"
-                                 Background="Transparent"
-                                 BorderThickness="0"
-                                 FontSize="13"
-                                 ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 SelectionChanged="OverlayBzVersionsList_SelectionChanged">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding DisplayLabel}"
-                                               Margin="4,2"
-                                               TextTrimming="CharacterEllipsis"
-                                               Foreground="{Binding Status, Converter={StaticResource ActiveColorConverter}}"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Border>
-                </StackPanel>
-            </Grid>
-
-            <Border Grid.Column="2" Width="1" Background="{StaticResource DividerBrush}" Margin="31,0,430,0"/>
-
-            <ScrollViewer Grid.Column="2"
-                          VerticalScrollBarVisibility="Hidden"
-                          HorizontalScrollBarVisibility="Disabled"
-                          Margin="8,0">
-                <StackPanel Width="340"
-                            HorizontalAlignment="Center">
-                    <TextBlock Text="Launcher Settings"
-                               FontSize="15"
-                               FontWeight="Bold"
-                               Margin="100,0,0,4"/>
-
-                    <Grid Margin="0,0,0,2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="170"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Startup Mode"
-                                   Grid.Column="0"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"/>
-                        <TextBlock Text="Overlay Hotkey"
-                                   Grid.Column="2"
-                                   FontWeight="SemiBold"
-                                   FontSize="12"/>
-                    </Grid>
-
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="170"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <ComboBox x:Name="OverlayStartupModeDropdown"
-                                  Grid.Column="0"
-                                  Style="{StaticResource OverlayDarkComboBox}"
-                                  SelectionChanged="OverlayStartupModeDropdown_SelectionChanged" Margin="0,0,32,0">
-                            <ComboBoxItem Content="Startup as Window"/>
-                            <ComboBoxItem Content="Startup as Overlay"/>
-                        </ComboBox>
-                        <TextBox x:Name="OverlayHotkeyBox"
-                                 Style="{StaticResource OverlayTextbox}"
-                                 IsReadOnly="True" Grid.ColumnSpan="3" Margin="147,0,25,0"/>
-                        <Button Grid.Column="3"
-                                Width="52"
-                                Margin="-20,0,0,0"
-                                Content="Set"
-                                Background="{StaticResource AccentBlueBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlaySetHotkeyButton_Click"/>
-                    </Grid>
-
-                    <TextBlock Text="Background" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,2"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="108"/>
-                        </Grid.ColumnDefinitions>
-                        <ComboBox x:Name="OverlayBackgroundDropdown"
-                                  Grid.Column="0"
-                                  Style="{StaticResource OverlayDarkComboBox}"
-                                  SelectionChanged="OverlayBackgroundDropdown_SelectionChanged">
-                            <ComboBoxItem Content="Lifepod"/>
-                            <ComboBoxItem Content="Safe Shallows"/>
-                            <ComboBoxItem Content="Kelp Forest"/>
-                            <ComboBoxItem Content="Grassy Plateau"/>
-                            <ComboBoxItem Content="Lost River"/>
-                            <ComboBoxItem Content="Cove Tree"/>
-                            <ComboBoxItem Content="Floating Island"/>
-                            <ComboBoxItem Content="Jellyshroom Caves"/>
-                            <ComboBoxItem Content="Grand Reef"/>
-                            <ComboBoxItem Content="Reaper Leviathan"/>
-                            <ComboBoxItem Content="Ghost Leviathan"/>
-                            <ComboBoxItem Content="Sea Dragon Leviathan"/>
-                            <ComboBoxItem Content="Twisty Bridges"/>
-                            <ComboBoxItem Content="Aurora Borealis"/>
-                            <ComboBoxItem Content="Snowfox"/>
-                            <ComboBoxItem Content="Icy Land"/>
-                            <ComboBoxItem Content="Arcitect Facility"/>
-                            <ComboBoxItem Content="Red Crystals"/>
-                            <ComboBoxItem Content="Snow Stalker"/>
-                            <ComboBoxItem Content="Squid Shark"/>
-                            <ComboBoxItem Content="Shadow Leviathan"/>
-                            <ComboBoxItem Content="Custom"/>
-                        </ComboBox>
-                        <Button x:Name="OverlayChooseBackgroundButton"
-                                Grid.Column="2"
-                                Content="Choose Custom"
-                                Background="{StaticResource AccentBlueBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlayChooseBackgroundButton_Click"/>
-                    </Grid>
-
-                    <TextBlock Text="Overlay Transparency" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,2"/>
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider x:Name="OverlayTransparencySlider"
-                                Minimum="0"
-                                Maximum="1"
-                                Value="0.5"
-                                TickFrequency="0.05"
-                                IsSnapToTickEnabled="True"
-                                ValueChanged="OverlayTransparencySlider_ValueChanged"/>
-                        <TextBlock x:Name="OverlayTransparencyText"
-                                   Grid.Column="1"
-                                   Width="52"
-                                   Margin="8,0,0,0"
-                                   TextAlignment="Right"
-                                   VerticalAlignment="Center"
-                                   Text="50%"/>
-                    </Grid>
-
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button x:Name="OverlayExplosionDisplayButton"
-                                Grid.Column="0"
-                                Content="Explosion Overlay: Off"
-                                Background="{StaticResource DangerRedBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlayExplosionDisplayButton_Click"/>
-                        <Button x:Name="OverlayExplosionTrackButton"
-                                Grid.Column="2"
-                                Content="Track Resets: Off"
-                                Background="{StaticResource DangerRedBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlayExplosionTrackButton_Click"/>
-                    </Grid>
-
-                </StackPanel>
-            </ScrollViewer>
-
-            <Border Grid.Column="3" Width="1" Background="{StaticResource DividerBrush}" Margin="4,0,1,0"/>
-
-            <ScrollViewer Grid.Column="4"
-                          VerticalScrollBarVisibility="Hidden"
-                          HorizontalScrollBarVisibility="Disabled"
-                          Margin="8,0">
-                <StackPanel Width="340"
-                            HorizontalAlignment="Center">
-                    <TextBlock Text="Speedrunning Tools"
-                               FontSize="15"
-                               FontWeight="Bold"
-                               Margin="80,0,0,20"/>
-
-                    <Button x:Name="OverlayResetMacroButton"
-                            Content="Reset Macro: Disabled"
-                            Width="328"
-                            HorizontalAlignment="Center"
-                            Background="{StaticResource DangerRedBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayResetMacroButton_Click"/>
-
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBox x:Name="OverlayResetHotkeyBox"
-                                 Style="{StaticResource OverlayTextbox}"
-                                 IsReadOnly="True"/>
-                        <Button Grid.Column="1"
-                                Width="52"
-                                Margin="6,5,0,5"
-                                Content="Set"
-                                Background="{StaticResource AccentBlueBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlaySetResetHotkeyButton_Click"/>
-                    </Grid>
-
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <ComboBox x:Name="OverlayResetGamemodeDropdown"
-                                  Grid.Column="0"
-                                  Style="{StaticResource OverlayDarkComboBox}"
-                                  SelectionChanged="OverlayResetGamemodeDropdown_SelectionChanged">
-                            <ComboBoxItem Content="Survival"/>
-                            <ComboBoxItem Content="Hardcore"/>
-                            <ComboBoxItem Content="Creative"/>
-                            <ComboBoxItem Content="Freedom"/>
-                            <ComboBoxItem Content="SaveSlot1"/>
-                            <ComboBoxItem Content="SaveSlot2"/>
-                            <ComboBoxItem Content="SaveSlot3"/>
-                        </ComboBox>
-
-                        <ComboBox x:Name="OverlayExplosionPresetDropdown"
-                                  Grid.Column="2"
-                                  Style="{StaticResource OverlayDarkComboBox}"
-                                  SelectionChanged="OverlayExplosionPresetDropdown_SelectionChanged">
-                            <ComboBoxItem Content="46:00 to 46:30" Tag="Min46_To_4630"/>
-                            <ComboBoxItem Content="46:00 to 47:00" Tag="Min46_To_47"/>
-                            <ComboBoxItem Content="46:00 to 48:00" Tag="Min46_To_48"/>
-                            <ComboBoxItem Content="46:00 to 50:00" Tag="Min46_To_50"/>
-                            <ComboBoxItem Content="Under 1 Hour" Tag="Under1Hour"/>
-                            <ComboBoxItem Content="Over 1 Hour" Tag="Over1Hour"/>
-                            <ComboBoxItem Content="Custom" Tag="Custom"/>
-                        </ComboBox>
-                    </Grid>
-
-                    <Grid x:Name="OverlayExplosionCustomRangePanel"
-                          Margin="0,0,0,10"
-                          HorizontalAlignment="Center"
-                          Visibility="Collapsed">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="124"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="124"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBox x:Name="OverlayExplosionCustomMinBox"
-                                 Grid.Column="0"
-                                 Style="{StaticResource OverlayTextbox}"
-                                 TextChanged="OverlayExplosionCustomRangeBox_TextChanged"
-                                 LostFocus="OverlayExplosionCustomRangeBox_LostFocus"
-                                 PreviewKeyDown="OverlayExplosionCustomRangeBox_PreviewKeyDown"/>
-
-                        <TextBlock Grid.Column="1"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   FontWeight="Bold"
-                                   Text="&#x2192;"/>
-
-                        <TextBox x:Name="OverlayExplosionCustomMaxBox"
-                                 Grid.Column="2"
-                                 Style="{StaticResource OverlayTextbox}"
-                                 TextChanged="OverlayExplosionCustomRangeBox_TextChanged"
-                                 LostFocus="OverlayExplosionCustomRangeBox_LostFocus"
-                                 PreviewKeyDown="OverlayExplosionCustomRangeBox_PreviewKeyDown"/>
-                    </Grid>
-
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="6"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button x:Name="OverlayExplosionResetButton"
-                                Grid.Column="0"
-                                Content="Reset for Explosion: Off"
-                                Background="{StaticResource DangerRedBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlayExplosionResetButton_Click"/>
-                        <Button x:Name="OverlayHardcoreButton"
-                                Grid.Column="2"
-                                Content="Hardcore Save Deleter: Off"
-                                Background="{StaticResource DangerRedBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlayHardcoreButton_Click"/>
-                    </Grid>
-
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="6"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0"
-                                Content="Edit 100% Tracker"
-                                Background="{StaticResource AccentBlueBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlayTrackerCustomizeButton_Click"/>
-                        <Button Grid.Column="2"
-                                Content="Edit Speedrun Timer"
-                                Background="{StaticResource AccentBlueBrush}"
-                                Style="{StaticResource OverlayButton}"
-                                Click="OverlaySpeedrunTimerCustomizeButton_Click"/>
-                    </Grid>
-
-                    <Button
-                            Content="Delete All Hardcore Saves"
-                            Width="244"
-                            HorizontalAlignment="Center"
-                            Background="{StaticResource AccentBlueBrush}"
-                            Style="{StaticResource OverlayButton}"
-                            Click="OverlayDeleteHardcoreButton_Click"/>
-                </StackPanel>
-            </ScrollViewer>
-
-            <Border Grid.Column="4" Width="1" Background="{StaticResource DividerBrush}" Margin="440,0,34,0"/>
-
-            <StackPanel Grid.Column="6">
-                <TextBlock Text="Launcher Info"
-                           FontSize="16"
-                           FontWeight="Bold"
-                           Margin="125,0,0,6"/>
-
-                <Border Background="{StaticResource CardBackgroundBrush}"
-                        CornerRadius="10"
-                        Padding="8"
-                        Height="206">
-                    <ScrollViewer VerticalScrollBarVisibility="Hidden">
-                        <StackPanel x:Name="OverlayUpdatesPanel"/>
-                    </ScrollViewer>
+                <Border Grid.Column="0"
+                        Margin="6,4,10,4"
+                        ClipToBounds="True">
+                    <TextBlock Text="{Binding DisplayLabel}"
+                               FontSize="{Binding DisplayLabel, Converter={StaticResource StringLengthToFontSizeConverter}}"
+                               TextTrimming="CharacterEllipsis"
+                               TextWrapping="NoWrap"
+                               VerticalAlignment="Center"
+                               Foreground="{Binding Status, Converter={StaticResource ActiveColorConverter}}"/>
                 </Border>
 
-                <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Center"
-                            Margin="0,6,0,0">
-                    <Button Background="Transparent"
-                            BorderThickness="0"
-                            Cursor="Hand"
-                            Margin="8,0"
-                            ToolTip="Open GitHub"
-                            Click="OverlayGitHubButton_Click">
-                        <StackPanel HorizontalAlignment="Center">
-                            <Image Source="pack://application:,,,/Assets/Icons/GithubIcon.png"
-                                   Width="24"
-                                   Height="24"
-                                   Margin="0,0,0,2"/>
-                            <TextBlock Text="GitHub"
-                                       FontSize="11"
-                                       FontWeight="SemiBold"
-                                       HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center">
+                    <Button Tag="{Binding}"
+                            ToolTip="Open Folder"
+                            ContentTemplate="{StaticResource OverlayVersionRowFolderIconTemplate}"
+                            Style="{StaticResource OverlayVersionRowIconButtonStyle}"
+                            Click="OpenOverlayVersionFolder_Click"/>
 
-                    <Button Background="Transparent"
-                            BorderThickness="0"
-                            Cursor="Hand"
-                            Margin="8,0"
-                            ToolTip="Open YouTube"
-                            Click="OverlayYouTubeButton_Click">
-                        <StackPanel HorizontalAlignment="Center">
-                            <Image Source="pack://application:,,,/Assets/Icons/YoutubeIcon.png"
-                                   Width="24"
-                                   Height="24"
-                                   Margin="0,0,0,2"/>
-                            <TextBlock Text="YouTube"
-                                       FontSize="11"
-                                       FontWeight="SemiBold"
-                                       HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-
-                    <Button Background="Transparent"
-                            BorderThickness="0"
-                            Cursor="Hand"
-                            Margin="8,0"
-                            ToolTip="Open Discord"
-                            Click="OverlayDiscordButton_Click">
-                        <StackPanel HorizontalAlignment="Center">
-                            <Image Source="pack://application:,,,/Assets/Icons/DiscordIcon.png"
-                                   Width="24"
-                                   Height="24"
-                                   Margin="0,0,0,2"/>
-                            <TextBlock Text="Discord"
-                                       FontSize="11"
-                                       FontWeight="SemiBold"
-                                       HorizontalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
+                    <Button Tag="{Binding}"
+                            ToolTip="Edit Version"
+                            ContentTemplate="{StaticResource OverlayVersionRowCogIconTemplate}"
+                            Style="{StaticResource OverlayVersionRowIconButtonStyle}"
+                            Click="EditOverlayVersion_Click"/>
                 </StackPanel>
-            </StackPanel>
-        </Grid>
-    </Border>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid x:Name="RootGrid"
+          Focusable="True"
+          Background="Transparent"
+          MouseMove="RootGrid_MouseMove"
+          MouseLeftButtonUp="RootGrid_MouseLeftButtonUp">
+        <Canvas x:Name="OverlayCanvas"
+                Background="Transparent"/>
+
+        <Border x:Name="TopBarBorder"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Top"
+                Margin="0,20,0,0"
+                Padding="10,8"
+                CornerRadius="16"
+                Background="#E2141C30"
+                BorderBrush="#7F97C5"
+                BorderThickness="1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="8"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="18"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="AddComponentButton"
+                        Grid.Column="0"
+                        Style="{StaticResource OverlayToolbarButtonStyle}"
+                        Content="&#9776;"
+                        Click="AddComponentButton_Click"/>
+
+                <Button x:Name="OverlaySettingsButton"
+                        Grid.Column="2"
+                        Style="{StaticResource OverlayToolbarButtonStyle}"
+                        Content="&#9881;"
+                        Click="OverlaySettingsButton_Click"/>
+
+                <StackPanel Grid.Column="4"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="Selected Version: "
+                               FontSize="13"
+                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="SelectedVersionValueText"
+                               FontSize="13"
+                               FontWeight="Bold"
+                               Text="None"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="6"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="Active Version: "
+                               FontSize="13"
+                               FontWeight="SemiBold"/>
+                    <TextBlock x:Name="ActiveVersionValueText"
+                               FontSize="13"
+                               FontWeight="Bold"
+                               Text="None"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
 </Window>
-
-
-

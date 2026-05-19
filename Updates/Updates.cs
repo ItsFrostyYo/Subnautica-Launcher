@@ -32,6 +32,19 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "3.0.2",
+        Title = "Launcher Overlay Revamp",
+        Date = "May 16, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Updated the Overlay to be a Customizable Game Bar Style Overlay",
+            "Added the New Subnautica 2 Update"
+            
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "3.0.1",
         Title = "Subnautica 2 Cleanup and Reset Macro",
         Date = "May 16, 2026 | Contributors (1) - ItsFrosti.",

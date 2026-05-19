@@ -29,6 +29,8 @@ namespace SubnauticaLauncher.Settings
         // =========================
         public string BackgroundPreset { get; set; } = "Lifepod";
         public LauncherStartupMode StartupMode { get; set; } = LauncherStartupMode.Window;
+        public bool GameOverlayEnabled { get; set; } = false;
+        public bool GameOverlayLayoutMigrated { get; set; } = false;
         public Key OverlayToggleKey { get; set; } = Key.Tab;
         public ModifierKeys OverlayToggleModifiers { get; set; } = ModifierKeys.Control | ModifierKeys.Shift;
         public double OverlayPanelOpacity { get; set; } = 0.5;
@@ -94,6 +96,7 @@ namespace SubnauticaLauncher.Settings
         public PlayTabListViewMode PlayTabListView { get; set; } = PlayTabListViewMode.Labeled;
         public List<ToolsTabGameOption> ToolsTabVisibleGames { get; set; } =
             new() { ToolsTabGameOption.Subnautica, ToolsTabGameOption.BelowZero, ToolsTabGameOption.Subnautica2 };
+        public List<GameOverlayComponentLayout> GameOverlayComponents { get; set; } = new();
 
         public static void Load()
         {

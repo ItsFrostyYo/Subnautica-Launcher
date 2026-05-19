@@ -11,12 +11,12 @@ namespace SubnauticaLauncher.UI
 
         public static bool? ShowDialog(Window owner, Window dialog)
         {
-            Window modalOwner = owner is MainWindow ? owner : owner.Owner ?? owner;
+            Window modalOwner = owner is MainWindow or LauncherOverlayWindow ? owner : owner.Owner ?? owner;
             dialog.Owner = modalOwner;
             dialog.WindowStartupLocation = WindowStartupLocation.Manual;
             PositionDialogOver(owner, dialog);
 
-            if (owner is MainWindow)
+            if (owner is MainWindow or LauncherOverlayWindow)
             {
                 bool? result = dialog.ShowDialog();
                 RestoreWindow(owner);
@@ -46,7 +46,7 @@ namespace SubnauticaLauncher.UI
 
         public static Task<bool?> ShowModelessAsync(Window owner, Window window)
         {
-            Window modelessOwner = owner is MainWindow ? owner : owner.Owner ?? owner;
+            Window modelessOwner = owner is MainWindow or LauncherOverlayWindow ? owner : owner.Owner ?? owner;
             window.Owner = modelessOwner;
             window.WindowStartupLocation = WindowStartupLocation.Manual;
             PositionDialogOver(owner, window);

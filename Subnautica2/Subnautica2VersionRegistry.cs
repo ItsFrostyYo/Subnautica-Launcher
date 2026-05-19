@@ -8,6 +8,12 @@ public static class Subnautica2VersionRegistry
         new List<Subnautica2VersionInstallDefinition>
         {
             new(
+                "Subnautica2_19thMay2026",
+                "May, 2026 (Early Access Hotfix)",
+                8500743838928293422,
+                113933),
+
+            new(
                 "Subnautica2_May2026",
                 "May, 2026 (Official Launch Build)",
                 4222263125962173451,
