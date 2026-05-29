@@ -16,8 +16,11 @@ External Research/
 
 *.zip
 !Mods/*.zip
+!Mods/**/*.zip
 tools/**/bin/
 tools/**/obj/
+.codex-build-temp/
+tools/**/.codex-build-temp/
 
 *.user
 *.rsuser
