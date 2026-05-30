@@ -32,6 +32,21 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "3.1.1",
+        Title = "Launching Hotfix",
+        Date = "May 29, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Quick Hotfix to make folder luanching stop renaming constantly, now works like it should",
+            "Also forgot to list other changes from last update...",
+            "Added Option to Launch without Steam Always, Enable to Launch Without Steam, Disable for Pure Folder Rename Launching Slower but Makes steam happy",
+            "Other Overlay Fixes, like swapping versions",
+            
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "3.1.0",
         Title = "Subnautica 2 Reset Macro Update",
         Date = "May 29, 2026 | Contributors (1) - ItsFrosti.",

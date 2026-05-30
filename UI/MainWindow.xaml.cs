@@ -68,13 +68,18 @@ namespace SubnauticaLauncher.UI
         private string? _directLaunchedSubnauticaFolder;
         private string? _directLaunchedBelowZeroFolder;
         private string? _directLaunchedSubnautica2Folder;
+        private string? _steamLaunchPinnedSubnauticaFolder;
+        private string? _steamLaunchPinnedBelowZeroFolder;
+        private string? _steamLaunchPinnedSubnautica2Folder;
+        private DateTime _steamLaunchPinnedSubnauticaUntilUtc = DateTime.MinValue;
+        private DateTime _steamLaunchPinnedBelowZeroUntilUtc = DateTime.MinValue;
+        private DateTime _steamLaunchPinnedSubnautica2UntilUtc = DateTime.MinValue;
         private readonly object _versionReloadSync = new();
         private readonly SemaphoreSlim _versionReloadGate = new(1, 1);
         private readonly SemaphoreSlim _backgroundCheckGate = new(1, 1);
         private Task? _versionReloadWorker;
         private int _pendingVersionReloadRequests;
         private bool _pendingVersionReloadRepair;
-        private bool _pendingSteamFolderPolicyRefresh;
         private bool _startupStagesCompleted;
         private bool _syncingExplosionCustomRangeInputs;
         private bool _syncingPlayViewSelectors;
@@ -98,6 +103,7 @@ namespace SubnauticaLauncher.UI
         private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
 
         private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
+        private static readonly TimeSpan SteamLaunchPinGracePeriod = TimeSpan.FromSeconds(90);
 
         public MainWindow()
         {
@@ -492,12 +498,6 @@ namespace SubnauticaLauncher.UI
                 }
 
                 _runtimeServices.ResumeAfterBusyOperation();
-
-                if (_pendingSteamFolderPolicyRefresh)
-                {
-                    _pendingSteamFolderPolicyRefresh = false;
-                    await EnsureSteamVisibleActiveFoldersAndRefreshAsync();
-                }
 
                 TryStartInstalledVersionReloadWorker();
                 await RunBackgroundChecksIfIdleAsync();
@@ -1093,10 +1093,7 @@ namespace SubnauticaLauncher.UI
             if (reloadVersions)
                 await LoadInstalledVersionsAsync(repairMetadata: true);
             else
-            {
                 UpdateSidebarState();
-                await EnsureSteamVisibleActiveFoldersAndRefreshAsync();
-            }
 
             await RunBackgroundChecksIfIdleAsync();
         }
@@ -1108,12 +1105,6 @@ namespace SubnauticaLauncher.UI
 
         private async Task EnsureSteamVisibleActiveFoldersAndRefreshAsync()
         {
-            if (LauncherBusyCoordinator.IsBusy)
-            {
-                _pendingSteamFolderPolicyRefresh = true;
-                return;
-            }
-
             if (await EnsureSteamVisibleActiveFoldersAsync(
                     _subnauticaInstalledVersions,
                     _belowZeroInstalledVersions,
@@ -1150,6 +1141,12 @@ namespace SubnauticaLauncher.UI
             foreach (string common in commonPaths)
             {
                 string activePath = profile.GetActiveFolderPath(common);
+                if (ShouldKeepPinnedSteamLaunchFolder(profile, activePath))
+                {
+                    Logger.Log($"[SteamFolderPolicy] Keeping pinned Steam-visible {profile.DisplayName} folder '{activePath}' because it was chosen for a recent manual launch.");
+                    continue;
+                }
+
                 List<InstalledVersion> candidates = allInstalled
                     .Where(v =>
                         string.Equals(AppPaths.GetSteamCommonPathFor(v.HomeFolder), common, StringComparison.OrdinalIgnoreCase) &&
@@ -1571,6 +1568,7 @@ namespace SubnauticaLauncher.UI
                         await CleanupSteamAppIdFilesForGameAsync(profile);
 
                         SetTrackedDirectLaunchFolder(profile, null);
+                        SetPinnedSteamLaunchFolder(profile, launchFolder);
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
@@ -1805,6 +1803,62 @@ namespace SubnauticaLauncher.UI
             }
         }
 
+        private string? GetPinnedSteamLaunchFolder(LauncherGameProfile profile)
+        {
+            return profile.Game switch
+            {
+                LauncherGame.BelowZero => _steamLaunchPinnedBelowZeroFolder,
+                LauncherGame.Subnautica2 => _steamLaunchPinnedSubnautica2Folder,
+                _ => _steamLaunchPinnedSubnauticaFolder
+            };
+        }
+
+        private DateTime GetPinnedSteamLaunchUntilUtc(LauncherGameProfile profile)
+        {
+            return profile.Game switch
+            {
+                LauncherGame.BelowZero => _steamLaunchPinnedBelowZeroUntilUtc,
+                LauncherGame.Subnautica2 => _steamLaunchPinnedSubnautica2UntilUtc,
+                _ => _steamLaunchPinnedSubnauticaUntilUtc
+            };
+        }
+
+        private void SetPinnedSteamLaunchFolder(LauncherGameProfile profile, string? folderPath, DateTime? untilUtc = null)
+        {
+            DateTime expires = untilUtc ?? DateTime.UtcNow.Add(SteamLaunchPinGracePeriod);
+            switch (profile.Game)
+            {
+                case LauncherGame.BelowZero:
+                    _steamLaunchPinnedBelowZeroFolder = folderPath;
+                    _steamLaunchPinnedBelowZeroUntilUtc = string.IsNullOrWhiteSpace(folderPath) ? DateTime.MinValue : expires;
+                    break;
+                case LauncherGame.Subnautica2:
+                    _steamLaunchPinnedSubnautica2Folder = folderPath;
+                    _steamLaunchPinnedSubnautica2UntilUtc = string.IsNullOrWhiteSpace(folderPath) ? DateTime.MinValue : expires;
+                    break;
+                default:
+                    _steamLaunchPinnedSubnauticaFolder = folderPath;
+                    _steamLaunchPinnedSubnauticaUntilUtc = string.IsNullOrWhiteSpace(folderPath) ? DateTime.MinValue : expires;
+                    break;
+            }
+        }
+
+        private bool ShouldKeepPinnedSteamLaunchFolder(LauncherGameProfile profile, string activePath)
+        {
+            string? pinnedFolder = GetPinnedSteamLaunchFolder(profile);
+            if (string.IsNullOrWhiteSpace(pinnedFolder))
+                return false;
+
+            if (!PathsAreEqual(pinnedFolder, activePath))
+                return false;
+
+            if (DateTime.UtcNow <= GetPinnedSteamLaunchUntilUtc(profile))
+                return true;
+
+            SetPinnedSteamLaunchFolder(profile, null, DateTime.MinValue);
+            return false;
+        }
+
         private static bool PathsAreEqual(string a, string b)
         {
             return string.Equals(
@@ -1869,13 +1923,6 @@ namespace SubnauticaLauncher.UI
                     _pendingVersionReloadRepair = false;
 
                     InstalledVersionScanSnapshot snapshot = await InstalledVersionScanService.ScanAsync(repairMetadata);
-                    if (await EnsureSteamVisibleActiveFoldersAsync(
-                            snapshot.SubnauticaVersions,
-                            snapshot.BelowZeroVersions,
-                            snapshot.Subnautica2Versions))
-                    {
-                        snapshot = await InstalledVersionScanService.ScanAsync(repairMetadata: false);
-                    }
 
                     await Dispatcher.InvokeAsync(() =>
                     {
@@ -2144,11 +2191,23 @@ namespace SubnauticaLauncher.UI
             bool bzRunning = processSnapshot.BelowZero.IsRunning;
             bool sn2Running = processSnapshot.Subnautica2.IsRunning;
             if (!snRunning)
+            {
                 SetTrackedDirectLaunchFolder(SubnauticaProfile, null);
+                if (DateTime.UtcNow > _steamLaunchPinnedSubnauticaUntilUtc)
+                    SetPinnedSteamLaunchFolder(SubnauticaProfile, null, DateTime.MinValue);
+            }
             if (!bzRunning)
+            {
                 SetTrackedDirectLaunchFolder(BelowZeroProfile, null);
+                if (DateTime.UtcNow > _steamLaunchPinnedBelowZeroUntilUtc)
+                    SetPinnedSteamLaunchFolder(BelowZeroProfile, null, DateTime.MinValue);
+            }
             if (!sn2Running)
+            {
                 SetTrackedDirectLaunchFolder(Subnautica2Profile, null);
+                if (DateTime.UtcNow > _steamLaunchPinnedSubnautica2UntilUtc)
+                    SetPinnedSteamLaunchFolder(Subnautica2Profile, null, DateTime.MinValue);
+            }
 
             string? runningSnFolder = snRunning ? processSnapshot.Subnautica.FolderPath ?? GetTrackedDirectLaunchFolder(SubnauticaProfile) : null;
             string? runningBzFolder = bzRunning ? processSnapshot.BelowZero.FolderPath ?? GetTrackedDirectLaunchFolder(BelowZeroProfile) : null;
@@ -2159,12 +2218,7 @@ namespace SubnauticaLauncher.UI
             bool anyRunning = snRunning || bzRunning || sn2Running;
 
             if (snChanged || bzChanged || sn2Changed)
-            {
                 RefreshVersionStatusUi(refreshSnList: true, refreshBzList: true);
-
-                if (!anyRunning && !LauncherBusyCoordinator.IsBusy)
-                    _ = EnsureSteamVisibleActiveFoldersAndRefreshAsync();
-            }
         }
 
         private static bool RefreshStatusesForProfile<TVersion>(
@@ -2256,11 +2310,20 @@ namespace SubnauticaLauncher.UI
             GameProcessMonitor.RefreshNow();
             GameProcessSnapshot processSnapshot = GameProcessMonitor.GetSnapshot();
             if (!processSnapshot.Subnautica.IsRunning)
+            {
                 SetTrackedDirectLaunchFolder(SubnauticaProfile, null);
+                SetPinnedSteamLaunchFolder(SubnauticaProfile, null, DateTime.MinValue);
+            }
             if (!processSnapshot.BelowZero.IsRunning)
+            {
                 SetTrackedDirectLaunchFolder(BelowZeroProfile, null);
+                SetPinnedSteamLaunchFolder(BelowZeroProfile, null, DateTime.MinValue);
+            }
             if (!processSnapshot.Subnautica2.IsRunning)
+            {
                 SetTrackedDirectLaunchFolder(Subnautica2Profile, null);
+                SetPinnedSteamLaunchFolder(Subnautica2Profile, null, DateTime.MinValue);
+            }
         }
 
         private static VersionStatus GetVersionStatus(string versionFolder, string activeFolder, string? runningFolder)
@@ -3728,6 +3791,23 @@ namespace SubnauticaLauncher.UI
 
             ExplosionResetDisplayController.ForceClose();
             _runtimeServices.Stop();
+
+            try
+            {
+                if (!IsAnyGameProcessRunning())
+                {
+                    Logger.Log("[SteamFolderPolicy] Applying preferred Steam-visible folders during launcher shutdown.");
+                    await EnsureSteamVisibleActiveFoldersAndRefreshAsync();
+                }
+                else
+                {
+                    Logger.Log("[SteamFolderPolicy] Skipping shutdown folder policy because a supported game is still running.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "[SteamFolderPolicy] Failed while applying shutdown folder policy");
+            }
 
             var handle = new WindowInteropHelper(this).Handle;
             UnregisterHotKey(handle, HotkeyIdReset);
