@@ -36,8 +36,10 @@ namespace SubnauticaLauncher.UI
 
         private readonly List<InstallCandidate> _subnauticaCandidates;
         private readonly List<InstallCandidate> _belowZeroCandidates;
+        private readonly List<InstallCandidate> _subnautica2Candidates;
         private List<InstalledVersion> _subnauticaInstalled = new();
         private List<BZInstalledVersion> _belowZeroInstalled = new();
+        private List<InstalledVersion> _subnautica2Installed = new();
         private bool _dataLoaded;
 
         public InstallModsWindow()
@@ -61,6 +63,18 @@ namespace SubnauticaLauncher.UI
                 .Select(v => new InstallCandidate
                 {
                     Game = LauncherGame.BelowZero,
+                    Id = v.Id,
+                    DisplayName = v.DisplayName,
+                    ManifestId = v.ManifestId,
+                    SteamAppId = v.SteamAppId,
+                    SteamDepotId = v.SteamDepotId
+                })
+                .ToList();
+
+            _subnautica2Candidates = LauncherGameProfiles.Subnautica2.InstallDefinitions
+                .Select(v => new InstallCandidate
+                {
+                    Game = LauncherGame.Subnautica2,
                     Id = v.Id,
                     DisplayName = v.DisplayName,
                     ManifestId = v.ManifestId,
@@ -135,6 +149,7 @@ namespace SubnauticaLauncher.UI
             {
                 LauncherGame.Subnautica => _subnauticaCandidates,
                 LauncherGame.BelowZero => _belowZeroCandidates,
+                LauncherGame.Subnautica2 => _subnautica2Candidates,
                 _ => Array.Empty<InstallCandidate>()
             };
             NewVersionsList.SelectedIndex = NewVersionsList.Items.Count > 0 ? 0 : -1;
@@ -145,6 +160,7 @@ namespace SubnauticaLauncher.UI
             {
                 LauncherGame.Subnautica => _subnauticaInstalled.Cast<InstalledVersion>().ToList(),
                 LauncherGame.BelowZero => _belowZeroInstalled.Cast<InstalledVersion>().ToList(),
+                LauncherGame.Subnautica2 => _subnautica2Installed,
                 _ => Array.Empty<InstalledVersion>()
             };
             ExistingVersionsList.SelectedIndex = ExistingVersionsList.Items.Count > 0 ? 0 : -1;
@@ -479,6 +495,7 @@ namespace SubnauticaLauncher.UI
                 InstalledVersionScanSnapshot snapshot = await InstalledVersionScanService.ScanAsync();
                 _subnauticaInstalled = snapshot.SubnauticaVersions.ToList();
                 _belowZeroInstalled = snapshot.BelowZeroVersions.ToList();
+                _subnautica2Installed = snapshot.Subnautica2Versions.ToList();
                 _dataLoaded = true;
                 RefreshLists();
             }

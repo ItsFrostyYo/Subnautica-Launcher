@@ -230,13 +230,11 @@ namespace SubnauticaLauncher.Gameplay
                 try
                 {
                     using Process sn2 = Process.GetProcessById(snapshot.Subnautica2.ProcessId!.Value);
-                    Subnautica2LogSnapshot sn2Snapshot = Subnautica2LogStateReader.Shared.Update(sn2.StartTime.ToUniversalTime());
-                    _subnautica2State = sn2Snapshot.State.ToString();
+                    _subnautica2State = Subnautica2UharaBridge.Shared.DetectState(sn2).ToString();
                 }
                 catch
                 {
-                    Subnautica2LogSnapshot sn2Snapshot = Subnautica2LogStateReader.Shared.Update();
-                    _subnautica2State = sn2Snapshot.State.ToString();
+                    _subnautica2State = "Unknown";
                 }
             }
             else

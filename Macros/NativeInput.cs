@@ -30,15 +30,29 @@ namespace SubnauticaLauncher.Macros
 
         public static async Task Click(Process process, Point logicalPoint, int delayMs = 10)
         {
+            await Click(process, logicalPoint, delayMs, focusWindow: true, mouseDownDurationMs: 5);
+        }
+
+        public static async Task Click(
+            Process process,
+            Point logicalPoint,
+            int delayMs,
+            bool focusWindow,
+            int mouseDownDurationMs)
+        {
             Point physical = GameWindowCoordinateMapper.TryMapLogicalPoint(process, logicalPoint, out Point mapped)
                 ? mapped
                 : DisplayInfo.GetPrimary().ScalePoint(logicalPoint);
 
-            FocusGame(process);
-            await Task.Delay(10);
+            if (focusWindow)
+            {
+                FocusGame(process);
+                await Task.Delay(10);
+            }
+
             SetCursorPos(physical.X, physical.Y);
             MouseDown();
-            await Task.Delay(5);
+            await Task.Delay(Math.Max(5, mouseDownDurationMs));
             MouseUp();
             await Task.Delay(delayMs);
         }
@@ -48,6 +62,13 @@ namespace SubnauticaLauncher.Macros
             KeyController.HoldStart(VK_ESCAPE);
             Thread.Sleep(25);
             KeyController.HoldStop(VK_ESCAPE);
+        }
+
+        public static void PressSpace()
+        {
+            KeyController.HoldStart(VK_SPACE);
+            Thread.Sleep(25);
+            KeyController.HoldStop(VK_SPACE);
         }
 
         public static async Task HoldEscAsync(Process proc, int durationMs, CancellationToken cancellationToken = default)
@@ -68,6 +89,8 @@ namespace SubnauticaLauncher.Macros
         private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
         private const uint MOUSEEVENTF_LEFTUP = 0x0004;
         private const ushort VK_ESCAPE = 0x1B;
+        private const ushort VK_SPACE = 0x20;
+
 
         [DllImport("user32.dll")]
         private static extern bool SetCursorPos(int X, int Y);

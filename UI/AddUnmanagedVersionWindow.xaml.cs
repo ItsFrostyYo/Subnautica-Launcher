@@ -296,7 +296,7 @@ namespace SubnauticaLauncher.UI
             }
 
             LauncherGameProfile profile = LauncherGameProfiles.Get(_detectedGame.Value);
-            profile.EnsureSteamAppIdFile(FolderPathBox.Text);
+            profile.RemoveSteamAppIdFiles(FolderPathBox.Text);
 
             using (LauncherBusyCoordinator.Begin($"Add existing {folderName}"))
             {

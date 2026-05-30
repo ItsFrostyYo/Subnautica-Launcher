@@ -180,10 +180,17 @@ Current managed support:
 
 - Subnautica 2018 builds: `Speedrun RNG Mod`
 - Subnautica 2022-2025 builds: `Speedrun RNG Mod 2.0+`
+- Subnautica 2 builds: `Kallie's Command Enabler Mod` (installs and enables both `SN2 Commands Enabler Mod` and `Kallie's Custom SN2 Commands`)
+
+Managed install notes:
+
+- Subnautica 1 managed bundles do not ship a prebuilt `BepInEx\config\BepInEx.cfg`; BepInEx generates the user's config on first game launch.
+- Subnautica 2 managed installs use `Subnautica2\Binaries\Win64\ue4ss\Mods` as the working mod root and update `mods.txt` / `mods.json` there automatically.
 
 The launcher can also detect:
 
 - `BepInEx`
+- `UE4SS`
 - installed plugin folders
 - known supported managed installs
 - unknown/manual plugin setups
@@ -261,7 +268,7 @@ Subnautica 2 currently supports:
 - `Survival`
 - `Creative`
 
-The Subnautica 2 reset path uses live log-state detection and waits for the front-end lobby to be ready before continuing after a quit-to-menu reset.
+The Subnautica 2 reset path uses bundled `uhara10` Unreal event memory reading, handles quit-to-menu recovery, and drives the new-game flow through in-game UI event watchers instead of log polling. The launcher self-seeds `tools\uhara10` when needed, while the supporting `LiveSplit` / `SharpDisasm` dependencies are embedded into the launcher itself.
 
 ### Explosion Reset
 

@@ -866,6 +866,24 @@ UseAeroCaptionButtons="False" />
                FontWeight="Bold"
                Margin="0,0,0,12"/>
 
+                                    <StackPanel Margin="0,0,0,0">
+                                        <TextBlock
+Text="Force to launch without steam"
+FontWeight="SemiBold"
+TextWrapping="Wrap"/>
+
+                                        <Button
+x:Name="ForceLaunchWithoutSteamToggleButton"
+Width="138"
+Height="38"
+Margin="0,6,0,0"
+HorizontalAlignment="Left"
+Background="{StaticResource DangerRedBrush}"
+Content="Disabled"
+Style="{StaticResource ToggleActionButtonStyle}"
+Click="ForceLaunchWithoutSteamToggle_Click"/>
+                                    </StackPanel>
+
                                     <!-- EXPLOSION RESET DISPLAY -->
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>

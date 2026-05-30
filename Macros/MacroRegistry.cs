@@ -17,6 +17,12 @@ namespace SubnauticaLauncher.Macros
         public Point SelectGameMode { get; init; }
         public Point ConfirmStart { get; init; }
 
+        public Point SelectCharacterTriage { get; init; }
+        public Point SelectCharacterFelix { get; init; }
+        public Point SelectCharacterStone { get; init; }
+        public Point SelectCharacterTether { get; init; }
+        public Point ConfirmCharacter { get; init; }
+
         public int ClickDelayFast { get; init; } = 10;
         public int ClickDelayMedium { get; init; } = 20;
         public int ClickDelaySlow { get; init; } = 30;
@@ -332,7 +338,13 @@ namespace SubnauticaLauncher.Macros
                     PlayButton = new Point(771, 420),
                     StartNewGame = new Point(1199, 367),
                     SelectGameMode = new Point(965, 453),
-                    ConfirmStart = new Point(938, 789)
+                    ConfirmStart = new Point(938, 789),
+                    SelectCharacterTriage = new Point(460, 500),
+                    SelectCharacterFelix = new Point(800, 500),
+                    SelectCharacterStone = new Point(1125, 500),
+                    SelectCharacterTether = new Point(1450, 500),
+                    ConfirmCharacter = new Point(866, 877)
+
                 },
                 [GameMode.Creative] = new MacroSteps
                 {
@@ -341,7 +353,12 @@ namespace SubnauticaLauncher.Macros
                     PlayButton = new Point(771, 420),
                     StartNewGame = new Point(1199, 367),
                     SelectGameMode = new Point(955, 568),
-                    ConfirmStart = new Point(938, 789)
+                    ConfirmStart = new Point(938, 789),
+                    SelectCharacterTriage = new Point(460, 500),
+                    SelectCharacterFelix = new Point(800, 500),
+                    SelectCharacterStone = new Point(1125, 500),
+                    SelectCharacterTether = new Point(1450, 500),
+                    ConfirmCharacter = new Point(866, 877)
                 }
             }
             };

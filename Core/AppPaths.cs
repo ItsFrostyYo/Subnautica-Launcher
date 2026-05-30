@@ -29,6 +29,9 @@ namespace SubnauticaLauncher.Core
         public static readonly string DepotDownloaderExe =
             Path.Combine(ToolsPath, "DepotDownloader.exe");
 
+        public static readonly string Uhara10Path =
+            Path.Combine(ToolsPath, "uhara10");
+
         // =========================
         // STEAM
         // =========================

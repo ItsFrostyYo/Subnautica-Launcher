@@ -101,6 +101,22 @@ internal sealed class LauncherGameProfile
         }
     }
 
+    public void RemoveSteamAppIdFiles(string gameFolder)
+    {
+        foreach (string relativeDirectory in SteamAppIdRelativeDirectories.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            string targetDirectory =
+                string.IsNullOrWhiteSpace(relativeDirectory) || relativeDirectory == "."
+                    ? gameFolder
+                    : Path.Combine(gameFolder, relativeDirectory);
+
+            if (!Directory.Exists(targetDirectory))
+                continue;
+
+            SteamAppIdFileHelper.RemoveSteamAppIdFile(targetDirectory);
+        }
+    }
+
     private IEnumerable<string> EnumerateDetectExecutablePaths(string versionFolder)
     {
         foreach (string relativePath in EnumerateDetectExecutableRelativePaths())

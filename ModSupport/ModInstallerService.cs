@@ -6,6 +6,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace SubnauticaLauncher.Mods;
@@ -13,7 +15,36 @@ namespace SubnauticaLauncher.Mods;
 public static class ModInstallerService
 {
     private static readonly HttpClient Http = BuildClient();
-    private static readonly Regex ModVersionRegex = new(@"v(?<version>\d+\.\d+\.\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex ModVersionRegex = new(@"v(?<version>\d+(?:\.\d+){2,3})", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex Sn2ModsTxtLineRegex = new(
+        @"^\s*(?<name>[^;#][^:]*)\s*:\s*(?<enabled>[01])\s*$",
+        RegexOptions.Compiled);
+    private static readonly string[] Sn2BuiltInModFolderNames =
+    [
+        "BPML_GenericFunctions",
+        "BPModLoaderMod",
+        "CheatManagerEnablerMod",
+        "ConsoleCommandsMod",
+        "ConsoleEnablerMod",
+        "Keybinds",
+        "LineTraceMod",
+        "shared",
+        "SplitScreenMod"
+    ];
+    private static readonly Dictionary<string, string> Sn2FriendlyModNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["SN2CommandsEnablerMod"] = "SN2 Commands Enabler Mod",
+        ["Kallie'sCustomSN2Commands"] = "Kallie's Custom SN2 Commands"
+    };
+
+    private sealed class Sn2ModJsonEntry
+    {
+        [JsonPropertyName("mod_name")]
+        public string ModName { get; set; } = string.Empty;
+
+        [JsonPropertyName("mod_enabled")]
+        public bool ModEnabled { get; set; }
+    }
 
     public static IReadOnlyList<ModDefinition> GetAvailableModsForVersion(
         LauncherGame game,
@@ -42,8 +73,9 @@ public static class ModInstallerService
         if (available.Count == 0 || string.IsNullOrWhiteSpace(version.InstalledModId))
             return available;
 
+        string installedModId = ManagedModFamilies.GetById(version.InstalledModId)?.Id ?? version.InstalledModId;
         return available
-            .Where(mod => !string.Equals(mod.Id, version.InstalledModId, StringComparison.OrdinalIgnoreCase))
+            .Where(mod => !string.Equals(mod.Id, installedModId, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 
@@ -74,66 +106,51 @@ public static class ModInstallerService
         DepotInstallCallbacks? callbacks,
         CancellationToken cancellationToken)
     {
-        callbacks?.OnStatus?.Invoke($"Downloading {mod.DisplayName}...");
-        callbacks?.OnOutput?.Invoke($"Downloading mod bundle from {mod.DownloadUrl}");
-
+        string installBasePath = GetInstallBasePath(mod, targetFolder);
         string tempRoot = Path.Combine(Path.GetTempPath(), "SubnauticaLauncher", "mods", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempRoot);
 
-        string zipPath = Path.Combine(tempRoot, mod.BundleZipFileName);
-        string extractDir = Path.Combine(tempRoot, "extract");
-
         try
         {
-            using HttpResponseMessage response = await Http.GetAsync(
-                mod.DownloadUrl,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
-            response.EnsureSuccessStatusCode();
-
-            long? contentLength = response.Content.Headers.ContentLength;
-            await using (Stream source = await response.Content.ReadAsStreamAsync(cancellationToken))
-            await using (FileStream destination = File.Create(zipPath))
+            foreach (ModBundleDefinition bundle in mod.BundleParts)
             {
-                byte[] buffer = new byte[81920];
-                long totalRead = 0;
+                callbacks?.OnStatus?.Invoke($"Downloading {bundle.DisplayName}...");
+                callbacks?.OnOutput?.Invoke($"Downloading mod bundle from {bundle.DownloadUrl}");
 
-                while (true)
-                {
-                    int read = await source.ReadAsync(buffer, cancellationToken);
-                    if (read <= 0)
-                        break;
+                string bundleTempRoot = Path.Combine(tempRoot, SanitizeFileName(bundle.Id));
+                Directory.CreateDirectory(bundleTempRoot);
 
-                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                    totalRead += read;
+                string zipPath = Path.Combine(bundleTempRoot, bundle.BundleZipFileName);
+                string extractDir = Path.Combine(bundleTempRoot, "extract");
 
-                    if (contentLength is > 0)
-                    {
-                        double percent = Math.Clamp((double)totalRead * 100d / contentLength.Value, 0, 100);
-                        callbacks?.OnProgress?.Invoke(percent);
-                    }
-                }
+                await DownloadBundleAsync(bundle, zipPath, callbacks, cancellationToken);
+
+                callbacks?.OnStatus?.Invoke($"Extracting {bundle.DisplayName}...");
+                Directory.CreateDirectory(extractDir);
+                ZipFile.ExtractToDirectory(zipPath, extractDir, overwriteFiles: true);
+
+                string contentRoot = ResolveContentRoot(bundle, extractDir);
+                ValidateExtractedBundleOrThrow(bundle, contentRoot);
+
+                callbacks?.OnStatus?.Invoke($"Installing {bundle.DisplayName}...");
+                string bundleInstallPath = GetBundleInstallPath(mod, installBasePath, bundle);
+                callbacks?.OnOutput?.Invoke($"Copying mod bundle into {bundleInstallPath}");
+
+                CleanupStaleBundleFiles(
+                    mod,
+                    contentRoot,
+                    bundleInstallPath,
+                    mod.PreservedRelativePaths,
+                    mod.StaleCleanupRelativeRoots);
+                CopyDirectoryContents(contentRoot, bundleInstallPath, mod.PreservedRelativePaths);
             }
 
-            callbacks?.OnStatus?.Invoke($"Extracting {mod.DisplayName}...");
-            Directory.CreateDirectory(extractDir);
-            ZipFile.ExtractToDirectory(zipPath, extractDir, overwriteFiles: true);
+            if (mod.Game == LauncherGame.Subnautica2)
+                EnsureSn2ManagedModsEnabled(mod, targetFolder);
 
-            string contentRoot = ResolveContentRoot(extractDir);
-            ValidateExtractedBundleOrThrow(mod, contentRoot);
+            WriteManagedVersionMarker(mod, targetFolder);
 
-            callbacks?.OnStatus?.Invoke($"Installing {mod.DisplayName}...");
-            callbacks?.OnOutput?.Invoke($"Copying mod bundle into {targetFolder}");
-
-            CleanupStaleBundleFiles(
-                mod,
-                contentRoot,
-                targetFolder,
-                mod.PreservedRelativePaths,
-                mod.StaleCleanupRelativeRoots);
-            CopyDirectoryContents(contentRoot, targetFolder, mod.PreservedRelativePaths);
-
-            LauncherGameProfiles.Get(game).EnsureSteamAppIdFile(targetFolder);
+            LauncherGameProfiles.Get(game).RemoveSteamAppIdFiles(targetFolder);
             ValidateInstalledBundleOrThrow(mod, targetFolder);
 
             callbacks?.OnProgress?.Invoke(100);
@@ -157,9 +174,15 @@ public static class ModInstallerService
         InstalledVersion version,
         LauncherGame game)
     {
-        foreach (string relativePath in GetGenericRemovalTargets())
+        if (game == LauncherGame.Subnautica2)
         {
-            string fullPath = Path.Combine(version.HomeFolder, relativePath);
+            IReadOnlyList<string> managedSn2Folders = GetManagedSn2FolderNames(version);
+            if (managedSn2Folders.Count > 0)
+                RemoveSn2ManagedModConfigEntries(version.HomeFolder, managedSn2Folders);
+        }
+
+        foreach (string fullPath in GetRemovalTargetsForGame(version.HomeFolder, game))
+        {
             if (Directory.Exists(fullPath))
                 Directory.Delete(fullPath, recursive: true);
             else if (File.Exists(fullPath))
@@ -171,7 +194,7 @@ public static class ModInstallerService
         version.IsModded = false;
         version.InstalledModId = string.Empty;
 
-        LauncherGameProfiles.Get(game).EnsureSteamAppIdFile(version.HomeFolder);
+        LauncherGameProfiles.Get(game).RemoveSteamAppIdFiles(version.HomeFolder);
     }
 
     public static string BuildModdedDisplayName(string baseDisplayName, int instanceNumber = 1)
@@ -196,29 +219,13 @@ public static class ModInstallerService
 
     public static Version? TryReadInstalledModVersion(InstalledVersion version)
     {
-        IEnumerable<string> candidates = GetVersionMarkerCandidates(version);
-
-        foreach (string relativePath in candidates)
+        foreach (string versionFilePath in GetVersionMarkerCandidates(version))
         {
-            string versionFilePath = Path.Combine(version.HomeFolder, relativePath);
             if (!File.Exists(versionFilePath))
                 continue;
 
-            string text;
-            try
-            {
-                text = File.ReadAllText(versionFilePath).Trim();
-            }
-            catch
-            {
-                continue;
-            }
-
-            Match match = ModVersionRegex.Match(text);
-            if (!match.Success)
-                continue;
-
-            if (Version.TryParse(match.Groups["version"].Value, out Version? versionValue))
+            Version? versionValue = TryReadVersionFile(versionFilePath);
+            if (versionValue != null)
                 return versionValue;
         }
 
@@ -227,18 +234,50 @@ public static class ModInstallerService
 
     public static void ApplyInstalledModDetection(InstalledVersion version)
     {
-        string bepinexFolder = Path.Combine(version.HomeFolder, "BepInEx");
-        version.HasBepInEx = Directory.Exists(bepinexFolder);
-        version.DetectedModNames = DetectInstalledPluginNames(version).ToList();
-        version.IsModded = version.HasBepInEx;
-
-        if (!version.HasBepInEx)
+        LauncherGameProfile? profile = LauncherGameProfiles.DetectFromFolder(version.HomeFolder);
+        if (profile == null)
         {
+            version.HasBepInEx = false;
+            version.DetectedModNames.Clear();
+            version.IsModded = false;
             version.InstalledModId = string.Empty;
             return;
         }
 
-        version.InstalledModId = DetectKnownManagedModId(version);
+        version.HasBepInEx = HasManagedRuntime(version, profile.Game);
+        version.InstalledModId = DetectKnownManagedModId(version, profile.Game);
+        version.DetectedModNames = DetectInstalledPluginNames(version, profile.Game).ToList();
+        version.IsModded = version.HasBepInEx || version.DetectedModNames.Count > 0;
+
+        if (!version.IsModded)
+            version.InstalledModId = string.Empty;
+    }
+
+    public static string GetInstalledRuntimeDisplayName(InstalledVersion version)
+    {
+        LauncherGameProfile? profile = LauncherGameProfiles.DetectFromFolder(version.HomeFolder);
+        return profile == null
+            ? "BepInEx"
+            : GetRuntimeDisplayName(profile.Game, version);
+    }
+
+    public static string GetRuntimeDisplayName(LauncherGame game, InstalledVersion? version = null)
+    {
+        if (!string.IsNullOrWhiteSpace(version?.InstalledModId) &&
+            ManagedModFamilies.GetById(version.InstalledModId) is ManagedModFamily installedFamily)
+        {
+            return installedFamily.RuntimeDisplayName;
+        }
+
+        ManagedModFamily? compatibleFamily = version == null
+            ? ManagedModFamilies.All.FirstOrDefault(f => f.Game == game)
+            : ManagedModFamilies.GetCompatibleFamilies(game, version.OriginalDownload, version.DisplayName, version.FolderName)
+                .FirstOrDefault();
+
+        if (compatibleFamily != null)
+            return compatibleFamily.RuntimeDisplayName;
+
+        return game == LauncherGame.Subnautica2 ? "UE4SS" : "BepInEx";
     }
 
     private static HttpClient BuildClient()
@@ -248,8 +287,47 @@ public static class ModInstallerService
         return client;
     }
 
-    private static string ResolveContentRoot(string extractDir)
+    private static async Task DownloadBundleAsync(
+        ModBundleDefinition bundle,
+        string zipPath,
+        DepotInstallCallbacks? callbacks,
+        CancellationToken cancellationToken)
     {
+        using HttpResponseMessage response = await Http.GetAsync(
+            bundle.DownloadUrl,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        long? contentLength = response.Content.Headers.ContentLength;
+        await using Stream source = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using FileStream destination = File.Create(zipPath);
+
+        byte[] buffer = new byte[81920];
+        long totalRead = 0;
+
+        while (true)
+        {
+            int read = await source.ReadAsync(buffer, cancellationToken);
+            if (read <= 0)
+                break;
+
+            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            totalRead += read;
+
+            if (contentLength is > 0)
+            {
+                double percent = Math.Clamp((double)totalRead * 100d / contentLength.Value, 0, 100);
+                callbacks?.OnProgress?.Invoke(percent);
+            }
+        }
+    }
+
+    private static string ResolveContentRoot(ModBundleDefinition bundle, string extractDir)
+    {
+        if (bundle.PreserveTopLevelDirectory)
+            return extractDir;
+
         string[] directories = Directory.GetDirectories(extractDir);
         string[] files = Directory.GetFiles(extractDir);
 
@@ -259,47 +337,33 @@ public static class ModInstallerService
         return extractDir;
     }
 
-    private static void ValidateExtractedBundleOrThrow(ModDefinition mod, string contentRoot)
+    private static void ValidateExtractedBundleOrThrow(ModBundleDefinition bundle, string contentRoot)
     {
-        string pluginRoot = Path.Combine(contentRoot, NormalizeRelativePath(mod.PluginRootRelativePath));
-        string versionMarker = Path.Combine(contentRoot, NormalizeRelativePath(mod.VersionMarkerRelativePath));
-
-        if (!Directory.Exists(pluginRoot))
+        foreach (string requiredRelativePath in bundle.RequiredRelativePaths)
         {
-            Logger.Warn($"[Mods] Invalid bundle for {mod.Id}: plugin root '{mod.PluginRootRelativePath}' missing in '{contentRoot}'.");
-            throw new InvalidDataException($"Mod bundle '{mod.BundleZipFileName}' is missing the plugin folder.");
-        }
+            string fullPath = Path.Combine(contentRoot, NormalizeRelativePath(requiredRelativePath));
+            if (Directory.Exists(fullPath) || File.Exists(fullPath))
+                continue;
 
-        if (!Directory.GetFiles(pluginRoot, "*.dll", SearchOption.TopDirectoryOnly).Any())
-        {
-            Logger.Warn($"[Mods] Invalid bundle for {mod.Id}: no plugin DLL found in '{pluginRoot}'.");
-            throw new InvalidDataException($"Mod bundle '{mod.BundleZipFileName}' does not contain a plugin DLL.");
-        }
-
-        if (!File.Exists(versionMarker))
-        {
-            Logger.Warn($"[Mods] Invalid bundle for {mod.Id}: version marker '{mod.VersionMarkerRelativePath}' missing.");
-            throw new InvalidDataException($"Mod bundle '{mod.BundleZipFileName}' is missing its version marker.");
-        }
-
-        foreach (string cleanupRoot in mod.StaleCleanupRelativeRoots)
-        {
-            string fullCleanupRoot = Path.Combine(contentRoot, NormalizeRelativePath(cleanupRoot));
-            if (!Directory.Exists(fullCleanupRoot))
-            {
-                Logger.Warn($"[Mods] Invalid bundle for {mod.Id}: cleanup root '{cleanupRoot}' missing.");
-                throw new InvalidDataException($"Mod bundle '{mod.BundleZipFileName}' is missing required preset data.");
-            }
+            Logger.Warn($"[Mods] Invalid bundle for {bundle.Id}: required path '{requiredRelativePath}' missing in '{contentRoot}'.");
+            throw new InvalidDataException($"Mod bundle '{bundle.BundleZipFileName}' is missing required files.");
         }
     }
 
     private static void ValidateInstalledBundleOrThrow(ModDefinition mod, string targetFolder)
     {
-        string pluginRoot = Path.Combine(targetFolder, NormalizeRelativePath(mod.PluginRootRelativePath));
-        string versionMarkerPath = Path.Combine(targetFolder, NormalizeRelativePath(mod.VersionMarkerRelativePath));
+        string runtimeRoot = GetInstalledPath(targetFolder, mod.InstallRootRelativePath, mod.RuntimeRootRelativePath);
+        bool detectionExists = mod.DetectionRelativePaths.All(relativePath =>
+            EnumerateInstalledPaths(targetFolder, mod.InstallRootRelativePath, relativePath)
+                .Any(path => Directory.Exists(path) || File.Exists(path)));
+        string versionMarkerPath = ResolvePreferredInstalledPath(targetFolder, mod.InstallRootRelativePath, mod.VersionMarkerRelativePath);
 
-        if (!Directory.Exists(pluginRoot))
-            throw new InvalidDataException($"Installed mod root '{mod.PluginRootRelativePath}' was not created.");
+        if (!Directory.Exists(runtimeRoot))
+            throw new InvalidDataException($"Installed runtime '{mod.RuntimeDisplayName}' was not created.");
+
+        if (!detectionExists)
+            throw new InvalidDataException(
+                $"Installed mod roots '{string.Join(", ", mod.DetectionRelativePaths)}' were not created.");
 
         if (!File.Exists(versionMarkerPath))
             throw new InvalidDataException($"Installed version marker '{mod.VersionMarkerRelativePath}' is missing.");
@@ -417,7 +481,63 @@ public static class ModInstallerService
         return path.Replace('/', '\\').TrimStart('\\');
     }
 
-    private static IEnumerable<string> DetectInstalledPluginNames(InstalledVersion version)
+    private static string GetInstallBasePath(ModDefinition mod, string targetFolder)
+    {
+        return string.IsNullOrWhiteSpace(mod.InstallRootRelativePath)
+            ? targetFolder
+            : Path.Combine(targetFolder, NormalizeRelativePath(mod.InstallRootRelativePath));
+    }
+
+    private static string GetBundleInstallPath(ModDefinition mod, string installBasePath, ModBundleDefinition bundle)
+    {
+        if (mod.Game == LauncherGame.Subnautica2 &&
+            string.Equals(NormalizeRelativePath(bundle.InstallRelativePath), "Mods", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetSn2ManagedModsInstallPath(installBasePath);
+        }
+
+        return string.IsNullOrWhiteSpace(bundle.InstallRelativePath)
+            ? installBasePath
+            : Path.Combine(installBasePath, NormalizeRelativePath(bundle.InstallRelativePath));
+    }
+
+    private static string GetInstalledPath(string targetFolder, string installRootRelativePath, string relativePath)
+    {
+        string installBasePath = string.IsNullOrWhiteSpace(installRootRelativePath)
+            ? targetFolder
+            : Path.Combine(targetFolder, NormalizeRelativePath(installRootRelativePath));
+
+        return string.IsNullOrWhiteSpace(relativePath)
+            ? installBasePath
+            : Path.Combine(installBasePath, NormalizeRelativePath(relativePath));
+    }
+
+    private static void WriteManagedVersionMarker(ModDefinition mod, string targetFolder)
+    {
+        string markerPath = ResolvePreferredInstalledPath(targetFolder, mod.InstallRootRelativePath, mod.VersionMarkerRelativePath);
+        string? markerDirectory = Path.GetDirectoryName(markerPath);
+        if (!string.IsNullOrWhiteSpace(markerDirectory))
+            Directory.CreateDirectory(markerDirectory);
+
+        File.WriteAllText(markerPath, $"v{mod.PackageVersion}");
+    }
+
+    private static IEnumerable<string> DetectInstalledPluginNames(InstalledVersion version, LauncherGame game)
+    {
+        if (game == LauncherGame.Subnautica2)
+        {
+            ManagedModFamily? knownFamily = DetectKnownManagedModFamily(version, game);
+            return DetectInstalledSn2ModNames(version, knownFamily);
+        }
+
+        ManagedModFamily? knownManagedFamily = DetectKnownManagedModFamily(version, game);
+        if (knownManagedFamily != null)
+            return [knownManagedFamily.DisplayName];
+
+        return DetectInstalledBepInExPluginNames(version);
+    }
+
+    private static IEnumerable<string> DetectInstalledBepInExPluginNames(InstalledVersion version)
     {
         string pluginRoot = Path.Combine(version.HomeFolder, "BepInEx", "plugins");
         if (!Directory.Exists(pluginRoot))
@@ -427,15 +547,10 @@ public static class ModInstallerService
         foreach (string dllPath in Directory.GetFiles(pluginRoot, "*.dll", SearchOption.AllDirectories))
         {
             string fileName = Path.GetFileNameWithoutExtension(dllPath);
-            string? friendlyName = TryMapKnownPluginName(version, fileName);
-
-            if (string.IsNullOrWhiteSpace(friendlyName))
-            {
-                string relativeDir = Path.GetRelativePath(pluginRoot, Path.GetDirectoryName(dllPath)!);
-                friendlyName = string.Equals(relativeDir, ".", StringComparison.Ordinal)
-                    ? fileName
-                    : Path.GetFileName(relativeDir);
-            }
+            string relativeDir = Path.GetRelativePath(pluginRoot, Path.GetDirectoryName(dllPath)!);
+            string friendlyName = string.Equals(relativeDir, ".", StringComparison.Ordinal)
+                ? fileName
+                : Path.GetFileName(relativeDir);
 
             names.Add(friendlyName);
         }
@@ -443,72 +558,360 @@ public static class ModInstallerService
         return names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    private static string DetectKnownManagedModId(InstalledVersion version)
+    private static IEnumerable<string> DetectInstalledSn2ModNames(InstalledVersion version, ManagedModFamily? knownFamily)
     {
-        LauncherGameProfile? profile = LauncherGameProfiles.DetectFromFolder(version.HomeFolder);
-        if (profile == null)
-            return string.Empty;
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (knownFamily != null)
+        {
+            foreach (string displayName in knownFamily.DetectedDisplayNames)
+                names.Add(displayName);
+        }
 
+        var ignoredFolderNames = new HashSet<string>(Sn2BuiltInModFolderNames, StringComparer.OrdinalIgnoreCase);
+        if (knownFamily != null)
+        {
+            foreach (string folderName in knownFamily.ManagedModFolderNames)
+                ignoredFolderNames.Add(folderName);
+        }
+
+        foreach (string modsRoot in GetSn2ModRoots(version.HomeFolder))
+        {
+            if (!Directory.Exists(modsRoot))
+                continue;
+
+            foreach (string directory in Directory.GetDirectories(modsRoot))
+            {
+                string folderName = Path.GetFileName(directory);
+                if (string.IsNullOrWhiteSpace(folderName) ||
+                    string.Equals(folderName, "Mods", StringComparison.OrdinalIgnoreCase) ||
+                    ignoredFolderNames.Contains(folderName))
+                {
+                    continue;
+                }
+
+                names.Add(GetFriendlySn2ModName(folderName));
+            }
+        }
+
+        return names.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static string DetectKnownManagedModId(InstalledVersion version, LauncherGame game)
+    {
+        ManagedModFamily? family = DetectKnownManagedModFamily(version, game);
+        return family?.Id ?? string.Empty;
+    }
+
+    private static ManagedModFamily? DetectKnownManagedModFamily(InstalledVersion version, LauncherGame game)
+    {
         IReadOnlyList<ManagedModFamily> compatibleFamilies = ManagedModFamilies.GetCompatibleFamilies(
-            profile.Game,
+            game,
             version.OriginalDownload,
             version.DisplayName,
             version.FolderName);
 
-        if (compatibleFamilies.Count == 0)
-            return string.Empty;
-
-        string pluginRoot = Path.Combine(version.HomeFolder, "BepInEx", "plugins");
-        if (!Directory.Exists(pluginRoot))
-            return string.Empty;
-
-        string[] pluginFiles = Directory.GetFiles(pluginRoot, "*.dll", SearchOption.AllDirectories);
-
-        foreach (ManagedModFamily family in compatibleFamilies)
-        {
-            if (pluginFiles.Any(path => Path.GetFileName(path).Contains(family.ManagedPluginFileNameToken, StringComparison.OrdinalIgnoreCase)))
-                return family.Id;
-        }
-
-        return string.Empty;
-    }
-
-    private static string? TryMapKnownPluginName(InstalledVersion version, string fileName)
-    {
-        ManagedModFamily? family = ManagedModFamilies.GetById(DetectKnownManagedModId(version));
-        if (family == null)
-            return null;
-
-        return fileName.Contains(family.ManagedPluginFileNameToken, StringComparison.OrdinalIgnoreCase)
-            ? family.DisplayName
-            : null;
+        return compatibleFamilies
+            .OrderByDescending(family => family.DetectionRelativePaths.Count)
+            .ThenByDescending(family => family.DetectionRelativePaths.Max(path => path.Length))
+            .FirstOrDefault(family =>
+            {
+                return family.DetectionRelativePaths.All(relativePath =>
+                    EnumerateInstalledPaths(version.HomeFolder, family.InstallRootRelativePath, relativePath)
+                        .Any(path => Directory.Exists(path) || File.Exists(path)));
+            });
     }
 
     private static IEnumerable<string> GetVersionMarkerCandidates(InstalledVersion version)
     {
+        LauncherGameProfile? profile = LauncherGameProfiles.DetectFromFolder(version.HomeFolder);
+        if (profile == null)
+            yield break;
+
         ManagedModFamily? knownFamily = ManagedModFamilies.GetById(version.InstalledModId);
         if (knownFamily != null)
-            yield return knownFamily.VersionMarkerRelativePath;
+        {
+            foreach (string path in EnumerateInstalledPaths(version.HomeFolder, knownFamily.InstallRootRelativePath, knownFamily.VersionMarkerRelativePath))
+                yield return path;
+        }
 
-        foreach (string candidate in ManagedModFamilies.All
-                     .Select(family => family.VersionMarkerRelativePath)
-                     .Distinct(StringComparer.OrdinalIgnoreCase))
+        foreach (ManagedModFamily family in ManagedModFamilies.GetCompatibleFamilies(
+                     profile.Game,
+                     version.OriginalDownload,
+                     version.DisplayName,
+                     version.FolderName))
         {
             if (knownFamily != null &&
-                string.Equals(candidate, knownFamily.VersionMarkerRelativePath, StringComparison.OrdinalIgnoreCase))
+                string.Equals(family.Id, knownFamily.Id, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            yield return candidate;
+            foreach (string path in EnumerateInstalledPaths(version.HomeFolder, family.InstallRootRelativePath, family.VersionMarkerRelativePath))
+                yield return path;
         }
     }
 
-    private static IReadOnlyList<string> GetGenericRemovalTargets()
+    private static IEnumerable<string> GetRemovalTargetsForGame(string versionHomeFolder, LauncherGame game)
     {
         return ManagedModFamilies.All
-            .SelectMany(family => family.RemovalTargets)
+            .Where(family => family.Game == game)
+            .SelectMany(family => family.RemovalTargets.SelectMany(target => EnumerateInstalledPaths(versionHomeFolder, family.InstallRootRelativePath, target)))
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .OrderByDescending(path => path.Length);
+    }
+
+    private static bool HasManagedRuntime(InstalledVersion version, LauncherGame game)
+    {
+        if (game == LauncherGame.Subnautica2)
+        {
+            string ue4ssRoot = GetInstalledPath(version.HomeFolder, @"Subnautica2\Binaries\Win64", "ue4ss");
+            return Directory.Exists(ue4ssRoot);
+        }
+
+        return Directory.Exists(Path.Combine(version.HomeFolder, "BepInEx"));
+    }
+
+    private static IEnumerable<string> GetSn2ModRoots(string versionHomeFolder)
+    {
+        string installBasePath = GetInstalledPath(versionHomeFolder, @"Subnautica2\Binaries\Win64", string.Empty);
+        yield return Path.Combine(installBasePath, "Mods");
+        yield return Path.Combine(installBasePath, @"ue4ss\Mods");
+    }
+
+    private static string GetSn2ManagedModsInstallPath(string installBasePath)
+    {
+        return Path.Combine(installBasePath, @"ue4ss\Mods");
+    }
+
+    private static IEnumerable<string> EnumerateInstalledPaths(string targetFolder, string installRootRelativePath, string relativePath)
+    {
+        string normalizedRelativePath = NormalizeRelativePath(relativePath);
+        string installBasePath = string.IsNullOrWhiteSpace(installRootRelativePath)
+            ? targetFolder
+            : Path.Combine(targetFolder, NormalizeRelativePath(installRootRelativePath));
+
+        if (normalizedRelativePath.Equals("Mods", StringComparison.OrdinalIgnoreCase) ||
+            normalizedRelativePath.StartsWith(@"Mods\", StringComparison.OrdinalIgnoreCase))
+        {
+            string suffix = normalizedRelativePath.Length == 4
+                ? string.Empty
+                : normalizedRelativePath["Mods\\".Length..];
+
+            yield return string.IsNullOrWhiteSpace(suffix)
+                ? Path.Combine(installBasePath, "Mods")
+                : Path.Combine(installBasePath, "Mods", suffix);
+
+            yield return string.IsNullOrWhiteSpace(suffix)
+                ? Path.Combine(installBasePath, @"ue4ss\Mods")
+                : Path.Combine(installBasePath, @"ue4ss\Mods", suffix);
+            yield break;
+        }
+
+        yield return GetInstalledPath(targetFolder, installRootRelativePath, relativePath);
+    }
+
+    private static string ResolvePreferredInstalledPath(string targetFolder, string installRootRelativePath, string relativePath)
+    {
+        foreach (string path in EnumerateInstalledPaths(targetFolder, installRootRelativePath, relativePath))
+        {
+            if (Directory.Exists(path) || File.Exists(path))
+                return path;
+        }
+
+        return EnumerateInstalledPaths(targetFolder, installRootRelativePath, relativePath).First();
+    }
+
+    private static string SanitizeFileName(string value)
+    {
+        foreach (char invalidChar in Path.GetInvalidFileNameChars())
+            value = value.Replace(invalidChar, '_');
+
+        return value;
+    }
+
+    private static void EnsureSn2ManagedModsEnabled(ModDefinition mod, string targetFolder)
+    {
+        if (mod.ManagedModFolderNames.Count == 0)
+            return;
+
+        foreach (string modsRoot in GetSn2ConfigRoots(targetFolder))
+        {
+            Directory.CreateDirectory(modsRoot);
+            EnsureSn2ModsTxtEntries(modsRoot, mod.ManagedModFolderNames);
+            EnsureSn2ModsJsonEntries(modsRoot, mod.ManagedModFolderNames);
+        }
+
+        string managedModsRoot = GetSn2ManagedModsInstallPath(GetInstallBasePath(mod, targetFolder));
+        foreach (string folderName in mod.ManagedModFolderNames)
+        {
+            string modFolderPath = Path.Combine(managedModsRoot, folderName);
+            if (!Directory.Exists(modFolderPath))
+                continue;
+
+            string enabledFilePath = Path.Combine(modFolderPath, "enabled.txt");
+            if (!File.Exists(enabledFilePath))
+                File.WriteAllText(enabledFilePath, string.Empty);
+        }
+    }
+
+    private static IReadOnlyList<string> GetManagedSn2FolderNames(InstalledVersion version)
+    {
+        ManagedModFamily? family = ManagedModFamilies.GetById(version.InstalledModId) ??
+                                   DetectKnownManagedModFamily(version, LauncherGame.Subnautica2);
+        if (family?.Game != LauncherGame.Subnautica2)
+            return Array.Empty<string>();
+
+        return family.ManagedModFolderNames;
+    }
+
+    private static IEnumerable<string> GetSn2ConfigRoots(string versionHomeFolder)
+    {
+        string installBasePath = GetInstalledPath(versionHomeFolder, @"Subnautica2\Binaries\Win64", string.Empty);
+        yield return GetSn2ManagedModsInstallPath(installBasePath);
+    }
+
+    private static void EnsureSn2ModsTxtEntries(string modsRoot, IReadOnlyList<string> managedModFolderNames)
+    {
+        string modsTxtPath = Path.Combine(modsRoot, "mods.txt");
+        List<string> lines = File.Exists(modsTxtPath)
+            ? File.ReadAllLines(modsTxtPath).ToList()
+            : new List<string>();
+
+        foreach (string folderName in managedModFolderNames)
+        {
+            string enabledLine = $"{folderName} : 1";
+            int existingIndex = FindSn2ModsTxtLineIndex(lines, folderName);
+            if (existingIndex >= 0)
+                lines[existingIndex] = enabledLine;
+            else
+                lines.Add(enabledLine);
+        }
+
+        File.WriteAllLines(modsTxtPath, lines);
+    }
+
+    private static void EnsureSn2ModsJsonEntries(string modsRoot, IReadOnlyList<string> managedModFolderNames)
+    {
+        string modsJsonPath = Path.Combine(modsRoot, "mods.json");
+        List<Sn2ModJsonEntry> entries = ReadSn2ModsJsonEntries(modsJsonPath);
+
+        foreach (string folderName in managedModFolderNames)
+        {
+            Sn2ModJsonEntry? existingEntry = entries.FirstOrDefault(entry =>
+                string.Equals(entry.ModName, folderName, StringComparison.OrdinalIgnoreCase));
+            if (existingEntry != null)
+            {
+                existingEntry.ModEnabled = true;
+                continue;
+            }
+
+            entries.Add(new Sn2ModJsonEntry
+            {
+                ModName = folderName,
+                ModEnabled = true
+            });
+        }
+
+        WriteSn2ModsJsonEntries(modsJsonPath, entries);
+    }
+
+    private static void RemoveSn2ManagedModConfigEntries(string versionHomeFolder, IReadOnlyList<string> managedModFolderNames)
+    {
+        if (managedModFolderNames.Count == 0)
+            return;
+
+        foreach (string modsRoot in GetSn2ConfigRoots(versionHomeFolder))
+        {
+            RemoveSn2ModsTxtEntries(modsRoot, managedModFolderNames);
+            RemoveSn2ModsJsonEntries(modsRoot, managedModFolderNames);
+        }
+    }
+
+    private static void RemoveSn2ModsTxtEntries(string modsRoot, IReadOnlyList<string> managedModFolderNames)
+    {
+        string modsTxtPath = Path.Combine(modsRoot, "mods.txt");
+        if (!File.Exists(modsTxtPath))
+            return;
+
+        HashSet<string> managedNames = new(managedModFolderNames, StringComparer.OrdinalIgnoreCase);
+        List<string> updatedLines = File.ReadAllLines(modsTxtPath)
+            .Where(line => !TryParseSn2ModsTxtLine(line, out string? modName) || modName == null || !managedNames.Contains(modName))
+            .ToList();
+
+        File.WriteAllLines(modsTxtPath, updatedLines);
+    }
+
+    private static void RemoveSn2ModsJsonEntries(string modsRoot, IReadOnlyList<string> managedModFolderNames)
+    {
+        string modsJsonPath = Path.Combine(modsRoot, "mods.json");
+        if (!File.Exists(modsJsonPath))
+            return;
+
+        HashSet<string> managedNames = new(managedModFolderNames, StringComparer.OrdinalIgnoreCase);
+        List<Sn2ModJsonEntry> updatedEntries = ReadSn2ModsJsonEntries(modsJsonPath)
+            .Where(entry => !managedNames.Contains(entry.ModName))
+            .ToList();
+
+        WriteSn2ModsJsonEntries(modsJsonPath, updatedEntries);
+    }
+
+    private static List<Sn2ModJsonEntry> ReadSn2ModsJsonEntries(string modsJsonPath)
+    {
+        if (!File.Exists(modsJsonPath))
+            return new List<Sn2ModJsonEntry>();
+
+        try
+        {
+            List<Sn2ModJsonEntry>? entries = JsonSerializer.Deserialize<List<Sn2ModJsonEntry>>(File.ReadAllText(modsJsonPath));
+            return entries ?? new List<Sn2ModJsonEntry>();
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"[Mods] Failed to parse SN2 mods.json at '{modsJsonPath}': {ex.Message}");
+            return new List<Sn2ModJsonEntry>();
+        }
+    }
+
+    private static void WriteSn2ModsJsonEntries(string modsJsonPath, IReadOnlyList<Sn2ModJsonEntry> entries)
+    {
+        string json = JsonSerializer.Serialize(entries, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+        File.WriteAllText(modsJsonPath, json);
+    }
+
+    private static int FindSn2ModsTxtLineIndex(IReadOnlyList<string> lines, string folderName)
+    {
+        for (int index = 0; index < lines.Count; index++)
+        {
+            if (TryParseSn2ModsTxtLine(lines[index], out string? existingModName) &&
+                string.Equals(existingModName, folderName, StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool TryParseSn2ModsTxtLine(string line, out string? modName)
+    {
+        Match match = Sn2ModsTxtLineRegex.Match(line);
+        if (!match.Success)
+        {
+            modName = null;
+            return false;
+        }
+
+        modName = match.Groups["name"].Value.Trim();
+        return !string.IsNullOrWhiteSpace(modName);
+    }
+
+    private static string GetFriendlySn2ModName(string folderName)
+    {
+        return Sn2FriendlyModNames.TryGetValue(folderName, out string? displayName)
+            ? displayName
+            : folderName;
     }
 }

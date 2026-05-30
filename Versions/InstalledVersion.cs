@@ -24,7 +24,7 @@ public class InstalledVersion
     public string InstalledModDisplayName => HasDetectedPlugins
         ? string.Join(", ", DetectedModNames)
         : HasBepInEx
-            ? "BepInEx (No plugins detected)"
+            ? $"{ModInstallerService.GetInstalledRuntimeDisplayName(this)} (No plugins detected)"
             : string.Empty;
 
     public string DisplayLabel => GetTrimmedDisplayName(DisplayName);

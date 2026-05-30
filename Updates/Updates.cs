@@ -32,6 +32,22 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "3.1.0",
+        Title = "Subnautica 2 Reset Macro Update",
+        Date = "May 29, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Updated Subnautica 2 Reset Macro to Uhara-Memory Reading",
+            "Updated Subnautica 2 Reset Macro to also Select Character (Selects 1-4 Character at random)",
+            "Updated Subnautica 2 Versions",
+            "Updated few Overlay Features",
+            "Small flow cleanups"
+            
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "3.0.2",
         Title = "Launcher Overlay Revamp",
         Date = "May 16, 2026 | Contributors (1) - ItsFrosti.",

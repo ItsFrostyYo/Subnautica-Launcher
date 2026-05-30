@@ -8,7 +8,7 @@ internal static class SteamAppIdFileHelper
     public const string SubnauticaAppId = "264710";
     public const string BelowZeroAppId = "848450";
     public const string Subnautica2AppId = "1962700";
-    private const string SteamAppIdFileName = "steam_appid.txt";
+    public const string SteamAppIdFileName = "steam_appid.txt";
 
     public static void EnsureSubnauticaSteamAppIdFile(string gameFolder)
     {
@@ -39,5 +39,17 @@ internal static class SteamAppIdFileHelper
             return;
 
         File.WriteAllText(filePath, appId);
+    }
+
+    internal static void RemoveSteamAppIdFile(string gameFolder)
+    {
+        if (string.IsNullOrWhiteSpace(gameFolder))
+            throw new ArgumentException("Game folder is required.", nameof(gameFolder));
+
+        string filePath = Path.Combine(gameFolder, SteamAppIdFileName);
+        if (!File.Exists(filePath))
+            return;
+
+        File.Delete(filePath);
     }
 }

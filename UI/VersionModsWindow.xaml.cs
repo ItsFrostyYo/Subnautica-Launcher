@@ -43,24 +43,26 @@ namespace SubnauticaLauncher.UI
 
         private void RefreshDisplay()
         {
+            string runtimeDisplayName = ModInstallerService.GetRuntimeDisplayName(_game, _version);
+
             if (_version.HasBepInEx)
             {
                 if (_version.HasDetectedPlugins)
                 {
                     StatusText.Text = "Mods Installed";
-                    string pluginList = string.Join(Environment.NewLine, _version.DetectedModNames.Select(name => $"• {name}"));
+                    string pluginList = string.Join(Environment.NewLine, _version.DetectedModNames.Select(name => $"- {name}"));
                     DescriptionText.Text =
                         $"Detected plugin(s):{Environment.NewLine}{pluginList}{Environment.NewLine}{Environment.NewLine}" +
-                        "Removing mods will delete BepInEx and the installed plugin files, leaving the game as a clean launcher version.";
+                        $"Removing mods will delete {runtimeDisplayName} and the installed plugin files, leaving the game as a clean launcher version.";
                     RemoveModsButton.Content = "Remove Mods";
                 }
                 else
                 {
-                    StatusText.Text = "BepInEx Installed";
+                    StatusText.Text = $"{runtimeDisplayName} Installed";
                     DescriptionText.Text =
-                        "BepInEx is installed, but no plugin DLLs were detected in the plugins folder." +
-                        $"{Environment.NewLine}{Environment.NewLine}You can still remove BepInEx if you want this version clean again.";
-                    RemoveModsButton.Content = "Remove BepInEx";
+                        $"{runtimeDisplayName} is installed, but no launcher-detected plugins were found." +
+                        $"{Environment.NewLine}{Environment.NewLine}You can still remove {runtimeDisplayName} if you want this version clean again.";
+                    RemoveModsButton.Content = $"Remove {runtimeDisplayName}";
                 }
 
                 RemoveModsButton.IsEnabled = true;

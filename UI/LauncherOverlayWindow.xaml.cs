@@ -18,6 +18,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 using System.Windows.Threading;
 using Application = System.Windows.Application;
 using Button = System.Windows.Controls.Button;
@@ -51,7 +52,7 @@ namespace SubnauticaLauncher.UI
         private readonly Dictionary<GameOverlayComponentType, GameOverlayComponentLayout> _layouts = new();
         private readonly Dictionary<GameOverlayComponentType, Border> _componentRoots = new();
         private readonly Dictionary<GameOverlayComponentType, VersionListPanelState> _versionPanels = new();
-        private readonly Dictionary<LauncherGame, string?> _selectedFoldersByGame = new();
+        private int _nextPanelZIndex;
         private LauncherSettingsPanelState? _launcherSettingsPanel;
         private ResetMacrosPanelState? _resetMacrosPanel;
         private OtherToolsPanelState? _otherToolsPanel;
@@ -71,6 +72,7 @@ namespace SubnauticaLauncher.UI
         private double _panelOpacity = 0.5;
         private LauncherGame? _currentTargetGame;
         private LauncherGame? _preferredSelectedGame;
+        private string? _preferredSelectedFolder;
 
         private sealed class VersionListPanelState
         {
@@ -86,6 +88,7 @@ namespace SubnauticaLauncher.UI
         private sealed class LauncherSettingsPanelState
         {
             public required Border Root { get; init; }
+            public required Button ForceLaunchWithoutSteamButton { get; init; }
             public required Button ExplosionOverlayButton { get; init; }
             public required Button ExplosionTrackingButton { get; init; }
             public required ComboBox BackgroundDropdown { get; init; }
@@ -458,6 +461,7 @@ namespace SubnauticaLauncher.UI
             }
 
             ClampAllPanelsToBounds(persist: false);
+            EnsureVersionPanelsUsable();
         }
 
         private void AddComponentVisual(GameOverlayComponentType type, GameOverlayComponentLayout layout)
@@ -476,7 +480,19 @@ namespace SubnauticaLauncher.UI
             root.Background = CreatePanelBrush(GetPanelOpacity(layout));
             OverlayCanvas.Children.Add(root);
             _componentRoots[type] = root;
+            System.Windows.Controls.Panel.SetZIndex(root, GetBasePanelZIndex(type));
             ApplyPanelPosition(type, layout.Left, layout.Top);
+        }
+
+        private static int GetBasePanelZIndex(GameOverlayComponentType type)
+        {
+            return type switch
+            {
+                GameOverlayComponentType.SubnauticaVersionList => 300,
+                GameOverlayComponentType.BelowZeroVersionList => 301,
+                GameOverlayComponentType.Subnautica2VersionList => 302,
+                _ => 100
+            };
         }
 
         private void RemoveComponentVisual(GameOverlayComponentType type)
@@ -509,6 +525,7 @@ namespace SubnauticaLauncher.UI
             };
             ScrollViewer.SetVerticalScrollBarVisibility(listBox, ScrollBarVisibility.Auto);
             ScrollViewer.SetHorizontalScrollBarVisibility(listBox, ScrollBarVisibility.Disabled);
+            listBox.PreviewMouseLeftButtonDown += OverlayVersionList_PreviewMouseLeftButtonDown;
             listBox.SelectionChanged += OverlayVersionList_SelectionChanged;
             listBox.Tag = game;
 
@@ -576,6 +593,9 @@ namespace SubnauticaLauncher.UI
 
         private Border CreateLauncherSettingsPanel(GameOverlayComponentType type)
         {
+            Button forceLaunchWithoutSteamButton = CreateToggleButton();
+            forceLaunchWithoutSteamButton.Click += (_, _) => _main.ToggleForceLaunchWithoutSteamFromOverlay();
+
             Button explosionOverlayButton = CreateToggleButton();
             explosionOverlayButton.Click += (_, _) => _main.ToggleExplosionOverlayFromOverlay();
 
@@ -603,6 +623,7 @@ namespace SubnauticaLauncher.UI
             {
                 Margin = new Thickness(0, 2, 0, 0)
             };
+            content.Children.Add(CreateLabeledToggleRow("Force to launch without steam", forceLaunchWithoutSteamButton));
             content.Children.Add(CreateLabeledToggleRow("Explosion Overlay", explosionOverlayButton));
             content.Children.Add(CreateLabeledToggleRow("Track Explo Resets", explosionTrackingButton, 12));
             content.Children.Add(CreateFieldLabel("Background", 14));
@@ -613,6 +634,7 @@ namespace SubnauticaLauncher.UI
             _launcherSettingsPanel = new LauncherSettingsPanelState
             {
                 Root = root,
+                ForceLaunchWithoutSteamButton = forceLaunchWithoutSteamButton,
                 ExplosionOverlayButton = explosionOverlayButton,
                 ExplosionTrackingButton = explosionTrackingButton,
                 BackgroundDropdown = backgroundDropdown,
@@ -899,7 +921,8 @@ namespace SubnauticaLauncher.UI
             {
                 Text = text,
                 FontWeight = FontWeights.SemiBold,
-                Margin = new Thickness(0, topMargin, 0, 4)
+                Margin = new Thickness(0, topMargin, 0, 4),
+                TextWrapping = TextWrapping.Wrap
             };
         }
 
@@ -925,7 +948,8 @@ namespace SubnauticaLauncher.UI
             {
                 Text = label,
                 FontWeight = FontWeights.SemiBold,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Left
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                TextWrapping = TextWrapping.Wrap
             });
             button.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
             button.Margin = new Thickness(0, 6, 0, 0);
@@ -1030,10 +1054,7 @@ namespace SubnauticaLauncher.UI
         private void RefreshVersionListPanel(VersionListPanelState panel)
         {
             IReadOnlyList<InstalledVersion> versions = _main.GetVersionsForOverlay(panel.Game);
-            string? selectedFolder =
-                (panel.ListBox.SelectedItem as InstalledVersion)?.HomeFolder
-                ?? (_selectedFoldersByGame.TryGetValue(panel.Game, out string? folder) ? folder : null)
-                ?? versions.FirstOrDefault()?.HomeFolder;
+            string? selectedFolder = GetSelectedFolderForGame(panel.Game);
 
             List<InstalledVersion> orderedVersions = versions
                 .OrderByDescending(v => v.IsModded)
@@ -1058,8 +1079,8 @@ namespace SubnauticaLauncher.UI
 
             panel.ListBox.ItemsSource = view;
 
-            InstalledVersion? selectedVersion = orderedVersions.FirstOrDefault(v => PathsAreEqual(v.HomeFolder, selectedFolder))
-                ?? orderedVersions.FirstOrDefault();
+            InstalledVersion? selectedVersion = orderedVersions
+                .FirstOrDefault(v => PathsAreEqual(v.HomeFolder, selectedFolder));
 
             _syncingVersionSelections = true;
             try
@@ -1067,12 +1088,10 @@ namespace SubnauticaLauncher.UI
                 if (selectedVersion != null)
                 {
                     panel.ListBox.SelectedItem = selectedVersion;
-                    _selectedFoldersByGame[panel.Game] = selectedVersion.HomeFolder;
                 }
                 else
                 {
                     panel.ListBox.SelectedItem = null;
-                    _selectedFoldersByGame.Remove(panel.Game);
                 }
             }
             finally
@@ -1080,6 +1099,16 @@ namespace SubnauticaLauncher.UI
                 _syncingVersionSelections = false;
             }
 
+            UpdateVersionPanelActionState(panel, selectedVersion);
+        }
+
+        private void UpdateVersionPanelActionState(VersionListPanelState panel)
+        {
+            UpdateVersionPanelActionState(panel, GetPanelSelectedVersion(panel.Game));
+        }
+
+        private void UpdateVersionPanelActionState(VersionListPanelState panel, InstalledVersion? selectedVersion)
+        {
             bool anyGameRunning = _main.IsAnyGameRunningForOverlay();
             bool selectedRunning = selectedVersion != null && _main.IsVersionRunningForOverlay(selectedVersion);
 
@@ -1095,6 +1124,10 @@ namespace SubnauticaLauncher.UI
         {
             if (_launcherSettingsPanel == null)
                 return;
+
+            bool forceLaunchWithoutSteam = _main.IsForceLaunchWithoutSteamForOverlay();
+            _launcherSettingsPanel.ForceLaunchWithoutSteamButton.Content = forceLaunchWithoutSteam ? "Enabled" : "Disabled";
+            _launcherSettingsPanel.ForceLaunchWithoutSteamButton.Background = forceLaunchWithoutSteam ? Brushes.Green : Brushes.DarkRed;
 
             bool overlayEnabled = _main.IsExplosionOverlayEnabledForOverlay();
             _launcherSettingsPanel.ExplosionOverlayButton.Content = overlayEnabled ? "Enabled" : "Disabled";
@@ -1276,27 +1309,14 @@ namespace SubnauticaLauncher.UI
         private InstalledVersion? GetPreferredSelectedVersion()
         {
             if (_preferredSelectedGame.HasValue)
-            {
-                InstalledVersion? preferred = GetPanelSelectedVersion(_preferredSelectedGame.Value);
-                if (preferred != null)
-                    return preferred;
-            }
+                return ResolveVersionFromSelectedFolder(_preferredSelectedGame.Value);
 
-            if (_currentTargetGame.HasValue)
-            {
-                InstalledVersion? current = GetPanelSelectedVersion(_currentTargetGame.Value);
-                if (current != null)
-                    return current;
-            }
+            return _main.GetSelectedVersionForOverlay();
+        }
 
-            foreach (LauncherGame game in Enum.GetValues<LauncherGame>())
-            {
-                InstalledVersion? version = GetPanelSelectedVersion(game);
-                if (version != null)
-                    return version;
-            }
-
-            return null;
+        private InstalledVersion? GetOverlaySelectedVersion()
+        {
+            return GetPreferredSelectedVersion();
         }
 
         private InstalledVersion? GetPreferredActiveVersion()
@@ -1310,11 +1330,7 @@ namespace SubnauticaLauncher.UI
 
         private InstalledVersion? GetSelectedVersionForGame(LauncherGame game)
         {
-            if (!_selectedFoldersByGame.TryGetValue(game, out string? folder))
-                return null;
-
-            return _main.GetVersionsForOverlay(game)
-                .FirstOrDefault(v => PathsAreEqual(v.HomeFolder, folder));
+            return ResolveVersionFromSelectedFolder(game);
         }
 
         private InstalledVersion? GetPanelSelectedVersion(LauncherGame game)
@@ -1323,7 +1339,155 @@ namespace SubnauticaLauncher.UI
             if (panel?.ListBox.SelectedItem is InstalledVersion selected)
                 return selected;
 
-            return GetSelectedVersionForGame(game);
+            return ResolveVersionFromSelectedFolder(game);
+        }
+
+        private string? GetSelectedFolderForGame(LauncherGame game)
+        {
+            if (_preferredSelectedGame.HasValue &&
+                _preferredSelectedGame.Value == game &&
+                !string.IsNullOrWhiteSpace(_preferredSelectedFolder))
+            {
+                return _preferredSelectedFolder;
+            }
+
+            InstalledVersion? mainSelected = _main.GetSelectedVersionForOverlay();
+            return mainSelected != null && _main.GetGameForVersionOverlay(mainSelected) == game
+                ? mainSelected.HomeFolder
+                : null;
+        }
+
+        private InstalledVersion? ResolveVersionFromSelectedFolder(LauncherGame game)
+        {
+            string? selectedFolder = GetSelectedFolderForGame(game);
+            if (string.IsNullOrWhiteSpace(selectedFolder))
+                return null;
+
+            return _main.GetVersionsForOverlay(game)
+                .FirstOrDefault(v => PathsAreEqual(v.HomeFolder, selectedFolder));
+        }
+
+        private void ApplyOverlaySelectedVersion(LauncherGame game, InstalledVersion version, bool syncMainSelection)
+        {
+            _preferredSelectedGame = game;
+            _preferredSelectedFolder = version.HomeFolder;
+
+            if (_versionPanels.Values.FirstOrDefault(panel => panel.Game == game) is VersionListPanelState selectedPanel)
+                BringComponentToFront(selectedPanel.Type);
+
+            _syncingVersionSelections = true;
+            try
+            {
+                foreach (VersionListPanelState panel in _versionPanels.Values)
+                {
+                    if (panel.Game != game)
+                    {
+                        panel.ListBox.SelectedItem = null;
+                        continue;
+                    }
+
+                    panel.ListBox.SelectedItem = version;
+                }
+            }
+            finally
+            {
+                _syncingVersionSelections = false;
+            }
+
+            if (syncMainSelection)
+                _main.SetSelectedVersionFromOverlay(version);
+
+            foreach (VersionListPanelState versionPanel in _versionPanels.Values)
+                UpdateVersionPanelActionState(versionPanel);
+
+            UpdateTopBarText();
+        }
+
+        private static T? FindVisualAncestor<T>(DependencyObject? source)
+            where T : DependencyObject
+        {
+            while (source != null)
+            {
+                if (source is T match)
+                    return match;
+
+                source = source switch
+                {
+                    Visual visual => VisualTreeHelper.GetParent(visual),
+                    Visual3D visual3D => VisualTreeHelper.GetParent(visual3D),
+                    _ => null
+                };
+            }
+
+            return null;
+        }
+
+        private void BringComponentToFront(GameOverlayComponentType type)
+        {
+            if (_componentRoots.TryGetValue(type, out Border? root))
+                System.Windows.Controls.Panel.SetZIndex(root, Math.Max(++_nextPanelZIndex, 400));
+        }
+
+        private void EnsureVersionPanelsUsable()
+        {
+            GameOverlayComponentType[] versionTypes =
+            [
+                GameOverlayComponentType.SubnauticaVersionList,
+                GameOverlayComponentType.BelowZeroVersionList,
+                GameOverlayComponentType.Subnautica2VersionList
+            ];
+
+            List<(GameOverlayComponentType Type, Border Root)> versionPanels = versionTypes
+                .Where(type => _componentRoots.TryGetValue(type, out _))
+                .Select(type => (type, _componentRoots[type]))
+                .ToList();
+
+            if (versionPanels.Count < 2)
+                return;
+
+            bool overlaps = false;
+            for (int i = 0; i < versionPanels.Count && !overlaps; i++)
+            {
+                Rect leftRect = GetPanelRect(versionPanels[i].Root);
+                for (int j = i + 1; j < versionPanels.Count; j++)
+                {
+                    Rect rightRect = GetPanelRect(versionPanels[j].Root);
+                    if (leftRect.IntersectsWith(rightRect))
+                    {
+                        overlaps = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!overlaps)
+            {
+                foreach ((GameOverlayComponentType type, Border root) in versionPanels)
+                    System.Windows.Controls.Panel.SetZIndex(root, GetBasePanelZIndex(type));
+
+                return;
+            }
+
+            foreach ((GameOverlayComponentType type, Border root) in versionPanels)
+            {
+                Point defaultPosition = GetDefaultPosition(type);
+                ApplyPanelPosition(type, defaultPosition.X, defaultPosition.Y);
+                if (_layouts.TryGetValue(type, out GameOverlayComponentLayout? layout))
+                {
+                    layout.Left = defaultPosition.X;
+                    layout.Top = defaultPosition.Y;
+                }
+
+                System.Windows.Controls.Panel.SetZIndex(root, GetBasePanelZIndex(type));
+            }
+
+            SaveLayouts();
+        }
+
+        private Rect GetPanelRect(Border root)
+        {
+            (double width, double height) = GetPanelSize(root);
+            return new Rect(Canvas.GetLeft(root), Canvas.GetTop(root), width, height);
         }
 
         private static int GetStatusPriority(VersionStatus status)
@@ -1669,6 +1833,7 @@ namespace SubnauticaLauncher.UI
             if (!_componentRoots.TryGetValue(type, out Border? root))
                 return;
 
+            BringComponentToFront(type);
             _draggingType = type;
             _dragStartMouse = e.GetPosition(RootGrid);
             _dragStartLeft = Canvas.GetLeft(root);
@@ -1934,9 +2099,37 @@ namespace SubnauticaLauncher.UI
             if (sender is not ListBox { Tag: LauncherGame game, SelectedItem: InstalledVersion version })
                 return;
 
-            _preferredSelectedGame = game;
-            _selectedFoldersByGame[game] = version.HomeFolder;
-            UpdateTopBarText();
+            ApplyOverlaySelectedVersion(game, version, syncMainSelection: false);
+        }
+
+        private void OverlayVersionList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not ListBox { Tag: LauncherGame game } listBox)
+                return;
+
+            ListBoxItem? item = FindVisualAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+            if (item?.DataContext is not InstalledVersion version)
+                return;
+
+            ApplyOverlaySelectedVersion(game, version, syncMainSelection: false);
+            listBox.Focus();
+        }
+
+        private void OverlayVersionRow_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (FindVisualAncestor<Button>(e.OriginalSource as DependencyObject) != null)
+                return;
+
+            if (sender is not FrameworkElement { Tag: InstalledVersion version })
+                return;
+
+            ListBox? listBox = FindVisualAncestor<ListBox>(sender as DependencyObject);
+            if (listBox?.Tag is not LauncherGame game)
+                return;
+
+            ApplyOverlaySelectedVersion(game, version, syncMainSelection: false);
+            listBox.Focus();
+            e.Handled = true;
         }
 
         private async void OverlayLaunchButton_Click(object sender, RoutedEventArgs e)
@@ -1944,13 +2137,12 @@ namespace SubnauticaLauncher.UI
             if (sender is not Button { Tag: LauncherGame game })
                 return;
 
-            _preferredSelectedGame = game;
-            _main.RefreshRunningStateForOverlay();
-            RefreshVersionStatusOnly();
-
             InstalledVersion? selectedVersion = GetPanelSelectedVersion(game);
             if (selectedVersion == null)
                 return;
+
+            _main.RefreshRunningStateForOverlay();
+            RefreshVersionStatusOnly();
 
             bool selectedRunning = _main.IsVersionRunningForOverlay(selectedVersion);
             if (selectedRunning)
@@ -1964,13 +2156,12 @@ namespace SubnauticaLauncher.UI
             if (sender is not Button { Tag: LauncherGame game })
                 return;
 
-            _preferredSelectedGame = game;
-            _main.RefreshRunningStateForOverlay();
-            RefreshVersionStatusOnly();
-
             InstalledVersion? selectedVersion = GetPanelSelectedVersion(game);
             if (selectedVersion == null)
                 return;
+
+            _main.RefreshRunningStateForOverlay();
+            RefreshVersionStatusOnly();
 
             await _main.LaunchVersionFromOverlayAsync(selectedVersion);
         }

@@ -9,7 +9,7 @@ artifacts/
 data/
 logs/
 depots/
-scripts/
+/scripts/
 Assets/Subnautica/Texture2D/
 Properties/PublishProfiles/
 External Research/

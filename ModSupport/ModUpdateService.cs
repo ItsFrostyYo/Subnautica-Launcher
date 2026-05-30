@@ -17,6 +17,7 @@ public static class ModUpdateService
     public static async Task<IReadOnlyList<ModUpdateCandidate>> GetAvailableUpdatesAsync(
         IEnumerable<InstalledVersion> subnauticaVersions,
         IEnumerable<BZInstalledVersion> belowZeroVersions,
+        IEnumerable<InstalledVersion> subnautica2Versions,
         CancellationToken cancellationToken = default)
     {
         await ModCatalog.EnsureLoadedAsync(cancellationToken);
@@ -25,6 +26,7 @@ public static class ModUpdateService
 
         CollectUpdates(updates, LauncherGame.Subnautica, subnauticaVersions);
         CollectUpdates(updates, LauncherGame.BelowZero, belowZeroVersions.Cast<InstalledVersion>());
+        CollectUpdates(updates, LauncherGame.Subnautica2, subnautica2Versions);
 
         return updates;
     }

@@ -183,7 +183,7 @@ internal static class InstalledVersionFileService
                 if (detectedProfile == null)
                     continue;
 
-                detectedProfile.EnsureSteamAppIdFile(dir);
+                detectedProfile.RemoveSteamAppIdFiles(dir);
 
                 string expectedInfoName = detectedProfile.InfoFileName;
                 string expectedMarker = detectedProfile.LauncherMarker;

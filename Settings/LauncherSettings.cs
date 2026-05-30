@@ -30,6 +30,7 @@ namespace SubnauticaLauncher.Settings
         public string BackgroundPreset { get; set; } = "Lifepod";
         public LauncherStartupMode StartupMode { get; set; } = LauncherStartupMode.Window;
         public bool GameOverlayEnabled { get; set; } = false;
+        public bool ForceLaunchWithoutSteam { get; set; } = false;
         public bool GameOverlayLayoutMigrated { get; set; } = false;
         public Key OverlayToggleKey { get; set; } = Key.Tab;
         public ModifierKeys OverlayToggleModifiers { get; set; } = ModifierKeys.Control | ModifierKeys.Shift;

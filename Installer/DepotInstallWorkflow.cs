@@ -94,7 +94,7 @@ internal static class DepotInstallWorkflow
             throw new Exception("DepotDownloader failed. Check console output.");
 
         CleanupDepotDownloaderFolders(installDir);
-        EnsureLaunchSupportFiles(version, installDir);
+        CleanupLaunchSupportFiles(version, installDir);
         WriteVersionInfo(version, installDir, infoFileName, launcherMarker);
     }
 
@@ -262,7 +262,7 @@ internal static class DepotInstallWorkflow
 
         callbacks?.OnStatus?.Invoke("Finalizing install files...");
         CleanupDepotDownloaderFolders(installDir);
-        EnsureLaunchSupportFiles(version, installDir);
+        CleanupLaunchSupportFiles(version, installDir);
         WriteVersionInfo(version, installDir, infoFileName, launcherMarker);
         callbacks?.OnProgress?.Invoke(100);
         callbacks?.OnStatus?.Invoke("Install complete.");
@@ -732,11 +732,11 @@ internal static class DepotInstallWorkflow
         }
     }
 
-    private static void EnsureLaunchSupportFiles(
+    private static void CleanupLaunchSupportFiles(
         GameVersionInstallDefinition version,
         string installDir)
     {
-        LauncherGameProfiles.GetBySteamAppId(version.SteamAppId).EnsureSteamAppIdFile(installDir);
+        LauncherGameProfiles.GetBySteamAppId(version.SteamAppId).RemoveSteamAppIdFiles(installDir);
     }
 
     private static void WriteVersionInfo(

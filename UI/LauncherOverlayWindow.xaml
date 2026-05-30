@@ -150,7 +150,9 @@
         </DataTemplate>
 
         <DataTemplate x:Key="OverlayVersionRowTemplate">
-            <Grid Margin="4,2">
+            <Grid Margin="4,2"
+                  Tag="{Binding}"
+                  MouseLeftButtonDown="OverlayVersionRow_MouseLeftButtonDown">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="58"/>
