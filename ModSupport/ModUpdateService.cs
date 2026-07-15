@@ -69,8 +69,13 @@ public static class ModUpdateService
         {
             ModDefinition? mod = ModInstallerService.GetInstalledModDefinition(game, version);
             Version? installedVersion = ModInstallerService.TryReadInstalledModVersion(version);
-            if (mod == null || installedVersion == null || installedVersion >= mod.PackageVersion)
+            if (mod == null ||
+                !mod.SupportsLauncherUpdates ||
+                installedVersion == null ||
+                installedVersion >= mod.PackageVersion)
+            {
                 continue;
+            }
 
             updates.Add(new ModUpdateCandidate(
                 version,

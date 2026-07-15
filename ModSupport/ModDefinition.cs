@@ -19,6 +19,7 @@ public sealed class ModDefinition
     public required string DisplayName { get; init; }
     public required LauncherGame Game { get; init; }
     public required Version PackageVersion { get; init; }
+    public required bool SupportsLauncherUpdates { get; init; }
     public required string RuntimeDisplayName { get; init; }
     public required string InstallRootRelativePath { get; init; }
     public required string RuntimeRootRelativePath { get; init; }

@@ -21,7 +21,7 @@ namespace SubnauticaLauncher.Macros
             if (!LauncherSettings.Current.HardcoreSaveDeleterEnabled)
                 return null;
 
-            if (mode != GameMode.Hardcore)
+            if (mode != GameMode.Hardcore && mode != GameMode.BetterRNGHardcore)
                 return null;
 
             return GetSavedGamesPaths(gameRoot)

@@ -6,7 +6,7 @@
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 
-		<Version>3.1.1</Version>
+		<Version>3.2.0</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 
@@ -47,21 +47,6 @@
 
 	<ItemGroup>
 	  <PackageReference Include="System.Drawing.Common" Version="10.0.2" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <EmbeddedResource Include="tools\uhara10">
-	    <LogicalName>SubnauticaLauncher.Tools.uhara10</LogicalName>
-	  </EmbeddedResource>
-	  <EmbeddedResource Include="tools\LiveSplit.Core.dll">
-	    <LogicalName>SubnauticaLauncher.Tools.LiveSplit.Core.dll</LogicalName>
-	  </EmbeddedResource>
-	  <EmbeddedResource Include="tools\LiveSplit.View.dll">
-	    <LogicalName>SubnauticaLauncher.Tools.LiveSplit.View.dll</LogicalName>
-	  </EmbeddedResource>
-	  <EmbeddedResource Include="tools\SharpDisasm.dll">
-	    <LogicalName>SubnauticaLauncher.Tools.SharpDisasm.dll</LogicalName>
-	  </EmbeddedResource>
 	</ItemGroup>
 
 	<ItemGroup>

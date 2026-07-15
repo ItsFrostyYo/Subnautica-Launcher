@@ -376,9 +376,8 @@ namespace SubnauticaLauncher.UI
             List<ToolsTabGameOption> visibleGames = LauncherSettings.Current.ToolsTabVisibleGames;
             bool showSubnauticaTools = visibleGames.Contains(ToolsTabGameOption.Subnautica);
             bool showBelowZeroTools = visibleGames.Contains(ToolsTabGameOption.BelowZero);
-            bool showSubnautica2Tools = visibleGames.Contains(ToolsTabGameOption.Subnautica2);
 
-            bool showResetMacro = showSubnauticaTools || showBelowZeroTools || showSubnautica2Tools;
+            bool showResetMacro = showSubnauticaTools || showBelowZeroTools;
             bool showExplosionReset = showSubnauticaTools;
             bool showHardcoreSaveDeleter = showSubnauticaTools || showBelowZeroTools;
             bool showTrackersAndTimers = showSubnauticaTools;
@@ -558,9 +557,6 @@ namespace SubnauticaLauncher.UI
                 Logger.Log("[Startup] Stage 2: scanning installed versions");
                 await LoadInstalledVersionsAsync(repairMetadata: true);
                 Logger.Log($"[Startup] Stage 2 complete in {startupTimer.ElapsedMilliseconds}ms");
-
-                if (!LauncherSettings.Current.ForceLaunchWithoutSteam)
-                    await CleanupSteamAppIdFilesForAllGamesAsync();
 
                 Logger.Log("[Startup] Stage 3: starting runtime services");
                 StartRuntimeServices();
@@ -1151,9 +1147,10 @@ namespace SubnauticaLauncher.UI
                     .Where(v =>
                         string.Equals(AppPaths.GetSteamCommonPathFor(v.HomeFolder), common, StringComparison.OrdinalIgnoreCase) &&
                         HasUsableExecutable(v.HomeFolder, profile))
-                    .OrderBy(v => GetInstallDefinitionPriority(profile, v))
+                    .OrderByDescending(v => v.LastLaunchedUtc)
+                    .ThenByDescending(v => PathsAreEqual(v.HomeFolder, activePath))
+                    .ThenBy(v => GetInstallDefinitionPriority(profile, v))
                     .ThenBy(v => v.IsModded)
-                    .ThenByDescending(v => GetInstalledVersionTimestampUtc(profile, v))
                     .ThenBy(v => v.DisplayName, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
@@ -1212,25 +1209,6 @@ namespace SubnauticaLauncher.UI
             }
 
             return int.MaxValue;
-        }
-
-        private static DateTime GetInstalledVersionTimestampUtc(LauncherGameProfile profile, InstalledVersion version)
-        {
-            try
-            {
-                string infoPath = Path.Combine(version.HomeFolder, profile.InfoFileName);
-                if (File.Exists(infoPath))
-                    return File.GetLastWriteTimeUtc(infoPath);
-
-                if (Directory.Exists(version.HomeFolder))
-                    return Directory.GetLastWriteTimeUtc(version.HomeFolder);
-            }
-            catch
-            {
-                // Fall back below.
-            }
-
-            return DateTime.MinValue;
         }
 
         private static bool HasUsableExecutable(string folderPath, LauncherGameProfile profile)
@@ -1565,7 +1543,7 @@ namespace SubnauticaLauncher.UI
                         targetExe = profile.GetLaunchExecutablePath(launchFolder);
 
                         await RefreshInstalledVersionsAfterFolderMoveAsync(target.HomeFolder, launchFolder);
-                        await CleanupSteamAppIdFilesForGameAsync(profile);
+                        await CleanupSteamAppIdFilesForVersionFolderAsync(profile, launchFolder);
 
                         SetTrackedDirectLaunchFolder(profile, null);
                         SetPinnedSteamLaunchFolder(profile, launchFolder);
@@ -1601,28 +1579,25 @@ namespace SubnauticaLauncher.UI
                     }
                 }
 
-                if (!File.Exists(targetExe))
-                    throw new FileNotFoundException($"{Path.GetFileName(targetExe)} not found in the selected version folder.", targetExe);
+                string launchArguments = launchWithoutSteam
+                    ? (target.LaunchOptions ?? string.Empty).Trim()
+                    : string.Empty;
+                ProcessStartInfo startInfo = BuildLaunchStartInfo(profile, target, launchFolder, targetExe, launchArguments);
 
                 SetStatusForFolder(profile, statusFolder, VersionStatus.Launching);
                 await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Render);
 
-                Process? process = Process.Start(new ProcessStartInfo
-                {
-                    FileName = targetExe,
-                    WorkingDirectory = profile.GetLaunchWorkingDirectory(launchFolder),
-                    Arguments = launchWithoutSteam
-                        ? (target.LaunchOptions ?? string.Empty).Trim()
-                        : string.Empty,
-                    UseShellExecute = false
-                });
+                Process? process = Process.Start(startInfo);
 
                 if (process == null)
                     throw new InvalidOperationException($"Failed to launch {profile.DisplayName}.");
 
                 DebugTelemetryController.ShowForGameLaunch();
 
-                bool launched = await WaitForLaunchedAsync(process);
+                bool launched = await WaitForLaunchedAsync(process, profile);
+                if (launched)
+                    await MarkVersionAsRecentlyLaunchedAsync(profile, launchFolder);
+
                 SetStatusForFolder(
                     profile,
                     statusFolder,
@@ -1644,6 +1619,45 @@ namespace SubnauticaLauncher.UI
             {
                 ResumeFolderSwitchServices();
             }
+        }
+
+        private static ProcessStartInfo BuildLaunchStartInfo(
+            LauncherGameProfile profile,
+            InstalledVersion target,
+            string launchFolder,
+            string targetExe,
+            string launchArguments)
+        {
+            string? customLaunchPath = ModInstallerService.GetCustomLaunchRelativePath(profile.Game, target, launchFolder);
+            if (!string.IsNullOrWhiteSpace(customLaunchPath))
+            {
+                if (!File.Exists(customLaunchPath))
+                    throw new FileNotFoundException($"{Path.GetFileName(customLaunchPath)} not found in the selected version folder.", customLaunchPath);
+
+                string comSpec = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";
+                string arguments = string.IsNullOrWhiteSpace(launchArguments)
+                    ? $"/c \"\"{customLaunchPath}\"\""
+                    : $"/c \"\"{customLaunchPath}\" {launchArguments}\"";
+
+                return new ProcessStartInfo
+                {
+                    FileName = comSpec,
+                    WorkingDirectory = launchFolder,
+                    Arguments = arguments,
+                    UseShellExecute = false
+                };
+            }
+
+            if (!File.Exists(targetExe))
+                throw new FileNotFoundException($"{Path.GetFileName(targetExe)} not found in the selected version folder.", targetExe);
+
+            return new ProcessStartInfo
+            {
+                FileName = targetExe,
+                WorkingDirectory = profile.GetLaunchWorkingDirectory(launchFolder),
+                Arguments = launchArguments,
+                UseShellExecute = false
+            };
         }
 
         private async Task<string> ActivateVersionFolderForSteamLaunchAsync<TVersion>(
@@ -1704,43 +1718,38 @@ namespace SubnauticaLauncher.UI
             };
         }
 
-        private IEnumerable<string> GetKnownFoldersForProfile(LauncherGameProfile profile)
+        private Task CleanupSteamAppIdFilesForVersionFolderAsync(LauncherGameProfile profile, string versionFolder)
         {
-            HashSet<string> folders = new(StringComparer.OrdinalIgnoreCase);
-
-            foreach (InstalledVersion version in GetInstalledVersionsForProfile(profile))
-            {
-                if (!string.IsNullOrWhiteSpace(version.HomeFolder))
-                    folders.Add(version.HomeFolder);
-            }
-
-            IReadOnlyList<string> commonPaths = AppPaths.SteamCommonPaths;
-            if (commonPaths.Count == 0)
-                commonPaths = new List<string> { AppPaths.SteamCommonPath };
-
-            foreach (string commonPath in commonPaths)
-                folders.Add(profile.GetActiveFolderPath(commonPath));
-
-            return folders;
-        }
-
-        private Task CleanupSteamAppIdFilesForAllGamesAsync()
-        {
-            return Task.WhenAll(LauncherGameProfiles.All.Select(CleanupSteamAppIdFilesForGameAsync));
-        }
-
-        private Task CleanupSteamAppIdFilesForGameAsync(LauncherGameProfile profile)
-        {
-            string[] folders = GetKnownFoldersForProfile(profile).ToArray();
             return Task.Run(() =>
             {
-                foreach (string folder in folders)
-                {
-                    if (!Directory.Exists(folder))
-                        continue;
+                if (!Directory.Exists(versionFolder))
+                    return;
 
-                    profile.RemoveSteamAppIdFiles(folder);
-                }
+                profile.RemoveSteamAppIdFiles(versionFolder);
+            });
+        }
+
+        private Task MarkVersionAsRecentlyLaunchedAsync(LauncherGameProfile profile, string versionFolder)
+        {
+            DateTime launchedAtUtc = DateTime.UtcNow;
+
+            InstalledVersion? trackedVersion = FindInstalledVersionByFolder(profile, versionFolder);
+            if (trackedVersion != null)
+                trackedVersion.LastLaunchedUtc = launchedAtUtc;
+
+            return Task.Run(() =>
+            {
+                string infoPath = Path.Combine(versionFolder, profile.InfoFileName);
+                if (!File.Exists(infoPath))
+                    return;
+
+                InstalledVersion? version = profile.FromInfo(versionFolder, infoPath);
+                if (version == null)
+                    return;
+
+                version.HomeFolder = versionFolder;
+                version.LastLaunchedUtc = launchedAtUtc;
+                InstalledVersionFileService.Save(version, profile);
             });
         }
 
@@ -2269,7 +2278,10 @@ namespace SubnauticaLauncher.UI
                 _launcherOverlayWindow?.RefreshVersionStatusOnly();
         }
 
-        private static async Task<bool> WaitForLaunchedAsync(Process process, int timeoutMs = 10000)
+        private static async Task<bool> WaitForLaunchedAsync(
+            Process process,
+            LauncherGameProfile? profile = null,
+            int timeoutMs = 10000)
         {
             int waited = 0;
             const int stepMs = 100;
@@ -2280,9 +2292,17 @@ namespace SubnauticaLauncher.UI
                 {
                     process.Refresh();
                     if (process.HasExited)
+                    {
+                        if (profile != null && IsExpectedGameProcessRunning(profile))
+                            return true;
+
                         return false;
+                    }
 
                     if (process.MainWindowHandle != IntPtr.Zero)
+                        return true;
+
+                    if (profile != null && IsExpectedGameProcessRunning(profile))
                         return true;
                 }
                 catch
@@ -2297,12 +2317,18 @@ namespace SubnauticaLauncher.UI
             try
             {
                 process.Refresh();
-                return !process.HasExited;
+                return !process.HasExited || (profile != null && IsExpectedGameProcessRunning(profile));
             }
             catch
             {
                 return false;
             }
+        }
+
+        private static bool IsExpectedGameProcessRunning(LauncherGameProfile profile)
+        {
+            GameProcessMonitor.RefreshNow();
+            return GameProcessMonitor.GetSnapshot().Get(profile.ProcessName).IsRunning;
         }
 
         private void ClearTrackedDirectLaunchFoldersIfGamesClosed()
@@ -2565,20 +2591,6 @@ namespace SubnauticaLauncher.UI
                 return;
             }
 
-            if (runningState == RunningGameState.Subnautica2Only)
-            {
-                try
-                {
-                    await Subnautica2ResetMacroService.RunAsync(mode);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Exception(ex, "SN2 reset macro failed");
-                }
-
-                return;
-            }
-
             if (runningState != RunningGameState.SubnauticaOnly)
                 return;
 
@@ -2688,28 +2700,13 @@ namespace SubnauticaLauncher.UI
             await SetForceLaunchWithoutSteamAsync(!LauncherSettings.Current.ForceLaunchWithoutSteam);
         }
 
-        private async Task SetForceLaunchWithoutSteamAsync(bool enabled)
+        private Task SetForceLaunchWithoutSteamAsync(bool enabled)
         {
             LauncherSettings.Current.ForceLaunchWithoutSteam = enabled;
             LauncherSettings.Save();
 
             UpdateForceLaunchWithoutSteamVisualState();
-
-            if (!enabled)
-            {
-                try
-                {
-                    await CleanupSteamAppIdFilesForAllGamesAsync();
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show(
-                        ex.Message,
-                        "steam_appid Cleanup Failed",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-                }
-            }
+            return Task.CompletedTask;
         }
 
         private void Subnautica100TrackerToggle_Click(object sender, RoutedEventArgs e)

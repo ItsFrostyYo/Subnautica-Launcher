@@ -7,6 +7,9 @@ namespace SubnauticaLauncher.Enums
         Creative,
         Freedom,
         Custom,
+        BetterRNGSurvival,
+        BetterRNGHardcore,
+        BetterRNGCreative,
         SaveSlot1,
         SaveSlot2,
         SaveSlot3

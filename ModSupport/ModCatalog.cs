@@ -2,6 +2,7 @@ using SubnauticaLauncher.Enums;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace SubnauticaLauncher.Mods;
 
@@ -10,10 +11,13 @@ public static class ModCatalog
     private const string Owner = "ItsFrostyYo";
     private const string Repo = "Subnautica-Launcher";
     private const string Branch = "master";
+    private const string SpeedrunningModLatestReleaseApiUrl =
+        "https://api.github.com/repos/ItsFrostyYo/Subnautica-Speedrunning-Mod/releases/latest";
     private static readonly HttpClient Http = BuildClient();
     private static readonly object Sync = new();
 
     private sealed record CatalogEntry(string Name, string Path, string DownloadUrl);
+    private sealed record LatestReleaseAsset(string Name, string DownloadUrl, Version Version);
 
     public static IReadOnlyList<ModDefinition> AllMods { get; private set; } = Array.Empty<ModDefinition>();
     private static Task? _inflightRefreshTask;
@@ -82,9 +86,11 @@ public static class ModCatalog
         try
         {
             IReadOnlyList<CatalogEntry> files = await FetchEntriesAsync(cancellationToken).ConfigureAwait(false);
+            LatestReleaseAsset? speedrunningModAsset =
+                await FetchLatestSpeedrunningModAssetAsync(cancellationToken).ConfigureAwait(false);
 
             var resolvedMods = ManagedModFamilies.All
-                .Select(family => ResolveLatest(files, family))
+                .Select(family => ResolveLatest(files, family, speedrunningModAsset))
                 .Where(mod => mod != null)
                 .Cast<ModDefinition>()
                 .ToList();
@@ -146,50 +152,73 @@ public static class ModCatalog
 
     private static ModDefinition? ResolveLatest(
         IReadOnlyList<CatalogEntry> entries,
-        ManagedModFamily family)
+        ManagedModFamily family,
+        LatestReleaseAsset? speedrunningModAsset)
     {
         List<ModBundleDefinition> bundles = new();
         Version? packageVersion = null;
 
         foreach (ManagedModBundlePart bundlePart in family.BundleParts)
         {
-            var match = entries
-                .Select(entry =>
-                {
-                    var regexMatch = bundlePart.BundleFileNamePattern.Match(entry.Name);
-                    if (!regexMatch.Success)
-                        return null;
+            CatalogEntry? matchedEntry = null;
+            Version? matchedVersion = null;
+            if (string.Equals(family.Id, ManagedModFamilies.SubnauticaSpeedrunningMod.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                if (speedrunningModAsset == null)
+                    return null;
 
-                    string versionText = regexMatch.Groups["version"].Value.Replace('-', '.');
-                    if (!Version.TryParse(versionText, out Version? version))
-                        return null;
-
-                    return new
+                matchedEntry = new CatalogEntry(
+                    speedrunningModAsset.Name,
+                    speedrunningModAsset.Name,
+                    speedrunningModAsset.DownloadUrl);
+                matchedVersion = speedrunningModAsset.Version;
+            }
+            else
+            {
+                var match = entries
+                    .Select(entry =>
                     {
-                        Entry = entry,
-                        Version = version
-                    };
-                })
-                .Where(item => item != null)
-                .OrderByDescending(item => item!.Version)
-                .FirstOrDefault();
+                        var regexMatch = bundlePart.BundleFileNamePattern.Match(entry.Name);
+                        if (!regexMatch.Success)
+                            return null;
 
-            if (match == null)
+                        string versionText = regexMatch.Groups["version"].Value.Replace('-', '.');
+                        if (!Version.TryParse(versionText, out Version? version))
+                            return null;
+
+                        return new
+                        {
+                            Entry = entry,
+                            Version = version
+                        };
+                    })
+                    .Where(item => item != null)
+                    .OrderByDescending(item => item!.Version)
+                    .FirstOrDefault();
+
+                if (match != null)
+                {
+                    matchedEntry = match.Entry;
+                    matchedVersion = match.Version;
+                }
+            }
+
+            if (matchedEntry == null || matchedVersion == null)
                 return null;
 
             bundles.Add(new ModBundleDefinition
             {
                 Id = bundlePart.Id,
                 DisplayName = bundlePart.DisplayName,
-                BundleZipFileName = match.Entry.Name,
-                DownloadUrl = match.Entry.DownloadUrl,
+                BundleZipFileName = matchedEntry.Name,
+                DownloadUrl = matchedEntry.DownloadUrl,
                 InstallRelativePath = bundlePart.InstallRelativePath,
                 PreserveTopLevelDirectory = bundlePart.PreserveTopLevelDirectory,
                 RequiredRelativePaths = bundlePart.RequiredRelativePaths
             });
 
             if (bundlePart.ProvidesPackageVersion)
-                packageVersion = match.Version;
+                packageVersion = matchedVersion;
         }
 
         if (packageVersion == null)
@@ -201,6 +230,7 @@ public static class ModCatalog
             DisplayName = family.DisplayName,
             Game = family.Game,
             PackageVersion = packageVersion,
+            SupportsLauncherUpdates = family.SupportsLauncherUpdates,
             RuntimeDisplayName = family.RuntimeDisplayName,
             InstallRootRelativePath = family.InstallRootRelativePath,
             RuntimeRootRelativePath = family.RuntimeRootRelativePath,
@@ -213,6 +243,46 @@ public static class ModCatalog
             DetectedDisplayNames = family.DetectedDisplayNames,
             ManagedModFolderNames = family.ManagedModFolderNames
         };
+    }
+
+    private static async Task<LatestReleaseAsset?> FetchLatestSpeedrunningModAssetAsync(CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await Http.GetAsync(
+            SpeedrunningModLatestReleaseApiUrl,
+            cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        if (!document.RootElement.TryGetProperty("assets", out JsonElement assets))
+            return null;
+
+        foreach (JsonElement asset in assets.EnumerateArray())
+        {
+            if (!asset.TryGetProperty("name", out JsonElement nameProp) ||
+                !asset.TryGetProperty("browser_download_url", out JsonElement urlProp))
+            {
+                continue;
+            }
+
+            string? name = nameProp.GetString();
+            string? downloadUrl = urlProp.GetString();
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(downloadUrl))
+                continue;
+
+            Match match = ManagedModFamilies.SubnauticaSpeedrunningMod.BundleParts[0].BundleFileNamePattern.Match(name);
+            if (!match.Success)
+                continue;
+
+            string versionText = match.Groups["version"].Value.Replace('-', '.');
+            if (!Version.TryParse(versionText, out Version? version))
+                continue;
+
+            return new LatestReleaseAsset(name, downloadUrl, version);
+        }
+
+        return null;
     }
 
     private static HttpClient BuildClient()

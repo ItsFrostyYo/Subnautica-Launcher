@@ -74,6 +74,7 @@ internal static class InstalledVersionFileService
         string FolderName,
         string OriginalDownload,
         string LaunchOptions,
+        DateTime LastLaunchedUtc,
         bool IsModded,
         string InstalledModId,
         long? ManifestId);
@@ -88,6 +89,7 @@ internal static class InstalledVersionFileService
             version.FolderName,
             version.OriginalDownload,
             version.LaunchOptions,
+            version.LastLaunchedUtc,
             version.IsModded,
             version.InstalledModId);
     }
@@ -99,6 +101,7 @@ internal static class InstalledVersionFileService
         string folderName,
         string originalDownload,
         string launchOptions = "",
+        DateTime? lastLaunchedUtc = null,
         bool isModded = false,
         string installedModId = "",
         long? manifestId = null)
@@ -111,6 +114,7 @@ internal static class InstalledVersionFileService
             folderName,
             originalDownload,
             launchOptions,
+            lastLaunchedUtc,
             isModded,
             installedModId,
             manifestId);
@@ -123,6 +127,7 @@ internal static class InstalledVersionFileService
         string folderName,
         string originalDownload,
         string launchOptions = "",
+        DateTime? lastLaunchedUtc = null,
         bool isModded = false,
         string installedModId = "",
         long? manifestId = null)
@@ -132,8 +137,12 @@ internal static class InstalledVersionFileService
             .AppendLine($"DisplayName={InstalledVersionNaming.NormalizeSavedDisplayName(displayName)}")
             .AppendLine($"FolderName={folderName}")
             .AppendLine($"OriginalDownload={originalDownload}")
-            .AppendLine($"LaunchOptions={launchOptions?.Trim() ?? string.Empty}")
-            .AppendLine($"Modded={isModded}");
+            .AppendLine($"LaunchOptions={launchOptions?.Trim() ?? string.Empty}");
+
+        if (lastLaunchedUtc.HasValue && lastLaunchedUtc.Value > DateTime.MinValue)
+            builder.AppendLine($"LastLaunchedUtc={lastLaunchedUtc.Value.ToUniversalTime():O}");
+
+        builder.AppendLine($"Modded={isModded}");
 
         if (!string.IsNullOrWhiteSpace(installedModId))
             builder.AppendLine($"InstalledMod={installedModId}");
@@ -233,6 +242,7 @@ internal static class InstalledVersionFileService
                         parsed.FolderName,
                         resolvedOriginalDownload,
                         parsed.LaunchOptions,
+                        parsed.LastLaunchedUtc,
                         parsed.IsModded,
                         parsed.InstalledModId,
                         parsed.ManifestId);
@@ -268,6 +278,7 @@ internal static class InstalledVersionFileService
             string folderName = "";
             string originalDownload = "";
             string launchOptions = "";
+            DateTime lastLaunchedUtc = DateTime.MinValue;
             bool isModded = false;
             string installedModId = "";
             long? manifestId = null;
@@ -282,6 +293,15 @@ internal static class InstalledVersionFileService
                     originalDownload = line["OriginalDownload=".Length..];
                 else if (line.StartsWith("LaunchOptions=", StringComparison.Ordinal))
                     launchOptions = line["LaunchOptions=".Length..];
+                else if (line.StartsWith("LastLaunchedUtc=", StringComparison.Ordinal) &&
+                         DateTime.TryParse(
+                             line["LastLaunchedUtc=".Length..],
+                             null,
+                             System.Globalization.DateTimeStyles.RoundtripKind,
+                             out DateTime parsedLastLaunchedUtc))
+                {
+                    lastLaunchedUtc = parsedLastLaunchedUtc.ToUniversalTime();
+                }
                 else if (line.StartsWith("Modded=", StringComparison.Ordinal))
                     isModded = bool.TryParse(line["Modded=".Length..], out bool parsed) && parsed;
                 else if (line.StartsWith("InstalledMod=", StringComparison.Ordinal))
@@ -303,6 +323,7 @@ internal static class InstalledVersionFileService
                 folderName,
                 originalDownload,
                 launchOptions,
+                lastLaunchedUtc,
                 isModded,
                 installedModId,
                 manifestId);

@@ -10,6 +10,7 @@ public class InstalledVersion
     public string FolderName { get; set; } = "";
     public string OriginalDownload { get; set; } = "";
     public string LaunchOptions { get; set; } = "";
+    public DateTime LastLaunchedUtc { get; set; } = DateTime.MinValue;
     public bool IsModded { get; set; }
     public string InstalledModId { get; set; } = "";
     public bool HasBepInEx { get; set; }
@@ -47,6 +48,15 @@ public class InstalledVersion
                 version.OriginalDownload = line["OriginalDownload=".Length..];
             else if (line.StartsWith("LaunchOptions="))
                 version.LaunchOptions = line["LaunchOptions=".Length..];
+            else if (line.StartsWith("LastLaunchedUtc=") &&
+                     DateTime.TryParse(
+                         line["LastLaunchedUtc=".Length..],
+                         null,
+                         System.Globalization.DateTimeStyles.RoundtripKind,
+                         out DateTime lastLaunchedUtc))
+            {
+                version.LastLaunchedUtc = lastLaunchedUtc.ToUniversalTime();
+            }
             else if (line.StartsWith("Modded="))
                 version.IsModded = bool.TryParse(line["Modded=".Length..], out bool isModded) && isModded;
             else if (line.StartsWith("InstalledMod="))

@@ -32,6 +32,20 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "3.2.0",
+        Title = "Small Fixes for Launching and SN2",
+        Date = "July 15, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Removed SN2 Reset Macro that was Old+Broken",
+            "Made steam_appid.txt for Steamless Launches stay even when launcher isnt open",
+            "Updated Mod for SN1 to Subnuatica Speedrunning Mod instead of Old RNG Mod"
+            
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "3.1.1",
         Title = "Launching Hotfix",
         Date = "May 29, 2026 | Contributors (1) - ItsFrosti.",
@@ -175,7 +189,7 @@ public static class Updates
         Changes = new[]
         {
             "Cleaned up mod management so it detects mods correctly",
-            "Updated RNG Mod for 2018 and 2.0+ Versions for Crashing Issues",
+            "Updated managed Subnautica mod support for compatibility and crash fixes",
             "Improved startup and version loading behavior",
         }
     },
@@ -205,7 +219,7 @@ public static class Updates
             "Fixed Below Zero version metadata so it stays separated from Subnautica correctly",
             "Improved startup and version loading behavior",
             "Updated the public README to be a real user guide",
-            "Updated RNG Mod for 2018 and 2.0+ Versions"
+            "Updated managed Subnautica mod support"
         }
     },
 
@@ -241,7 +255,7 @@ public static class Updates
         Date = "Apr 11, 2026 | Contributors (1) - ItsFrosti.",
         Changes = new[]
         {
-            "Added launcher managed Speedrun RNG Mod support for compatible Subnautica 2018 versions",
+            "Added launcher managed Subnautica speedrunning mod support for compatible September 2018 Subnautica versions",
             "Added Install Mods flow for new modded installs and existing version mod installs",
             "Split installed version lists into Modded and Vanilla sections",
             "Added mod management from Edit Version, including managed mod removal",

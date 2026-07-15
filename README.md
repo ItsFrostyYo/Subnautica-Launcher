@@ -178,18 +178,19 @@ The launcher supports managed mod installs for supported game/version combinatio
 
 Current managed support:
 
-- Subnautica 2018 builds: `Speedrun RNG Mod`
-- Subnautica 2022-2025 builds: `Speedrun RNG Mod 2.0+`
+- Subnautica September 2018 builds: `Subnautica Speedrunning Mod`
 - Subnautica 2 builds: `Kallie's Command Enabler Mod` (installs and enables both `SN2 Commands Enabler Mod` and `Kallie's Custom SN2 Commands`)
 
 Managed install notes:
 
-- Subnautica 1 managed bundles do not ship a prebuilt `BepInEx\config\BepInEx.cfg`; BepInEx generates the user's config on first game launch.
+- The managed `Subnautica Speedrunning Mod` is only offered for the September 2018 Subnautica version and launches through `Launch Mod.cmd` when installed.
+- The speedrunning mod updates itself after install, so the launcher does not offer launcher-side update prompts for it.
 - Subnautica 2 managed installs use `Subnautica2\Binaries\Win64\ue4ss\Mods` as the working mod root and update `mods.txt` / `mods.json` there automatically.
 
 The launcher can also detect:
 
 - `BepInEx`
+- `Subnautica Speedrunning Mod`
 - `UE4SS`
 - installed plugin folders
 - known supported managed installs
@@ -211,13 +212,15 @@ The mods window includes the same game selector flow as the rest of the launcher
 
 ### Mod Update Behavior
 
-When updating supported managed mods, the launcher preserves:
+When updating supported managed mods that are launcher-updated, the launcher preserves:
 
 - `Options.txt`
 - `Custom.preset`
 - `Custom.SpawnLoc`
 
 It also removes stale preset files that no longer belong to the current mod bundle.
+
+The managed `Subnautica Speedrunning Mod` is excluded from this flow because it handles its own updates after install.
 
 ## Tools Tab
 
@@ -245,10 +248,6 @@ Below Zero supports:
 - `Reset Macro`
 - `Hardcore Save Deleter`
 
-Subnautica 2 supports:
-
-- `Reset Macro`
-
 ## Reset Macros
 
 The launcher includes reset automation for supported games.
@@ -259,16 +258,8 @@ Available for:
 
 - Subnautica
 - Below Zero
-- Subnautica 2
 
 This handles reset flow based on the selected gamemode and current detected game state.
-
-Subnautica 2 currently supports:
-
-- `Survival`
-- `Creative`
-
-The Subnautica 2 reset path uses bundled `uhara10` Unreal event memory reading, handles quit-to-menu recovery, and drives the new-game flow through in-game UI event watchers instead of log polling. The launcher self-seeds `tools\uhara10` when needed, while the supporting `LiveSplit` / `SharpDisasm` dependencies are embedded into the launcher itself.
 
 ### Explosion Reset
 

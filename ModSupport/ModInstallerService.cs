@@ -79,26 +79,6 @@ public static class ModInstallerService
             .ToList();
     }
 
-    public static bool SupportsLegacySpeedrunRng(
-        LauncherGame game,
-        string? originalDownload,
-        string? displayName,
-        string? folderName)
-    {
-        return ManagedModFamilies.SpeedrunRng.Game == game &&
-               ManagedModFamilies.SpeedrunRng.SupportsVersion(originalDownload, displayName, folderName);
-    }
-
-    public static bool SupportsModernSpeedrunRng(
-        LauncherGame game,
-        string? originalDownload,
-        string? displayName,
-        string? folderName)
-    {
-        return ManagedModFamilies.SpeedrunRng20Plus.Game == game &&
-               ManagedModFamilies.SpeedrunRng20Plus.SupportsVersion(originalDownload, displayName, folderName);
-    }
-
     public static async Task InstallBundleAsync(
         ModDefinition mod,
         LauncherGame game,
@@ -215,6 +195,33 @@ public static class ModInstallerService
 
         ModDefinition? mod = ModCatalog.GetById(version.InstalledModId);
         return mod?.Game == game ? mod : null;
+    }
+
+    public static string? GetCustomLaunchRelativePath(
+        LauncherGame game,
+        InstalledVersion? version,
+        string versionFolder)
+    {
+        ManagedModFamily? family = null;
+
+        if (!string.IsNullOrWhiteSpace(version?.InstalledModId))
+            family = ManagedModFamilies.GetById(version.InstalledModId);
+
+        if (family == null && game == LauncherGame.Subnautica)
+        {
+            var probeVersion = version ?? new InstalledVersion
+            {
+                HomeFolder = versionFolder
+            };
+
+            family = DetectKnownManagedModFamily(probeVersion, game);
+        }
+
+        if (family == null || string.IsNullOrWhiteSpace(family.CustomLaunchRelativePath))
+            return null;
+
+        string launchPath = Path.Combine(versionFolder, NormalizeRelativePath(family.CustomLaunchRelativePath));
+        return File.Exists(launchPath) ? launchPath : null;
     }
 
     public static Version? TryReadInstalledModVersion(InstalledVersion version)
@@ -662,6 +669,16 @@ public static class ModInstallerService
 
     private static bool HasManagedRuntime(InstalledVersion version, LauncherGame game)
     {
+        ManagedModFamily? knownFamily = DetectKnownManagedModFamily(version, game);
+        if (knownFamily != null)
+        {
+            string runtimeRoot = GetInstalledPath(
+                version.HomeFolder,
+                knownFamily.InstallRootRelativePath,
+                knownFamily.RuntimeRootRelativePath);
+            return Directory.Exists(runtimeRoot) || File.Exists(runtimeRoot);
+        }
+
         if (game == LauncherGame.Subnautica2)
         {
             string ue4ssRoot = GetInstalledPath(version.HomeFolder, @"Subnautica2\Binaries\Win64", "ue4ss");

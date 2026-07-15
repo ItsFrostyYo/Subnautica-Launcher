@@ -673,6 +673,9 @@ namespace SubnauticaLauncher.UI
                     GameMode.Hardcore.ToString(),
                     GameMode.Creative.ToString(),
                     GameMode.Freedom.ToString(),
+                    GameMode.BetterRNGSurvival.ToString(),
+                    GameMode.BetterRNGHardcore.ToString(),
+                    GameMode.BetterRNGCreative.ToString(),
                     GameMode.SaveSlot1.ToString(),
                     GameMode.SaveSlot2.ToString(),
                     GameMode.SaveSlot3.ToString()

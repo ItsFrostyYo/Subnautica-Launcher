@@ -20,9 +20,6 @@ namespace SubnauticaLauncher
             if (!File.Exists(DepotDownloaderInstaller.DepotDownloaderExe))
                 return true;
 
-            if (!Subnautica2ToolInstaller.IsInstalled())
-                return true;
-
             return false;
         }
 
@@ -40,9 +37,6 @@ namespace SubnauticaLauncher
 
                 status?.Report("Checking DepotDownloader...");
                 await DepotDownloaderInstaller.EnsureInstalledAsync();
-
-                status?.Report("Checking Subnautica 2 runtime tools...");
-                Subnautica2ToolInstaller.EnsureInstalled();
 
                 status?.Report("Runtime setup verified.");
                 Logger.Log("[Installer] Runtime tool/folder verification complete");

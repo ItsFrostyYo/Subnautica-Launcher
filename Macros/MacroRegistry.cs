@@ -5,8 +5,7 @@ using System.Drawing;
 namespace SubnauticaLauncher.Macros
 {
     public sealed class MacroSteps
-    {        
-
+    {
         public Point QuitButton { get; init; }
         public Point QuitButton2 { get; init; }
         public Point ConfirmQuit1 { get; init; }
@@ -30,10 +29,10 @@ namespace SubnauticaLauncher.Macros
 
     public static class MacroRegistry
     {
-        // YearGroup → GameMode → MacroSteps
+        // YearGroup -> GameMode -> MacroSteps
         private static readonly Dictionary<int, Dictionary<GameMode, MacroSteps>> Registry = new()
         {
-            // ================= 2014–2017 =================
+            // ================= 2014-2017 =================
             [2017] = new Dictionary<GameMode, MacroSteps>
             {
                 [GameMode.Survival] = new MacroSteps
@@ -45,7 +44,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1172, 554),
                     SelectGameMode = new Point(1172, 554)
                 },
-
                 [GameMode.Hardcore] = new MacroSteps
                 {
                     QuitButton = new Point(951, 706),
@@ -55,7 +53,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1172, 554),
                     SelectGameMode = new Point(1175, 788)
                 },
-
                 [GameMode.Creative] = new MacroSteps
                 {
                     QuitButton = new Point(960, 703),
@@ -65,7 +62,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1172, 554),
                     SelectGameMode = new Point(1184, 905)
                 },
-
                 [GameMode.Freedom] = new MacroSteps
                 {
                     QuitButton = new Point(960, 703),
@@ -75,7 +71,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1172, 554),
                     SelectGameMode = new Point(1184, 681)
                 },
-
                 [GameMode.SaveSlot1] = new MacroSteps
                 {
                     QuitButton = new Point(1020, 689),
@@ -85,7 +80,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1175, 674),
                     SelectGameMode = new Point(1175, 674)
                 },
-
                 [GameMode.SaveSlot2] = new MacroSteps
                 {
                     QuitButton = new Point(1020, 689),
@@ -95,7 +89,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1178, 790),
                     SelectGameMode = new Point(1178, 790)
                 },
-
                 [GameMode.SaveSlot3] = new MacroSteps
                 {
                     QuitButton = new Point(1020, 689),
@@ -107,7 +100,7 @@ namespace SubnauticaLauncher.Macros
                 }
             },
 
-            // ================= 2018–2021 =================
+            // ================= 2018-2021 =================
             [2018] = new Dictionary<GameMode, MacroSteps>
             {
                 [GameMode.Survival] = new MacroSteps
@@ -119,7 +112,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1373, 540),
                     SelectGameMode = new Point(1403, 537)
                 },
-
                 [GameMode.Hardcore] = new MacroSteps
                 {
                     QuitButton = new Point(1052, 662),
@@ -129,7 +121,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1373, 540),
                     SelectGameMode = new Point(1107, 754)
                 },
-
                 [GameMode.Creative] = new MacroSteps
                 {
                     QuitButton = new Point(1012, 686),
@@ -139,7 +130,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1373, 540),
                     SelectGameMode = new Point(1184, 911)
                 },
-
                 [GameMode.Freedom] = new MacroSteps
                 {
                     QuitButton = new Point(1020, 689),
@@ -148,6 +138,36 @@ namespace SubnauticaLauncher.Macros
                     PlayButton = new Point(635, 795),
                     StartNewGame = new Point(1373, 540),
                     SelectGameMode = new Point(1157, 662)
+                },
+
+                // BetterRNG is only for Subnautica 2018.
+                // Edit these three entries when you want to retune the BetterRNG coordinates.
+                [GameMode.BetterRNGSurvival] = new MacroSteps
+                {
+                    QuitButton = new Point(1020, 689),
+                    ConfirmQuit1 = new Point(893, 553),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 795),
+                    StartNewGame = new Point(1157, 662),
+                    SelectGameMode = new Point(1403, 537)
+                },
+                [GameMode.BetterRNGHardcore] = new MacroSteps
+                {
+                    QuitButton = new Point(1052, 662),
+                    ConfirmQuit1 = new Point(893, 553),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 795),
+                    StartNewGame = new Point(1157, 662),
+                    SelectGameMode = new Point(1107, 754)
+                },
+                [GameMode.BetterRNGCreative] = new MacroSteps
+                {
+                    QuitButton = new Point(1012, 686),
+                    ConfirmQuit1 = new Point(893, 553),
+                    ConfirmQuit2 = new Point(830, 623),
+                    PlayButton = new Point(635, 795),
+                    StartNewGame = new Point(1157, 662),
+                    SelectGameMode = new Point(1184, 911)
                 },
 
                 [GameMode.SaveSlot1] = new MacroSteps
@@ -159,7 +179,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1182, 674),
                     SelectGameMode = new Point(1170, 674)
                 },
-
                 [GameMode.SaveSlot2] = new MacroSteps
                 {
                     QuitButton = new Point(1020, 689),
@@ -169,7 +188,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1160, 788),
                     SelectGameMode = new Point(1160, 788)
                 },
-
                 [GameMode.SaveSlot3] = new MacroSteps
                 {
                     QuitButton = new Point(1020, 689),
@@ -181,7 +199,7 @@ namespace SubnauticaLauncher.Macros
                 }
             },
 
-            // ================= 2022–2025 =================
+            // ================= 2022-2025 =================
             [2022] = new Dictionary<GameMode, MacroSteps>
             {
                 [GameMode.Survival] = new MacroSteps
@@ -211,7 +229,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1300, 569),
                     SelectGameMode = new Point(1125, 878)
                 },
-
                 [GameMode.Freedom] = new MacroSteps
                 {
                     QuitButton = new Point(1021, 728),
@@ -221,7 +238,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1300, 569),
                     SelectGameMode = new Point(1154, 674)
                 },
-
                 [GameMode.SaveSlot1] = new MacroSteps
                 {
                     QuitButton = new Point(1005, 728),
@@ -257,7 +273,7 @@ namespace SubnauticaLauncher.Macros
                 [GameMode.Survival] = new MacroSteps
                 {
                     QuitButton = new Point(1005, 728),
-                    QuitButton2 = new Point(961, 689),                   
+                    QuitButton2 = new Point(961, 689),
                     ConfirmQuit1 = new Point(903, 568),
                     ConfirmQuit2 = new Point(830, 623),
                     PlayButton = new Point(635, 728),
@@ -284,7 +300,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1300, 569),
                     SelectGameMode = new Point(1125, 878)
                 },
-
                 [GameMode.Freedom] = new MacroSteps
                 {
                     QuitButton = new Point(1021, 728),
@@ -295,7 +310,6 @@ namespace SubnauticaLauncher.Macros
                     StartNewGame = new Point(1300, 569),
                     SelectGameMode = new Point(1154, 674)
                 },
-
                 [GameMode.SaveSlot1] = new MacroSteps
                 {
                     QuitButton = new Point(1005, 728),
@@ -325,47 +339,34 @@ namespace SubnauticaLauncher.Macros
                     PlayButton = new Point(635, 728),
                     StartNewGame = new Point(1176, 932),
                     SelectGameMode = new Point(1160, 932)
-                }           
-              },
-
-            // ================= SUBNAUTICA 2 =================
-            [BuildYearResolver.SUBNAUTICA2_GROUP] = new Dictionary<GameMode, MacroSteps>
-            {
-                [GameMode.Survival] = new MacroSteps
-                {
-                    QuitButton = new Point(950, 736),
-                    ConfirmQuit1 = new Point(955, 566),
-                    PlayButton = new Point(771, 420),
-                    StartNewGame = new Point(1199, 367),
-                    SelectGameMode = new Point(965, 453),
-                    ConfirmStart = new Point(938, 789),
-                    SelectCharacterTriage = new Point(460, 500),
-                    SelectCharacterFelix = new Point(800, 500),
-                    SelectCharacterStone = new Point(1125, 500),
-                    SelectCharacterTether = new Point(1450, 500),
-                    ConfirmCharacter = new Point(866, 877)
-
-                },
-                [GameMode.Creative] = new MacroSteps
-                {
-                    QuitButton = new Point(950, 736),
-                    ConfirmQuit1 = new Point(955, 566),
-                    PlayButton = new Point(771, 420),
-                    StartNewGame = new Point(1199, 367),
-                    SelectGameMode = new Point(955, 568),
-                    ConfirmStart = new Point(938, 789),
-                    SelectCharacterTriage = new Point(460, 500),
-                    SelectCharacterFelix = new Point(800, 500),
-                    SelectCharacterStone = new Point(1125, 500),
-                    SelectCharacterTether = new Point(1450, 500),
-                    ConfirmCharacter = new Point(866, 877)
                 }
             }
-            };
+        };
 
         public static MacroSteps Get(int yearGroup, GameMode mode)
         {
-            return Registry[yearGroup][mode];
+            Dictionary<GameMode, MacroSteps> modes = Registry[yearGroup];
+            GameMode resolvedMode = ResolveModeForYearGroup(yearGroup, mode);
+            return modes[resolvedMode];
+        }
+
+        private static GameMode ResolveModeForYearGroup(int yearGroup, GameMode mode)
+        {
+            if (yearGroup == 2018 || !IsBetterRngMode(mode))
+                return mode;
+
+            return mode switch
+            {
+                GameMode.BetterRNGSurvival => GameMode.Survival,
+                GameMode.BetterRNGHardcore => GameMode.Hardcore,
+                GameMode.BetterRNGCreative => GameMode.Creative,
+                _ => mode
+            };
+        }
+
+        private static bool IsBetterRngMode(GameMode mode)
+        {
+            return mode is GameMode.BetterRNGSurvival or GameMode.BetterRNGHardcore or GameMode.BetterRNGCreative;
         }
     }
 }

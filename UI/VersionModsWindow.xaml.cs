@@ -52,15 +52,15 @@ namespace SubnauticaLauncher.UI
                     StatusText.Text = "Mods Installed";
                     string pluginList = string.Join(Environment.NewLine, _version.DetectedModNames.Select(name => $"- {name}"));
                     DescriptionText.Text =
-                        $"Detected plugin(s):{Environment.NewLine}{pluginList}{Environment.NewLine}{Environment.NewLine}" +
-                        $"Removing mods will delete {runtimeDisplayName} and the installed plugin files, leaving the game as a clean launcher version.";
+                        $"Detected mod(s):{Environment.NewLine}{pluginList}{Environment.NewLine}{Environment.NewLine}" +
+                        $"Removing mods will delete {runtimeDisplayName} and the installed mod files, leaving the game as a clean launcher version.";
                     RemoveModsButton.Content = "Remove Mods";
                 }
                 else
                 {
                     StatusText.Text = $"{runtimeDisplayName} Installed";
                     DescriptionText.Text =
-                        $"{runtimeDisplayName} is installed, but no launcher-detected plugins were found." +
+                        $"{runtimeDisplayName} is installed, but no launcher-detected mods were found." +
                         $"{Environment.NewLine}{Environment.NewLine}You can still remove {runtimeDisplayName} if you want this version clean again.";
                     RemoveModsButton.Content = $"Remove {runtimeDisplayName}";
                 }

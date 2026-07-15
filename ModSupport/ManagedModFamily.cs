@@ -13,6 +13,8 @@ internal sealed class ManagedModBundlePart
     public required string InstallRelativePath { get; init; }
     public required bool PreserveTopLevelDirectory { get; init; }
     public required IReadOnlyList<string> RequiredRelativePaths { get; init; }
+    public string? DirectDownloadUrl { get; init; }
+    public string? FixedBundleFileName { get; init; }
 }
 
 internal sealed class ManagedModFamily
@@ -24,6 +26,8 @@ internal sealed class ManagedModFamily
     public required string RuntimeDisplayName { get; init; }
     public required string InstallRootRelativePath { get; init; }
     public required string RuntimeRootRelativePath { get; init; }
+    public required bool SupportsLauncherUpdates { get; init; }
+    public string? CustomLaunchRelativePath { get; init; }
     public required IReadOnlyList<string> DetectionRelativePaths { get; init; }
     public required string VersionMarkerRelativePath { get; init; }
     public required IReadOnlyList<ManagedModBundlePart> BundleParts { get; init; }
@@ -46,25 +50,21 @@ internal sealed class ManagedModFamily
 
 internal static class ManagedModFamilies
 {
-    private static readonly string[] CommonBepInExRemovalTargets =
+    private static readonly string[] SpeedrunningModRemovalTargets =
     {
-        "BepInEx",
+        "SubnauticaSpeedrunningMod",
+        "Launch Mod.cmd",
+        "winhttp.dll",
         ".doorstop_version",
         "doorstop_config.ini",
-        "winhttp.dll",
-        "changelog.txt"
+        "SubnauticaMonitor.exe",
+        "monitor_log.txt",
+        @"SNUnmanagedData\LanguageFiles\SubnauticaSpeedrunningMod.synced.txt"
     };
 
-    private static readonly string[] SpeedrunPreservedPaths =
+    private static readonly string[] SpeedrunningModCleanupRoots =
     {
-        @"BepInEx\plugins\Assembly-CheatSharp\Options.txt",
-        @"BepInEx\plugins\Assembly-CheatSharp\Presets\Custom.preset",
-        @"BepInEx\plugins\Assembly-CheatSharp\Presets\Custom.SpawnLoc"
-    };
-
-    private static readonly string[] SpeedrunCleanupRoots =
-    {
-        @"BepInEx\plugins\Assembly-CheatSharp\Presets"
+        "SubnauticaSpeedrunningMod"
     };
 
     private static readonly string[] CommonSn2RemovalTargets =
@@ -79,39 +79,23 @@ internal static class ManagedModFamilies
 
     private static readonly string[] Sn2CleanupRoots = Array.Empty<string>();
 
-    private static readonly ManagedModBundlePart SpeedrunBundle = new()
+    private static readonly ManagedModBundlePart SpeedrunningModBundle = new()
     {
-        Id = "SpeedrunRng.Bundle",
-        DisplayName = "Speedrun RNG Mod",
+        Id = "SubnauticaSpeedrunningMod.Bundle",
+        DisplayName = "Subnautica Speedrunning Mod",
         BundleFileNamePattern = new Regex(
-            @"^Assembly-CheatSharp\.v(?<version>\d+\.\d+\.\d+)\+BepInEx_.*\.zip$",
+            @"^SubnauticaSpeedrunningMod-Beta-(?<version>\d+\.\d+\.\d+)\.zip$",
             RegexOptions.Compiled | RegexOptions.IgnoreCase),
         ProvidesPackageVersion = true,
         InstallRelativePath = string.Empty,
         PreserveTopLevelDirectory = false,
         RequiredRelativePaths =
         [
-            "BepInEx",
+            "SubnauticaSpeedrunningMod",
+            "Launch Mod.cmd",
             "winhttp.dll",
-            @"BepInEx\plugins\Assembly-CheatSharp"
-        ]
-    };
-
-    private static readonly ManagedModBundlePart Speedrun20PlusBundle = new()
-    {
-        Id = "SpeedrunRng20Plus.Bundle",
-        DisplayName = "Speedrun RNG Mod 2.0+",
-        BundleFileNamePattern = new Regex(
-            @"^Assembly-CheatSharp\.v(?<version>\d+\.\d+\.\d+)-Subnautica2025\+BepInEx_.*\.zip$",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase),
-        ProvidesPackageVersion = true,
-        InstallRelativePath = string.Empty,
-        PreserveTopLevelDirectory = false,
-        RequiredRelativePaths =
-        [
-            "BepInEx",
-            "winhttp.dll",
-            @"BepInEx\plugins\Assembly-CheatSharp"
+            ".doorstop_version",
+            "doorstop_config.ini"
         ]
     };
 
@@ -170,47 +154,36 @@ internal static class ManagedModFamilies
         ]
     };
 
-    public static ManagedModFamily SpeedrunRng { get; } = new()
+    public static ManagedModFamily SubnauticaSpeedrunningMod { get; } = new()
     {
-        Id = "SpeedrunRng",
-        DisplayName = "Speedrun RNG Mod",
+        Id = "SubnauticaSpeedrunningMod",
+        DisplayName = "Subnautica Speedrunning Mod",
         Game = LauncherGame.Subnautica,
         CompatibilityPredicate = (originalDownload, displayName, folderName) =>
-            ContainsYear(originalDownload, 2018) ||
-            ContainsYear(displayName, 2018) ||
-            ContainsYear(folderName, 2018),
-        RuntimeDisplayName = "BepInEx",
+            string.Equals(originalDownload, "Subnautica_Sep2018", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(folderName, "SubnauticaRanked", StringComparison.OrdinalIgnoreCase) ||
+            (!string.IsNullOrWhiteSpace(displayName) &&
+             displayName.Contains("2018", StringComparison.OrdinalIgnoreCase) &&
+             displayName.Contains("Ranked", StringComparison.OrdinalIgnoreCase)),
+        RuntimeDisplayName = "Subnautica Speedrunning Mod",
         InstallRootRelativePath = string.Empty,
-        RuntimeRootRelativePath = "BepInEx",
-        DetectionRelativePaths = [@"BepInEx\plugins\Assembly-CheatSharp"],
-        VersionMarkerRelativePath = @"BepInEx\plugins\Assembly-CheatSharp\Presets\version.txt",
-        BundleParts = [SpeedrunBundle],
-        RemovalTargets = CommonBepInExRemovalTargets,
-        PreservedRelativePaths = SpeedrunPreservedPaths,
-        StaleCleanupRelativeRoots = SpeedrunCleanupRoots,
-        DetectedDisplayNames = ["Speedrun RNG Mod"],
-        ManagedModFolderNames = Array.Empty<string>()
-    };
-
-    public static ManagedModFamily SpeedrunRng20Plus { get; } = new()
-    {
-        Id = "SpeedrunRng20Plus",
-        DisplayName = "Speedrun RNG Mod 2.0+",
-        Game = LauncherGame.Subnautica,
-        CompatibilityPredicate = (originalDownload, displayName, folderName) =>
-            MatchesYearRange(originalDownload, 2022, 2025) ||
-            MatchesYearRange(displayName, 2022, 2025) ||
-            MatchesYearRange(folderName, 2022, 2025),
-        RuntimeDisplayName = "BepInEx",
-        InstallRootRelativePath = string.Empty,
-        RuntimeRootRelativePath = "BepInEx",
-        DetectionRelativePaths = [@"BepInEx\plugins\Assembly-CheatSharp"],
-        VersionMarkerRelativePath = @"BepInEx\plugins\Assembly-CheatSharp\Presets\version.txt",
-        BundleParts = [Speedrun20PlusBundle],
-        RemovalTargets = CommonBepInExRemovalTargets,
-        PreservedRelativePaths = SpeedrunPreservedPaths,
-        StaleCleanupRelativeRoots = SpeedrunCleanupRoots,
-        DetectedDisplayNames = ["Speedrun RNG Mod 2.0+"],
+        RuntimeRootRelativePath = "SubnauticaSpeedrunningMod",
+        SupportsLauncherUpdates = false,
+        CustomLaunchRelativePath = "Launch Mod.cmd",
+        DetectionRelativePaths =
+        [
+            "SubnauticaSpeedrunningMod",
+            "Launch Mod.cmd",
+            "winhttp.dll",
+            ".doorstop_version",
+            "doorstop_config.ini"
+        ],
+        VersionMarkerRelativePath = @"SubnauticaSpeedrunningMod\launcher.version.txt",
+        BundleParts = [SpeedrunningModBundle],
+        RemovalTargets = SpeedrunningModRemovalTargets,
+        PreservedRelativePaths = Array.Empty<string>(),
+        StaleCleanupRelativeRoots = SpeedrunningModCleanupRoots,
+        DetectedDisplayNames = ["Subnautica Speedrunning Mod"],
         ManagedModFolderNames = Array.Empty<string>()
     };
 
@@ -223,6 +196,8 @@ internal static class ManagedModFamilies
         RuntimeDisplayName = "UE4SS",
         InstallRootRelativePath = @"Subnautica2\Binaries\Win64",
         RuntimeRootRelativePath = "ue4ss",
+        SupportsLauncherUpdates = true,
+        CustomLaunchRelativePath = null,
         DetectionRelativePaths =
         [
             @"Mods\SN2CommandsEnablerMod",
@@ -252,8 +227,7 @@ internal static class ManagedModFamilies
 
     public static IReadOnlyList<ManagedModFamily> All { get; } =
     [
-        SpeedrunRng,
-        SpeedrunRng20Plus,
+        SubnauticaSpeedrunningMod,
         Sn2KalliesCommandEnabler
     ];
 
@@ -281,25 +255,5 @@ internal static class ManagedModFamilies
             .Where(family => family.Game == game)
             .Where(family => family.SupportsVersion(originalDownload, displayName, folderName))
             .ToList();
-    }
-
-    private static bool ContainsYear(string? value, int year)
-    {
-        return !string.IsNullOrWhiteSpace(value) &&
-               value.Contains(year.ToString(), StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool MatchesYearRange(string? value, int minYear, int maxYear)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return false;
-
-        for (int year = minYear; year <= maxYear; year++)
-        {
-            if (value.Contains(year.ToString(), StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
     }
 }

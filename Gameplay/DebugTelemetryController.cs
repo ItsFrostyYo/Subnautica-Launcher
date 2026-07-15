@@ -225,22 +225,7 @@ namespace SubnauticaLauncher.Gameplay
                 }
             }
 
-            if (snapshot.Subnautica2.IsRunning)
-            {
-                try
-                {
-                    using Process sn2 = Process.GetProcessById(snapshot.Subnautica2.ProcessId!.Value);
-                    _subnautica2State = Subnautica2UharaBridge.Shared.DetectState(sn2).ToString();
-                }
-                catch
-                {
-                    _subnautica2State = "Unknown";
-                }
-            }
-            else
-            {
-                _subnautica2State = "Unknown";
-            }
+            _subnautica2State = snapshot.Subnautica2.IsRunning ? "Running" : "Unknown";
 
             Application.Current.Dispatcher.Invoke(() =>
             {
