@@ -32,6 +32,18 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "3.2.1",
+        Title = "Hardcore BetterRNG Reset Macro",
+        Date = "August 4, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Updated Hardcore BetterRNG Reset Macro to work with the new Subnautica Speedrunning Mod Quit Button"
+            
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "3.2.0",
         Title = "Small Fixes for Launching and SN2",
         Date = "July 15, 2026 | Contributors (1) - ItsFrosti.",

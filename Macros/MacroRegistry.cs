@@ -153,7 +153,7 @@ namespace SubnauticaLauncher.Macros
                 },
                 [GameMode.BetterRNGHardcore] = new MacroSteps
                 {
-                    QuitButton = new Point(1052, 662),
+                    QuitButton = new Point(1020, 689),
                     ConfirmQuit1 = new Point(893, 553),
                     ConfirmQuit2 = new Point(830, 623),
                     PlayButton = new Point(635, 795),
