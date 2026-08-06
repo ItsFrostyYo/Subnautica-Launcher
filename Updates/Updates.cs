@@ -32,6 +32,18 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "3.2.2",
+        Title = "Steam App ID",
+        Date = "August 4, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Updated Steam App ID to not delete unless setting is disabled"
+            
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "3.2.1",
         Title = "Hardcore BetterRNG Reset Macro",
         Date = "August 4, 2026 | Contributors (1) - ItsFrosti.",

@@ -43,6 +43,11 @@ internal static class InstalledVersionScanService
                 subnautica2Profile);
             cancellationToken.ThrowIfCancellationRequested();
 
+            SteamAppIdFilePolicy.ApplyCurrent(subnauticaProfile, subnautica);
+            SteamAppIdFilePolicy.ApplyCurrent(belowZeroProfile, belowZero);
+            SteamAppIdFilePolicy.ApplyCurrent(subnautica2Profile, subnautica2);
+            cancellationToken.ThrowIfCancellationRequested();
+
             return new InstalledVersionScanSnapshot
             {
                 SubnauticaProfile = subnauticaProfile,

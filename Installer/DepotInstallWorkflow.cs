@@ -736,7 +736,9 @@ internal static class DepotInstallWorkflow
         GameVersionInstallDefinition version,
         string installDir)
     {
-        LauncherGameProfiles.GetBySteamAppId(version.SteamAppId).RemoveSteamAppIdFiles(installDir);
+        SteamAppIdFilePolicy.ApplyCurrent(
+            LauncherGameProfiles.GetBySteamAppId(version.SteamAppId),
+            installDir);
     }
 
     private static void WriteVersionInfo(

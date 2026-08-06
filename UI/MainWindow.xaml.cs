@@ -1543,7 +1543,7 @@ namespace SubnauticaLauncher.UI
                         targetExe = profile.GetLaunchExecutablePath(launchFolder);
 
                         await RefreshInstalledVersionsAfterFolderMoveAsync(target.HomeFolder, launchFolder);
-                        await CleanupSteamAppIdFilesForVersionFolderAsync(profile, launchFolder);
+                        await ApplySteamAppIdPolicyForVersionFolderAsync(profile, launchFolder);
 
                         SetTrackedDirectLaunchFolder(profile, null);
                         SetPinnedSteamLaunchFolder(profile, launchFolder);
@@ -1718,14 +1718,14 @@ namespace SubnauticaLauncher.UI
             };
         }
 
-        private Task CleanupSteamAppIdFilesForVersionFolderAsync(LauncherGameProfile profile, string versionFolder)
+        private Task ApplySteamAppIdPolicyForVersionFolderAsync(LauncherGameProfile profile, string versionFolder)
         {
             return Task.Run(() =>
             {
                 if (!Directory.Exists(versionFolder))
                     return;
 
-                profile.RemoveSteamAppIdFiles(versionFolder);
+                SteamAppIdFilePolicy.ApplyCurrent(profile, versionFolder);
             });
         }
 
@@ -2700,13 +2700,23 @@ namespace SubnauticaLauncher.UI
             await SetForceLaunchWithoutSteamAsync(!LauncherSettings.Current.ForceLaunchWithoutSteam);
         }
 
-        private Task SetForceLaunchWithoutSteamAsync(bool enabled)
+        private async Task SetForceLaunchWithoutSteamAsync(bool enabled)
         {
             LauncherSettings.Current.ForceLaunchWithoutSteam = enabled;
             LauncherSettings.Save();
 
             UpdateForceLaunchWithoutSteamVisualState();
-            return Task.CompletedTask;
+
+            InstalledVersion[] subnautica = _subnauticaInstalledVersions.ToArray();
+            InstalledVersion[] belowZero = _belowZeroInstalledVersions.Cast<InstalledVersion>().ToArray();
+            InstalledVersion[] subnautica2 = _subnautica2InstalledVersions.ToArray();
+
+            await Task.Run(() =>
+            {
+                SteamAppIdFilePolicy.Apply(SubnauticaProfile, subnautica, enabled);
+                SteamAppIdFilePolicy.Apply(BelowZeroProfile, belowZero, enabled);
+                SteamAppIdFilePolicy.Apply(Subnautica2Profile, subnautica2, enabled);
+            });
         }
 
         private void Subnautica100TrackerToggle_Click(object sender, RoutedEventArgs e)
@@ -3800,6 +3810,10 @@ namespace SubnauticaLauncher.UI
                 {
                     Logger.Log("[SteamFolderPolicy] Skipping shutdown folder policy because a supported game is still running.");
                 }
+
+                // Re-scan after any shutdown folder moves so the persisted AppID policy is
+                // applied to the final paths, including while Steamless Launch is enabled.
+                await InstalledVersionScanService.ScanAsync(repairMetadata: false);
             }
             catch (Exception ex)
             {

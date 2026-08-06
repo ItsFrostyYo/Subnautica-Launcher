@@ -130,7 +130,7 @@ public static class ModInstallerService
 
             WriteManagedVersionMarker(mod, targetFolder);
 
-            LauncherGameProfiles.Get(game).RemoveSteamAppIdFiles(targetFolder);
+            SteamAppIdFilePolicy.ApplyCurrent(LauncherGameProfiles.Get(game), targetFolder);
             ValidateInstalledBundleOrThrow(mod, targetFolder);
 
             callbacks?.OnProgress?.Invoke(100);
@@ -174,7 +174,7 @@ public static class ModInstallerService
         version.IsModded = false;
         version.InstalledModId = string.Empty;
 
-        LauncherGameProfiles.Get(game).RemoveSteamAppIdFiles(version.HomeFolder);
+        SteamAppIdFilePolicy.ApplyCurrent(LauncherGameProfiles.Get(game), version.HomeFolder);
     }
 
     public static string BuildModdedDisplayName(string baseDisplayName, int instanceNumber = 1)
