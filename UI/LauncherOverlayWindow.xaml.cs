@@ -88,7 +88,7 @@ namespace SubnauticaLauncher.UI
         private sealed class LauncherSettingsPanelState
         {
             public required Border Root { get; init; }
-            public required Button ForceLaunchWithoutSteamButton { get; init; }
+            public required Button ForceLaunchWithSteamButton { get; init; }
             public required Button ExplosionOverlayButton { get; init; }
             public required Button ExplosionTrackingButton { get; init; }
             public required ComboBox BackgroundDropdown { get; init; }
@@ -593,8 +593,8 @@ namespace SubnauticaLauncher.UI
 
         private Border CreateLauncherSettingsPanel(GameOverlayComponentType type)
         {
-            Button forceLaunchWithoutSteamButton = CreateToggleButton();
-            forceLaunchWithoutSteamButton.Click += (_, _) => _main.ToggleForceLaunchWithoutSteamFromOverlay();
+            Button forceLaunchWithSteamButton = CreateToggleButton();
+            forceLaunchWithSteamButton.Click += (_, _) => _main.ToggleForceLaunchWithSteamFromOverlay();
 
             Button explosionOverlayButton = CreateToggleButton();
             explosionOverlayButton.Click += (_, _) => _main.ToggleExplosionOverlayFromOverlay();
@@ -623,7 +623,7 @@ namespace SubnauticaLauncher.UI
             {
                 Margin = new Thickness(0, 2, 0, 0)
             };
-            content.Children.Add(CreateLabeledToggleRow("Force to launch without steam", forceLaunchWithoutSteamButton));
+            content.Children.Add(CreateLabeledToggleRow("Force to Launch With Steam", forceLaunchWithSteamButton));
             content.Children.Add(CreateLabeledToggleRow("Explosion Overlay", explosionOverlayButton));
             content.Children.Add(CreateLabeledToggleRow("Track Explo Resets", explosionTrackingButton, 12));
             content.Children.Add(CreateFieldLabel("Background", 14));
@@ -634,7 +634,7 @@ namespace SubnauticaLauncher.UI
             _launcherSettingsPanel = new LauncherSettingsPanelState
             {
                 Root = root,
-                ForceLaunchWithoutSteamButton = forceLaunchWithoutSteamButton,
+                ForceLaunchWithSteamButton = forceLaunchWithSteamButton,
                 ExplosionOverlayButton = explosionOverlayButton,
                 ExplosionTrackingButton = explosionTrackingButton,
                 BackgroundDropdown = backgroundDropdown,
@@ -1128,9 +1128,9 @@ namespace SubnauticaLauncher.UI
             if (_launcherSettingsPanel == null)
                 return;
 
-            bool forceLaunchWithoutSteam = _main.IsForceLaunchWithoutSteamForOverlay();
-            _launcherSettingsPanel.ForceLaunchWithoutSteamButton.Content = forceLaunchWithoutSteam ? "Enabled" : "Disabled";
-            _launcherSettingsPanel.ForceLaunchWithoutSteamButton.Background = forceLaunchWithoutSteam ? Brushes.Green : Brushes.DarkRed;
+            bool forceLaunchWithSteam = _main.IsForceLaunchWithSteamForOverlay();
+            _launcherSettingsPanel.ForceLaunchWithSteamButton.Content = forceLaunchWithSteam ? "Enabled" : "Disabled";
+            _launcherSettingsPanel.ForceLaunchWithSteamButton.Background = forceLaunchWithSteam ? Brushes.Green : Brushes.DarkRed;
 
             bool overlayEnabled = _main.IsExplosionOverlayEnabledForOverlay();
             _launcherSettingsPanel.ExplosionOverlayButton.Content = overlayEnabled ? "Enabled" : "Disabled";

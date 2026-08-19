@@ -32,6 +32,19 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "3.3.0",
+        Title = "Launching and Subnautica 2 Fixes",
+        Date = "August 19, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "By Default the Launcher will Launch Without Steam for Smoother Launches, and now you have the Option to Launch Without Steam in Settings",
+            "Updated the Subnautica 2 Versions to Include all Currently Available Versions Instead of Being Behind"
+            
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "3.2.2",
         Title = "Steam App ID",
         Date = "August 4, 2026 | Contributors (1) - ItsFrosti.",

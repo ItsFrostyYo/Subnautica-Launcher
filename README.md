@@ -2,7 +2,7 @@
 
 Subnautica Trilogy Launcher is a Windows launcher for **Subnautica**, **Subnautica: Below Zero**, and **Subnautica 2**.
 
-It is built for players who want to keep versions organized, switch games quickly, launch directly without Steam friction, and use built-in speedrun tools from one place.
+It is built for players who want to keep versions organized, switch games quickly, launch directly with reliable Steam AppID handling, and use built-in speedrun tools from one place.
 
 Repository:
 - https://github.com/ItsFrostyYo/Subnautica-Launcher
@@ -15,9 +15,9 @@ It can:
 
 - install supported versions
 - add existing installs into the launcher
-- launch versions directly from their own folders
-- switch between versions without manual folder work
-- keep Steam-sensitive folders protected
+- launch versions directly from their own folders with the correct Steam AppID support
+- optionally use Steam-style folder switching for Subnautica and Below Zero
+- keep managed game folders and metadata protected
 - save per-version launch options such as `-novr`
 - manage supported mod installs
 - provide reset tools, overlays, timers, and tracker utilities
@@ -129,9 +129,10 @@ To launch a version:
 
 The launcher will:
 
-- launch the game directly from that version's own folder
-- apply saved per-version launch options
-- keep Steam-sensitive folder behavior handled automatically
+- launch Subnautica and Below Zero directly from the selected version folder by default
+- keep the correct `steam_appid.txt` in those folders for direct launching
+- apply saved per-version launch options on the direct-launch path
+- always use the Steam folder-launch flow for Subnautica 2
 
 If a supported game is already running, the main button changes to `Close Game`.
 
@@ -163,7 +164,7 @@ Inside the edit window you can:
 
 ### Launch Options
 
-Launch options are saved per version and are used when the launcher starts the game directly.
+Launch options are saved per version and are used when the launcher starts Subnautica or Below Zero directly.
 
 Examples:
 
@@ -171,6 +172,8 @@ Examples:
 - `-high`
 
 There is also a `Detect Steam Launch Options` button that reads the current Steam launch options for the correct game app id and copies them in for that version.
+
+If `Force to Launch With Steam` is enabled, Subnautica and Below Zero use the Steam folder-launch flow instead. The launcher does not append the saved direct-launch options on that path.
 
 ## Mod Support
 
@@ -248,6 +251,8 @@ Below Zero supports:
 - `Reset Macro`
 - `Hardcore Save Deleter`
 
+Subnautica 2 does not currently expose launcher speedrun tools in the Tools tab.
+
 ## Reset Macros
 
 The launcher includes reset automation for supported games.
@@ -312,13 +317,18 @@ These can be configured from the launcher and used as part of a normal speedrun 
 
 ## Steam AppID Handling
 
-The launcher ensures `steam_appid.txt` is correct for the game being launched directly:
+By default, Subnautica and Below Zero use the launcher direct-launch path. The launcher keeps the correct `steam_appid.txt` in each managed version folder, including after the launcher closes:
 
 - Subnautica: `264710`
 - Below Zero: `848450`
-- Subnautica 2: `1962700`
 
-This helps direct-launch behavior stay consistent outside Steam.
+This lets the selected version launch consistently from its own folder and allows saved per-version launch options such as `-novr` to apply.
+
+### Force to Launch With Steam
+
+`Force to Launch With Steam` is disabled by default. When enabled, Subnautica and Below Zero use the launcher’s Steam folder-switching flow instead of the direct AppID path. The launcher removes `steam_appid.txt` from those versions while this option is enabled.
+
+Subnautica 2 always uses the Steam folder-launch flow and never uses `steam_appid.txt`.
 
 ## Updates
 
@@ -343,10 +353,9 @@ So the update process stays visible all the way through close, replace, and rela
 The launcher supports:
 
 - custom backgrounds
-- normal window startup
-- overlay startup mode
-- adjustable overlay opacity
-- configurable overlay toggle hotkey
+- a configurable `Launcher Overlay` with an enable/disable toggle and hotkey
+- movable version-list, settings, reset-macro, other-tools, and launcher-info panels
+- per-panel opacity and labeled/unlabeled version-list views
 
 The newer game-selection layout is also built so the launcher can continue scaling cleanly as more game support is added.
 
@@ -371,7 +380,13 @@ This usually means one of these:
 
 ### Launch options are not applying
 
-Launch options are only applied when the launcher starts the game directly. If you launch the game through Steam instead, Steam's own launch handling applies.
+Launch options are applied on the normal direct-launch path for Subnautica and Below Zero. If `Force to Launch With Steam` is enabled, the launcher uses the Steam folder-launch flow and does not append those saved direct-launch options. Subnautica 2 always uses its Steam folder-launch flow.
+
+### steam_appid.txt is missing or unexpected
+
+With `Force to Launch With Steam` disabled, the launcher maintains the correct `steam_appid.txt` for managed Subnautica and Below Zero versions during version refreshes and after launcher shutdown. Enabling the setting removes those files because the Steam folder-launch flow does not use them.
+
+Subnautica 2 does not use `steam_appid.txt`; its managed versions always use the Steam folder-launch flow.
 
 ### A folder name is blocked
 

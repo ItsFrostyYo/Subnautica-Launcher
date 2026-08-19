@@ -30,7 +30,10 @@ namespace SubnauticaLauncher.Settings
         public string BackgroundPreset { get; set; } = "Lifepod";
         public LauncherStartupMode StartupMode { get; set; } = LauncherStartupMode.Window;
         public bool GameOverlayEnabled { get; set; } = false;
-        public bool ForceLaunchWithoutSteam { get; set; } = false;
+        // New behavior defaults to a direct launch with steam_appid.txt. The old
+        // ForceLaunchWithoutSteam setting is deliberately not retained so saved
+        // installations reset to this safer default after the behavior inversion.
+        public bool ForceLaunchWithSteam { get; set; } = false;
         public bool GameOverlayLayoutMigrated { get; set; } = false;
         public Key OverlayToggleKey { get; set; } = Key.Tab;
         public ModifierKeys OverlayToggleModifiers { get; set; } = ModifierKeys.Control | ModifierKeys.Shift;
@@ -114,10 +117,20 @@ namespace SubnauticaLauncher.Settings
 
             try
             {
+                string json = File.ReadAllText(FilePath);
                 var settings = JsonSerializer.Deserialize<LauncherSettings>(
-                    File.ReadAllText(FilePath), JsonOptions);
+                    json, JsonOptions);
 
                 Current = settings ?? new LauncherSettings();
+
+                // Retire the inverse setting rather than carrying its value into
+                // the new Steam-launch option. This also rewrites old files so
+                // the obsolete setting is gone immediately after startup.
+                if (json.Contains("\"ForceLaunchWithoutSteam\"", StringComparison.OrdinalIgnoreCase))
+                {
+                    Current.ForceLaunchWithSteam = false;
+                    Save();
+                }
             }
             catch
             {

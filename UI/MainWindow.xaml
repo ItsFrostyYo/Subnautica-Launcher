@@ -868,12 +868,12 @@ UseAeroCaptionButtons="False" />
 
                                     <StackPanel Margin="0,0,0,0">
                                         <TextBlock
-Text="Force to launch without steam"
+Text="Force to Launch With Steam"
 FontWeight="SemiBold"
 TextWrapping="Wrap"/>
 
                                         <Button
-x:Name="ForceLaunchWithoutSteamToggleButton"
+x:Name="ForceLaunchWithSteamToggleButton"
 Width="138"
 Height="38"
 Margin="0,6,0,0"
@@ -881,7 +881,7 @@ HorizontalAlignment="Left"
 Background="{StaticResource DangerRedBrush}"
 Content="Disabled"
 Style="{StaticResource ToggleActionButtonStyle}"
-Click="ForceLaunchWithoutSteamToggle_Click"/>
+Click="ForceLaunchWithSteamToggle_Click"/>
                                     </StackPanel>
 
                                     <!-- EXPLOSION RESET DISPLAY -->

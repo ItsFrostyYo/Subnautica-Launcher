@@ -99,10 +99,6 @@ namespace SubnauticaLauncher.UI
         [DllImport("user32.dll")]
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
-        [DllImport("user32.dll")]
-        private static extern bool SetWindowDisplayAffinity(IntPtr hWnd, uint dwAffinity);
-
-        private const uint WDA_EXCLUDEFROMCAPTURE = 0x00000011;
         private static readonly TimeSpan SteamLaunchPinGracePeriod = TimeSpan.FromSeconds(90);
 
         public MainWindow()
@@ -127,24 +123,8 @@ namespace SubnauticaLauncher.UI
             var source = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             source.AddHook(WndProc);
 
-            TryExcludeMainWindowFromCapture();
-
             RegisterResetHotkey();
             RegisterOverlayToggleHotkey();
-        }
-
-        private void TryExcludeMainWindowFromCapture()
-        {
-            try
-            {
-                IntPtr handle = new WindowInteropHelper(this).Handle;
-                if (handle != IntPtr.Zero)
-                    SetWindowDisplayAffinity(handle, WDA_EXCLUDEFROMCAPTURE);
-            }
-            catch
-            {
-                // Best-effort: unsupported OS/driver combinations can fail here.
-            }
         }
 
         private IntPtr WndProc(
@@ -227,7 +207,7 @@ namespace SubnauticaLauncher.UI
             LoadMacroSettings();
             ApplyExplosionResetVisualState();
             UpdateGameOverlayVisualState();
-            UpdateForceLaunchWithoutSteamVisualState();
+            UpdateForceLaunchWithSteamVisualState();
             UpdateHardcoreSaveDeleterVisualState();
             UpdateSubnautica100TrackerVisualState();
             UpdateSidebarState();
@@ -596,11 +576,11 @@ namespace SubnauticaLauncher.UI
             HardcoreSaveDeleterToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
         }
 
-        private void UpdateForceLaunchWithoutSteamVisualState()
+        private void UpdateForceLaunchWithSteamVisualState()
         {
-            bool enabled = LauncherSettings.Current.ForceLaunchWithoutSteam;
-            ForceLaunchWithoutSteamToggleButton.Content = enabled ? "Enabled" : "Disabled";
-            ForceLaunchWithoutSteamToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
+            bool enabled = LauncherSettings.Current.ForceLaunchWithSteam;
+            ForceLaunchWithSteamToggleButton.Content = enabled ? "Enabled" : "Disabled";
+            ForceLaunchWithSteamToggleButton.Background = enabled ? Brushes.Green : Brushes.DarkRed;
             _launcherOverlayWindow?.RefreshVersionStatusOnly();
         }
 
@@ -1122,11 +1102,19 @@ namespace SubnauticaLauncher.UI
             return changed;
         }
 
+        private static bool UsesSteamFolderSwitching(LauncherGameProfile profile)
+        {
+            return profile.Game == LauncherGame.Subnautica2 ||
+                   LauncherSettings.Current.ForceLaunchWithSteam;
+        }
+
         private async Task<bool> EnsureSteamVisibleActiveFolderAsync(
             LauncherGameProfile profile,
             IEnumerable<InstalledVersion> allInstalled)
         {
-            if (!RenameFolderSafetyEnabled || IsProcessRunning(profile.ProcessName))
+            if (!UsesSteamFolderSwitching(profile) ||
+                !RenameFolderSafetyEnabled ||
+                IsProcessRunning(profile.ProcessName))
                 return false;
 
             bool changed = false;
@@ -1506,7 +1494,7 @@ namespace SubnauticaLauncher.UI
             string launchFolder = target.HomeFolder;
             string targetExe = profile.GetLaunchExecutablePath(launchFolder);
             string statusFolder = target.HomeFolder;
-            bool launchWithoutSteam = LauncherSettings.Current.ForceLaunchWithoutSteam;
+            bool launchWithSteam = UsesSteamFolderSwitching(profile);
             using IDisposable busyOperation = LauncherBusyCoordinator.Begin($"Launch {target.FolderName}");
 
             PauseFolderSwitchServices();
@@ -1528,16 +1516,18 @@ namespace SubnauticaLauncher.UI
                     }
                 }
 
-                if (launchWithoutSteam)
+                if (!launchWithSteam)
                 {
-                    Logger.Log($"[DirectLaunch] Force-launching {profile.DisplayName} from '{target.HomeFolder}' without Steam.");
-                    profile.EnsureSteamAppIdFile(launchFolder);
+                    Logger.Log($"[DirectLaunch] Launching {profile.DisplayName} from '{target.HomeFolder}' with steam_appid.txt.");
+                    SteamAppIdFilePolicy.Apply(profile, launchFolder, keepSteamAppIdFile: true);
                     SetTrackedDirectLaunchFolder(profile, target.HomeFolder);
+                    SetPinnedSteamLaunchFolder(profile, null);
                 }
                 else
                 {
                     try
                     {
+                        SteamAppIdFilePolicy.Apply(profile, target.HomeFolder, keepSteamAppIdFile: false);
                         launchFolder = await ActivateVersionFolderForSteamLaunchAsync(target, profile, common, activePath);
                         statusFolder = launchFolder;
                         targetExe = profile.GetLaunchExecutablePath(launchFolder);
@@ -1552,13 +1542,22 @@ namespace SubnauticaLauncher.UI
                     {
                         Logger.Warn($"[SteamLaunch] Failed to switch '{target.HomeFolder}' into '{activePath}'. Error='{ex.Message}'");
 
+                        if (profile.Game == LauncherGame.Subnautica2)
+                        {
+                            SetStatus(target, VersionStatus.Idle);
+                            throw new InvalidOperationException(
+                                "Subnautica 2 must launch through the Steam folder flow. " +
+                                "The launcher could not switch the game folder, so no direct AppID fallback was used.",
+                                ex);
+                        }
+
                         MessageBoxResult fallbackChoice = MessageBox.Show(
-                            "The launcher could not rename the game folders for a normal Steam launch." +
+                            "The launcher could not rename the game folders for a Steam launch." +
                             Environment.NewLine + Environment.NewLine +
                             ex.Message +
                             Environment.NewLine + Environment.NewLine +
-                            "Do you want to launch without Steam instead? This will use steam_appid.txt for this launch.",
-                            "Normal Launch Failed",
+                            "Do you want to launch directly instead? This will use steam_appid.txt for this launch.",
+                            "Steam Launch Failed",
                             MessageBoxButton.YesNoCancel,
                             MessageBoxImage.Warning);
 
@@ -1568,18 +1567,18 @@ namespace SubnauticaLauncher.UI
                             return;
                         }
 
-                        launchWithoutSteam = true;
+                        launchWithSteam = false;
                         launchFolder = target.HomeFolder;
                         statusFolder = target.HomeFolder;
                         targetExe = profile.GetLaunchExecutablePath(launchFolder);
 
-                        Logger.Log($"[DirectLaunch] Falling back to steamless launch for {profile.DisplayName} from '{target.HomeFolder}'.");
-                        profile.EnsureSteamAppIdFile(launchFolder);
+                        Logger.Log($"[DirectLaunch] Falling back to an AppID launch for {profile.DisplayName} from '{target.HomeFolder}'.");
+                        SteamAppIdFilePolicy.Apply(profile, launchFolder, keepSteamAppIdFile: true);
                         SetTrackedDirectLaunchFolder(profile, target.HomeFolder);
                     }
                 }
 
-                string launchArguments = launchWithoutSteam
+                string launchArguments = !launchWithSteam
                     ? (target.LaunchOptions ?? string.Empty).Trim()
                     : string.Empty;
                 ProcessStartInfo startInfo = BuildLaunchStartInfo(profile, target, launchFolder, targetExe, launchArguments);
@@ -2695,17 +2694,17 @@ namespace SubnauticaLauncher.UI
             NotifyActionCompleted();
         }
 
-        private async void ForceLaunchWithoutSteamToggle_Click(object sender, RoutedEventArgs e)
+        private async void ForceLaunchWithSteamToggle_Click(object sender, RoutedEventArgs e)
         {
-            await SetForceLaunchWithoutSteamAsync(!LauncherSettings.Current.ForceLaunchWithoutSteam);
+            await SetForceLaunchWithSteamAsync(!LauncherSettings.Current.ForceLaunchWithSteam);
         }
 
-        private async Task SetForceLaunchWithoutSteamAsync(bool enabled)
+        private async Task SetForceLaunchWithSteamAsync(bool enabled)
         {
-            LauncherSettings.Current.ForceLaunchWithoutSteam = enabled;
+            LauncherSettings.Current.ForceLaunchWithSteam = enabled;
             LauncherSettings.Save();
 
-            UpdateForceLaunchWithoutSteamVisualState();
+            UpdateForceLaunchWithSteamVisualState();
 
             InstalledVersion[] subnautica = _subnauticaInstalledVersions.ToArray();
             InstalledVersion[] belowZero = _belowZeroInstalledVersions.Cast<InstalledVersion>().ToArray();
@@ -2713,9 +2712,9 @@ namespace SubnauticaLauncher.UI
 
             await Task.Run(() =>
             {
-                SteamAppIdFilePolicy.Apply(SubnauticaProfile, subnautica, enabled);
-                SteamAppIdFilePolicy.Apply(BelowZeroProfile, belowZero, enabled);
-                SteamAppIdFilePolicy.Apply(Subnautica2Profile, subnautica2, enabled);
+                SteamAppIdFilePolicy.Apply(SubnauticaProfile, subnautica, !enabled);
+                SteamAppIdFilePolicy.Apply(BelowZeroProfile, belowZero, !enabled);
+                SteamAppIdFilePolicy.Apply(Subnautica2Profile, subnautica2, false);
             });
         }
 
@@ -3378,7 +3377,7 @@ namespace SubnauticaLauncher.UI
         internal bool IsGameOverlayEnabledForOverlay() => _gameOverlayEnabled;
         internal bool IsExplosionOverlayEnabledForOverlay() => ExplosionResetSettings.OverlayEnabled;
         internal bool IsExplosionTrackingEnabledForOverlay() => ExplosionResetSettings.TrackResets;
-        internal bool IsForceLaunchWithoutSteamForOverlay() => LauncherSettings.Current.ForceLaunchWithoutSteam;
+        internal bool IsForceLaunchWithSteamForOverlay() => LauncherSettings.Current.ForceLaunchWithSteam;
         internal bool IsResetMacroEnabledForOverlay() => _macroEnabled;
         internal Key GetResetHotkeyForOverlay() => _resetKey;
         internal GameMode GetResetGameModeForOverlay() => GetSelectedGameMode(ResetGamemodeDropdown, LauncherSettings.Current.ResetGameMode);
@@ -3559,9 +3558,9 @@ namespace SubnauticaLauncher.UI
             _launcherOverlayWindow?.RefreshVersionStatusOnly();
         }
 
-        internal async void ToggleForceLaunchWithoutSteamFromOverlay()
+        internal async void ToggleForceLaunchWithSteamFromOverlay()
         {
-            await SetForceLaunchWithoutSteamAsync(!LauncherSettings.Current.ForceLaunchWithoutSteam);
+            await SetForceLaunchWithSteamAsync(!LauncherSettings.Current.ForceLaunchWithSteam);
         }
 
         internal void ToggleResetMacroFromOverlay()

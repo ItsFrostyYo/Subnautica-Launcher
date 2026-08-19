@@ -8,7 +8,7 @@ internal static class SteamAppIdFilePolicy
 {
     public static void ApplyCurrent(LauncherGameProfile profile, string gameFolder)
     {
-        Apply(profile, gameFolder, LauncherSettings.Current.ForceLaunchWithoutSteam);
+        Apply(profile, gameFolder, ShouldKeepSteamAppIdFile(profile));
     }
 
     public static void Apply(
@@ -29,7 +29,14 @@ internal static class SteamAppIdFilePolicy
         LauncherGameProfile profile,
         IEnumerable<InstalledVersion> versions)
     {
-        Apply(profile, versions, LauncherSettings.Current.ForceLaunchWithoutSteam);
+        Apply(profile, versions, ShouldKeepSteamAppIdFile(profile));
+    }
+
+    public static bool ShouldKeepSteamAppIdFile(LauncherGameProfile profile)
+    {
+        // Subnautica 2 always follows the Steam folder-launch path.
+        return profile.Game != Enums.LauncherGame.Subnautica2 &&
+               !LauncherSettings.Current.ForceLaunchWithSteam;
     }
 
     public static void Apply(
