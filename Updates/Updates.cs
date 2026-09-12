@@ -30,6 +30,18 @@ public static class Updates
 
     public static readonly UpdateEntry[] History =
     {
+         new UpdateEntry
+    {
+        Version = "3.3.1",
+        Title = "Subnautica 2 Versions",
+        Date = "September 12, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Added more Subnautica 2 Versions"
+            
+        }
+    },
+        
         new UpdateEntry
     {
         Version = "3.3.0",

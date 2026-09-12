@@ -8,6 +8,16 @@ public static class Subnautica2VersionRegistry
         new List<Subnautica2VersionInstallDefinition>
         {
             new(
+                "Subnautica2_UnlistedUpdate",
+                "Sep3rd, 2026 (Unlisted Update)",
+                2218551816517627922,
+                0),
+            new(
+                "Subnautica2_BuddySystemHotfix",
+                "Sep1st, 2026 (1.2.2 | Buddy System Hotfix 1)",
+                3270283820977561875,
+                128456),
+            new(
                 "Subnautica2_BuddySystem",
                 "Aug19th, 2026 (1.2 | Buddy System)",
                 3467256529046907925,
