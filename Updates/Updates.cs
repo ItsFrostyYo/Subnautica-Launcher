@@ -30,6 +30,18 @@ public static class Updates
 
     public static readonly UpdateEntry[] History =
     {
+        new UpdateEntry
+    {
+        Version = "3.3.2",
+        Title = "Reset Macro Update",
+        Date = "October 12, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "Reset Macro now checks specifically for the buttons to be ready rather then just main menu"
+            
+        }
+    },
+
          new UpdateEntry
     {
         Version = "3.3.1",

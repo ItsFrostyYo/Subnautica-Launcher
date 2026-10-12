@@ -45,6 +45,36 @@ namespace SubnauticaLauncher.Macros
             return c.R < 8 && c.G < 8 && c.B < 8;
         }
 
+        public static bool TryDetectStateFromMemory(Process process, string processName, out GameState state)
+        {
+            state = GameState.Unknown;
+            return UsesMemoryStateDetection(processName) &&
+                TryDetectFromMemory(processName, process, out state);
+        }
+
+        public static bool TryDetectMainMenuPlayReadyFromMemory(Process process, string processName, out bool ready)
+        {
+            ready = false;
+            if (!UsesMemoryStateDetection(processName))
+                return false;
+
+            try
+            {
+                if (process.HasExited)
+                    return false;
+            }
+            catch
+            {
+                return false;
+            }
+
+            DynamicMonoGameplayEventTracker tracker = MemoryTrackers.GetOrAdd(
+                processName,
+                static name => new DynamicMonoGameplayEventTracker(name));
+
+            return tracker.TryDetectMainMenuPlayReady(process, out ready);
+        }
+
         private static GameState DetectCore(Process? process, string processName, GameStateProfile p, DisplayInfo display, bool focusGame)
         {
             if (focusGame)

@@ -104,6 +104,7 @@ namespace SubnauticaLauncher.Gameplay
         private StaticFieldRef _playerMainField;
         private StaticFieldRef _uGuiMainField;
         private StaticFieldRef _uGuiMainMenuField;
+        private StaticFieldRef _gamepadInputModuleCurrentField;
         private StaticFieldRef _uGuiPdaMainField;
         private StaticFieldRef _uGuiCraftingMenuMainField;
         private StaticFieldRef _gameModeCurrentField;
@@ -138,6 +139,12 @@ namespace SubnauticaLauncher.Gameplay
         private int _legacyDictionaryTouchedOffset;
         private bool _hasUGuiLoadingOffset;
         private int _uGuiLoadingOffset;
+        private bool _hasMainMenuSubMenuOffset;
+        private int _mainMenuSubMenuOffset;
+        private bool _hasMainMenuPrimaryOptionsOffset;
+        private int _mainMenuPrimaryOptionsOffset;
+        private bool _hasGamepadCurrentGridOffset;
+        private int _gamepadCurrentGridOffset;
         private bool _hasUnityObjectCachedPtrOffset;
         private int _unityObjectCachedPtrOffset;
         private bool _hasSceneLoadingIsLoadingOffset;
@@ -412,6 +419,59 @@ namespace SubnauticaLauncher.Gameplay
                 return false;
 
             return TryReadState(proc, out state);
+        }
+
+        /// <summary>
+        /// Determines whether Subnautica's main-menu navigation has finished initializing.
+        /// This is intentionally memory-only: the macro can safely send the Play click only
+        /// after the menu has registered its active input grid.
+        /// </summary>
+        public bool TryDetectMainMenuPlayReady(Process proc, out bool ready)
+        {
+            ready = false;
+
+            EnsureInitialized(proc);
+            if (!_ready || !string.Equals(_gameName, "Subnautica", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (!TryReadLiveStaticObject(proc, _uGuiMainMenuField, out IntPtr mainMenu))
+                return false;
+
+            if (mainMenu == IntPtr.Zero)
+                return true;
+
+            if (TryReadLoadingState(proc, out bool isLoading) && isLoading)
+                return true;
+
+            if (!_hasMainMenuSubMenuOffset ||
+                !_hasMainMenuPrimaryOptionsOffset ||
+                !TryReadObjectReference(proc, mainMenu, _mainMenuSubMenuOffset, out IntPtr subMenu) ||
+                !TryReadObjectReference(proc, mainMenu, _mainMenuPrimaryOptionsOffset, out IntPtr primaryOptions))
+            {
+                return false;
+            }
+
+            if (subMenu == IntPtr.Zero || primaryOptions == IntPtr.Zero)
+                return true;
+
+            // OnSelect registers this exact grid only after the Home/Play menu is interactive.
+            // Older builds that do not expose GamepadInputModule still use the two initialized
+            // main-menu references above, so the dynamic reader remains compatible.
+            if (_gamepadInputModuleCurrentField.IsValid && _hasGamepadCurrentGridOffset)
+            {
+                if (!TryReadLiveStaticObject(proc, _gamepadInputModuleCurrentField, out IntPtr inputModule) ||
+                    inputModule == IntPtr.Zero ||
+                    !TryReadObjectReference(proc, inputModule, _gamepadCurrentGridOffset, out IntPtr currentGrid))
+                {
+                    return false;
+                }
+
+                ready = currentGrid == subMenu || currentGrid == primaryOptions;
+                return true;
+            }
+
+            ready = true;
+            return true;
         }
 
         public bool TryDetectRunStart(Process proc, out string reason)
@@ -1540,6 +1600,7 @@ namespace SubnauticaLauncher.Gameplay
             _playerMainField = default;
             _uGuiMainField = default;
             _uGuiMainMenuField = default;
+            _gamepadInputModuleCurrentField = default;
             _uGuiPdaMainField = default;
             _uGuiCraftingMenuMainField = default;
             _gameModeCurrentField = default;
@@ -1574,6 +1635,12 @@ namespace SubnauticaLauncher.Gameplay
             _legacyDictionaryTouchedOffset = 0;
             _hasUGuiLoadingOffset = false;
             _uGuiLoadingOffset = 0;
+            _hasMainMenuSubMenuOffset = false;
+            _mainMenuSubMenuOffset = 0;
+            _hasMainMenuPrimaryOptionsOffset = false;
+            _mainMenuPrimaryOptionsOffset = 0;
+            _hasGamepadCurrentGridOffset = false;
+            _gamepadCurrentGridOffset = 0;
             _hasSceneLoadingIsLoadingOffset = false;
             _sceneLoadingIsLoadingOffset = 0;
             _hasInventoryItemOffset = false;
@@ -1686,6 +1753,7 @@ namespace SubnauticaLauncher.Gameplay
             IntPtr uGuiClass = FindClass(proc, mainImage, "uGUI");
             IntPtr uGuiPdaClass = FindClass(proc, mainImage, "uGUI_PDA");
             IntPtr uGuiMainMenuClass = FindClass(proc, mainImage, "uGUI_MainMenu");
+            IntPtr gamepadInputModuleClass = FindClass(proc, mainImage, "GamepadInputModule");
             IntPtr uGuiSceneLoadingClass = FindClass(proc, mainImage, "uGUI_SceneLoading");
             IntPtr largeWorldStreamerClass = FindClass(proc, mainImage, "LargeWorldStreamer");
             IntPtr crafterClass = FindClass(proc, mainImage, "CrafterLogic");
@@ -1874,6 +1942,19 @@ namespace SubnauticaLauncher.Gameplay
             {
                 TryResolveStaticFieldRef(proc, uGuiMainMenuClass,
                     new[] { "main", "_main", "s_main", "<main>k__BackingField" }, out _uGuiMainMenuField);
+
+                _hasMainMenuSubMenuOffset = TryFindFieldOffsetAny(proc, uGuiMainMenuClass,
+                    new[] { "subMenu", "_subMenu", "m_subMenu" }, out _mainMenuSubMenuOffset);
+                _hasMainMenuPrimaryOptionsOffset = TryFindFieldOffsetAny(proc, uGuiMainMenuClass,
+                    new[] { "primaryOptions", "_primaryOptions", "m_primaryOptions" }, out _mainMenuPrimaryOptionsOffset);
+            }
+
+            if (gamepadInputModuleClass != IntPtr.Zero)
+            {
+                TryResolveStaticFieldRef(proc, gamepadInputModuleClass,
+                    new[] { "current", "_current", "s_current", "<current>k__BackingField" }, out _gamepadInputModuleCurrentField);
+                _hasGamepadCurrentGridOffset = TryFindFieldOffsetAny(proc, gamepadInputModuleClass,
+                    new[] { "currentGrid", "_currentGrid", "m_currentGrid" }, out _gamepadCurrentGridOffset);
             }
 
             if (uGuiPdaClass != IntPtr.Zero)
@@ -3347,6 +3428,13 @@ namespace SubnauticaLauncher.Gameplay
 
             value = cachedPtr != IntPtr.Zero ? rawValue : IntPtr.Zero;
             return true;
+        }
+
+        private static bool TryReadObjectReference(Process proc, IntPtr instance, int fieldOffset, out IntPtr value)
+        {
+            value = IntPtr.Zero;
+            return instance != IntPtr.Zero &&
+                MemoryReader.ReadIntPtr(proc, IntPtr.Add(instance, fieldOffset), out value);
         }
 
         private bool TryReadStaticIntField(Process proc, StaticFieldRef fieldRef, out int value)

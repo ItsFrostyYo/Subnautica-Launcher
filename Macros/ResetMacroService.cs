@@ -1,4 +1,3 @@
-using SubnauticaLauncher.Display;
 using SubnauticaLauncher.Enums;
 using SubnauticaLauncher.Gameplay;
 using System;
@@ -12,6 +11,10 @@ namespace SubnauticaLauncher.Macros
     [SupportedOSPlatform("windows")]
     public static class ResetMacroService
     {
+        private const int MainMenuReadyTimeoutMs = 5000;
+        private const int MainMenuReadyPollMs = 25;
+        private const int RequiredReadySamples = 2;
+
         public static async Task RunAsync(
             GameMode mode,
             ResetMacroLogChannel logChannel = ResetMacroLogChannel.Subnautica)
@@ -31,12 +34,10 @@ namespace SubnauticaLauncher.Macros
                 string root = Path.GetDirectoryName(process.MainModule!.FileName!)!;
                 int yearGroup = BuildYearResolver.ResolveGroupedYear(root);
 
-                var profile = GameStateDetectorRegistry.Get(yearGroup);
                 var steps = MacroRegistry.Get(yearGroup, mode);
-                var display = DisplayInfo.GetPrimary();
                 bool needsGameModeDelay = yearGroup >= 2022;
 
-                var state = GameStateDetector.Detect(process, "Subnautica", profile, display);
+                GameStateDetector.TryDetectStateFromMemory(process, "Subnautica", out GameState state);
                 bool startedInGame = state == GameState.InGame;
 
                 ResetMacroLogger.Info(
@@ -45,16 +46,21 @@ namespace SubnauticaLauncher.Macros
 
                 if (state == GameState.MainMenu)
                 {
-                    ResetMacroLogger.Info(logChannel, "State=MainMenu. Running direct new-game flow.");
+                    MainMenuReadyResult menuReady = await WaitForMainMenuPlayButtonAsync(process);
 
-                    await NativeInput.Click(process, steps.PlayButton, steps.ClickDelayFast);
-                    await Task.Delay(50);
-                    await NativeInput.Click(process, steps.StartNewGame, steps.ClickDelaySlow);
-                    await Task.Delay(50);
-                    if (needsGameModeDelay)
-                        await Task.Delay(100);
+                    if (!menuReady.IsReady)
+                    {
+                        ResetMacroLogger.Warn(
+                            logChannel,
+                            $"Main menu was detected, but its input state did not become ready in memory within {menuReady.ElapsedMilliseconds}ms. Reset was cancelled before input was sent.");
+                        return;
+                    }
 
-                    await NativeInput.Click(process, steps.SelectGameMode, steps.ClickDelayMedium);
+                    ResetMacroLogger.Info(
+                        logChannel,
+                        $"State=MainMenu. Play input confirmed ready in memory in {menuReady.ElapsedMilliseconds}ms. Running direct new-game flow.");
+
+                    await StartNewGameAsync(process, steps, needsGameModeDelay);
                     ResetMacroLogger.Info(logChannel, "Reset completed from main menu path.");
                     return;
                 }
@@ -79,49 +85,21 @@ namespace SubnauticaLauncher.Macros
                         $"State={state}. Continuing with fallback synchronization flow.");
                 }
 
-                bool sawBlackScreen = false;
-                bool sawMenu = false;
-                var transitionWait = Stopwatch.StartNew();
+                MainMenuReadyResult menuReadyAfterQuit = await WaitForMainMenuPlayButtonAsync(process);
 
-                while (transitionWait.ElapsedMilliseconds < 5000)
-                {
-                    GameState transitionState = GameStateDetector.Detect(
-                        process,
-                        "Subnautica",
-                        profile,
-                        display,
-                        focusGame: false);
-
-                    if (transitionState == GameState.MainMenu)
-                    {
-                        sawMenu = true;
-                        break;
-                    }
-
-                    if (transitionState == GameState.BlackScreen)
-                        sawBlackScreen = true;
-
-                    await Task.Delay(50);
-                }
-
-                if (sawMenu)
+                if (menuReadyAfterQuit.IsReady)
                 {
                     ResetMacroLogger.Info(
                         logChannel,
-                        sawBlackScreen
-                            ? $"Main menu detected after black-screen transition in {transitionWait.ElapsedMilliseconds}ms."
-                            : $"Main menu detected directly in {transitionWait.ElapsedMilliseconds}ms.");
+                        $"Main menu Play input confirmed ready in memory in {menuReadyAfterQuit.ElapsedMilliseconds}ms.");
                 }
                 else
                 {
                     ResetMacroLogger.Warn(
                         logChannel,
-                        sawBlackScreen
-                            ? $"Main menu was not detected within {transitionWait.ElapsedMilliseconds}ms after black-screen transition."
-                            : $"Main menu was not detected within {transitionWait.ElapsedMilliseconds}ms.");
+                        $"Main menu Play input was not confirmed ready in memory within {menuReadyAfterQuit.ElapsedMilliseconds}ms. Reset was cancelled before input was sent.");
+                    return;
                 }
-
-                await Task.Delay(150);
 
                 string? slotToDelete = startedInGame
                     ? HardcoreSaveDeleter.GetLatestHardcoreSlotToDelete(root, mode)
@@ -134,14 +112,7 @@ namespace SubnauticaLauncher.Macros
                         $"Queued hardcore slot delete after restart: {slotToDelete}");
                 }
 
-                await NativeInput.Click(process, steps.PlayButton, steps.ClickDelayFast);
-                await Task.Delay(50);
-                await NativeInput.Click(process, steps.StartNewGame, steps.ClickDelaySlow);
-                await Task.Delay(50);
-                if (needsGameModeDelay)
-                    await Task.Delay(100);
-
-                await NativeInput.Click(process, steps.SelectGameMode, steps.ClickDelayMedium);
+                await StartNewGameAsync(process, steps, needsGameModeDelay);
                 await HardcoreSaveDeleter.DeleteSlotAfterDelayAsync(slotToDelete, logChannel: logChannel);
 
                 ResetMacroLogger.Info(logChannel, "Reset completed successfully.");
@@ -156,5 +127,47 @@ namespace SubnauticaLauncher.Macros
                 process.Dispose();
             }
         }
+
+        private static async Task StartNewGameAsync(
+            Process process,
+            MacroSteps steps,
+            bool needsGameModeDelay)
+        {
+            await NativeInput.Click(process, steps.PlayButton, steps.ClickDelayFast);
+            await Task.Delay(50);
+            await NativeInput.Click(process, steps.StartNewGame, steps.ClickDelaySlow);
+            await Task.Delay(50);
+            if (needsGameModeDelay)
+                await Task.Delay(100);
+
+            await NativeInput.Click(process, steps.SelectGameMode, steps.ClickDelayMedium);
+        }
+
+        private static async Task<MainMenuReadyResult> WaitForMainMenuPlayButtonAsync(
+            Process process)
+        {
+            int readySamples = 0;
+            var wait = Stopwatch.StartNew();
+
+            while (wait.ElapsedMilliseconds < MainMenuReadyTimeoutMs)
+            {
+                bool playInputReady = GameStateDetector.TryDetectMainMenuPlayReadyFromMemory(
+                    process,
+                    "Subnautica",
+                    out bool isReady) && isReady;
+
+                readySamples = playInputReady ? readySamples + 1 : 0;
+                if (readySamples >= RequiredReadySamples)
+                    return new MainMenuReadyResult(true, wait.ElapsedMilliseconds);
+
+                await Task.Delay(MainMenuReadyPollMs);
+            }
+
+            return new MainMenuReadyResult(false, wait.ElapsedMilliseconds);
+        }
+
+        private readonly record struct MainMenuReadyResult(
+            bool IsReady,
+            long ElapsedMilliseconds);
     }
 }
