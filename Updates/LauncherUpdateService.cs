@@ -29,28 +29,59 @@ public sealed class LauncherUpdateService
             .FirstOrDefault();
     }
 
-    public async Task<string> DownloadLauncherAsync(LauncherUpdate update, CancellationToken cancellationToken = default)
+    public async Task<string> DownloadLauncherAsync(
+        LauncherUpdate update,
+        IProgress<LauncherUpdateProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
-        if (!update.Files.Any(file => string.Equals(Path.GetFileName(file.Path), LauncherExecutableName, StringComparison.OrdinalIgnoreCase)))
+        LauncherUpdateFile[] files = update.Files
+            .Where(file => !string.Equals(file.Status, "removed", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (!files.Any(file => string.Equals(Path.GetFileName(file.Path), LauncherExecutableName, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("The update manifest does not contain SubnauticaLauncher.exe.");
 
         string temporaryDirectory = Path.Combine(Path.GetTempPath(), $"SubnauticaLauncher.{Guid.NewGuid():N}");
         Directory.CreateDirectory(temporaryDirectory);
         try
         {
-            foreach (LauncherUpdateFile updateFile in update.Files)
+            progress?.Report(new LauncherUpdateProgress("Preparing download...", "Calculating update size...", null));
+            long? totalBytes = await TryGetTotalSizeAsync(files, cancellationToken);
+            long completedBytes = 0;
+            for (int fileIndex = 0; fileIndex < files.Length; fileIndex++)
             {
+                LauncherUpdateFile updateFile = files[fileIndex];
                 string relativePath = GetPayloadRelativePath(updateFile.Path);
                 string destinationPath = Path.GetFullPath(Path.Combine(temporaryDirectory, relativePath));
                 if (!destinationPath.StartsWith(temporaryDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("Update payload path cannot leave the temporary update directory.");
 
                 Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
-                await using Stream sourceStream = await HttpClient.GetStreamAsync(ResolvePayloadUri(updateFile.Path), cancellationToken);
+                using var request = new HttpRequestMessage(HttpMethod.Get, ResolvePayloadUri(updateFile.Path));
+                using HttpResponseMessage response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                long? fileBytes = response.Content.Headers.ContentLength;
+                long downloadedFileBytes = 0;
+                await using Stream sourceStream = await response.Content.ReadAsStreamAsync(cancellationToken);
                 await using var destination = new FileStream(destinationPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-                await sourceStream.CopyToAsync(destination, cancellationToken);
+                var buffer = new byte[128 * 1024];
+                while (true)
+                {
+                    int read = await sourceStream.ReadAsync(buffer, cancellationToken);
+                    if (read == 0) break;
+                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                    downloadedFileBytes += read;
+                    double percent = totalBytes is > 0
+                        ? (completedBytes + downloadedFileBytes) * 100d / totalBytes.Value
+                        : (fileIndex + (fileBytes is > 0 ? downloadedFileBytes / (double)fileBytes.Value : 0d)) * 100d / files.Length;
+                    progress?.Report(new LauncherUpdateProgress(
+                        "Downloading launcher update...",
+                        $"{Path.GetFileName(updateFile.Path)} ({FormatBytes(completedBytes + downloadedFileBytes)} of {FormatBytes(totalBytes)})",
+                        percent));
+                }
+                completedBytes += downloadedFileBytes;
             }
 
+            progress?.Report(new LauncherUpdateProgress("Download complete", "Preparing updater handoff...", 100));
             return temporaryDirectory;
         }
         catch
@@ -60,7 +91,7 @@ public sealed class LauncherUpdateService
         }
     }
 
-    public void StartUpdater(string downloadedPayloadDirectory, string? verifiedUpdaterPath = null)
+    public void StartUpdater(string downloadedPayloadDirectory, Version updateVersion, string? verifiedUpdaterPath = null)
     {
         string installDirectory = AppContext.BaseDirectory;
         // The update feed can ship a newer updater. Use it for the handoff so an
@@ -81,8 +112,43 @@ public sealed class LauncherUpdateService
         startInfo.ArgumentList.Add(installDirectory);
         startInfo.ArgumentList.Add("--pid");
         startInfo.ArgumentList.Add(Environment.ProcessId.ToString());
+        startInfo.ArgumentList.Add("--version");
+        startInfo.ArgumentList.Add(updateVersion.ToString(3));
 
         Process.Start(startInfo);
+    }
+
+    private static async Task<long?> TryGetTotalSizeAsync(
+        IReadOnlyList<LauncherUpdateFile> files,
+        CancellationToken cancellationToken)
+    {
+        long total = 0;
+        try
+        {
+            foreach (LauncherUpdateFile file in files)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Head, ResolvePayloadUri(file.Path));
+                using HttpResponseMessage response = await HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                response.EnsureSuccessStatusCode();
+                if (response.Content.Headers.ContentLength is not long length || length < 0) return null;
+                total += length;
+            }
+            return total;
+        }
+        catch when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+    }
+
+    private static string FormatBytes(long? bytes)
+    {
+        if (bytes is null) return "unknown";
+        double value = bytes.Value;
+        string[] units = ["B", "KB", "MB", "GB"];
+        int unit = 0;
+        while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
+        return $"{value:0.0} {units[unit]}";
     }
 
     public static IReadOnlyList<LauncherUpdate> ParseManifest(string xml)

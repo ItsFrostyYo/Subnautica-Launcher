@@ -32,15 +32,22 @@ function Remove-RepoDirectory([string]$path) {
 
 function Set-ManifestFiles([string]$manifestPath, [string[]]$relativePaths) {
     [xml]$document = Get-Content -LiteralPath $manifestPath
-    $latest = $document.updates.update |
+    $entries = @($document.updates.update)
+    $latest = $entries |
         Sort-Object { [version]$_.version } -Descending |
         Select-Object -First 1
     if ($null -eq $latest) { throw "No update entries were found in $manifestPath." }
-    if ($null -eq $latest.files) {
+    foreach ($entry in $entries) {
+        $filesNode = $entry.SelectSingleNode("files")
+        if ([version]$entry.version -ne [version]$latest.version -and $null -ne $filesNode) {
+            [void]$entry.RemoveChild($filesNode)
+        }
+    }
+    $files = $latest.SelectSingleNode("files")
+    if ($null -eq $files) {
         $files = $document.CreateElement("files")
         [void]$latest.AppendChild($files)
     } else {
-        $files = $latest.files
         $files.RemoveAll()
     }
     foreach ($relativePath in $relativePaths | Sort-Object -Unique) {
@@ -76,16 +83,14 @@ if (Test-Path -LiteralPath $dependenciesSource) {
     -p:DebugType=embedded --output $updaterPublishRoot
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$launcherFiles = @("SubnauticaLauncher.exe", "SNLUpdates.xml", "SNLUUpdates.xml")
-$publishedDependenciesRoot = [System.IO.Path]::GetFullPath((Join-Path $launcherPublishRoot "Dependencies")).TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
-$launcherFiles += Get-ChildItem -LiteralPath (Join-Path $launcherPublishRoot "Dependencies") -Recurse -File |
-    ForEach-Object { "Dependencies/" + ([System.IO.Path]::GetFullPath($_.FullName).Substring($publishedDependenciesRoot.Length)).Replace('\', '/') }
-Set-ManifestFiles $launcherManifest $launcherFiles
-Set-ManifestFiles $updaterManifest @("SNLUpdater.exe")
-
 Copy-Item -LiteralPath (Join-Path $launcherPublishRoot "SubnauticaLauncher.exe") -Destination $releaseRoot -Force
 Copy-Item -LiteralPath (Join-Path $updaterPublishRoot "SNLUpdater.exe") -Destination $releaseRoot -Force
 Copy-Item -LiteralPath (Join-Path $launcherPublishRoot "Dependencies") -Destination (Join-Path $releaseRoot "Dependencies") -Recurse -Force
+$dependencyArchive = Join-Path $releaseRoot "Dependencies.zip"
+Compress-Archive -Path (Join-Path $releaseRoot "Dependencies\*") -DestinationPath $dependencyArchive -CompressionLevel Optimal -Force
+
+Set-ManifestFiles $launcherManifest @("SubnauticaLauncher.exe", "Dependencies.zip", "SNLUpdates.xml", "SNLUUpdates.xml")
+Set-ManifestFiles $updaterManifest @("SNLUpdater.exe")
 Copy-Item -LiteralPath $launcherManifest, $updaterManifest -Destination $releaseRoot -Force
 
 Copy-Item -LiteralPath (Join-Path $releaseRoot "SubnauticaLauncher.exe"), (Join-Path $releaseRoot "SNLUpdater.exe") -Destination $packageRoot -Force

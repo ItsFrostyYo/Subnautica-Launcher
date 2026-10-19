@@ -13,8 +13,11 @@ public sealed class UpdaterUpdateService
         Environment.GetEnvironmentVariable("SNL_UPDATER_MANIFEST_URL")
         ?? "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/Release/SNLUUpdates.xml");
 
-    public async Task<string> EnsureLatestAsync(CancellationToken cancellationToken = default)
+    public async Task<string> EnsureLatestAsync(
+        IProgress<LauncherUpdateProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
+        progress?.Report(new LauncherUpdateProgress("Checking updater...", "Making sure SNLUpdater is current...", null));
         string updaterPath = Path.Combine(AppContext.BaseDirectory, UpdaterName);
         string xml = await HttpClient.GetStringAsync(ManifestUri, cancellationToken);
         LauncherUpdate? update = LauncherUpdateService.ParseManifest(xml)
@@ -25,6 +28,7 @@ public sealed class UpdaterUpdateService
         {
             if (!File.Exists(updaterPath))
                 throw new FileNotFoundException("SNLUpdater.exe is missing.", updaterPath);
+            progress?.Report(new LauncherUpdateProgress("Updater ready", "The latest updater is installed.", 3));
             return updaterPath;
         }
 
@@ -35,6 +39,7 @@ public sealed class UpdaterUpdateService
         await using (var destination = new FileStream(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None))
             await source.CopyToAsync(destination, cancellationToken);
         ReplaceWithRetry(temporaryPath, updaterPath);
+        progress?.Report(new LauncherUpdateProgress("Updater ready", "SNLUpdater was updated successfully.", 3));
         return updaterPath;
     }
 

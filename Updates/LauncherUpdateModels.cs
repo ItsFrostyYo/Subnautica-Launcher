@@ -11,3 +11,5 @@ public sealed record LauncherUpdate(
     string Date,
     IReadOnlyList<LauncherUpdateFile> Files,
     IReadOnlyList<string> Changelog);
+
+public sealed record LauncherUpdateProgress(string Status, string Detail, double? Percent);

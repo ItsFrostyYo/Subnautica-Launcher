@@ -1,29 +1,63 @@
 using System.Diagnostics;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Windows;
+using SubnauticaLauncher.Updates;
 
 internal static class Program
 {
     private const int ReplaceAttempts = 50;
     private const int RetryDelayMs = 200;
+    private static string _logPath = string.Empty;
 
+    [STAThread]
     private static int Main(string[] args)
     {
+        UpdateProgressWindow? window = null;
+        Application? application = null;
         try
         {
-            var options = ParseArguments(args);
+            UpdateArguments options = ParseArguments(args);
+            Directory.CreateDirectory(options.TargetDirectory);
+            string logsDirectory = Path.Combine(options.TargetDirectory, "Logs");
+            Directory.CreateDirectory(logsDirectory);
+            _logPath = Path.Combine(logsDirectory, "SNLUpdater.log");
+            Log($"Updater started for launcher v{options.Version}.");
+
             WaitForLauncherExit(options.ProcessId);
-            ApplyPayload(options.SourceDirectory, options.TargetDirectory);
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = Path.Combine(options.TargetDirectory, "SubnauticaLauncher.exe"),
-                WorkingDirectory = options.TargetDirectory,
-                UseShellExecute = true
-            });
+            application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+            window = new UpdateProgressWindow(options.Version);
+            window.SetDetectedUpdate($"Updating to v{options.Version}");
+            window.Show();
+            window.Apply(new LauncherUpdateProgress("Launcher closed", "Applying downloaded update files...", 5));
+            window.PumpUi();
+
+            ApplyPayload(options.SourceDirectory, options.TargetDirectory, window);
+            window.Apply(new LauncherUpdateProgress("Update complete", "Reopening Subnautica Launcher...", 100));
+            window.PumpUi();
+            StartLauncher(options.TargetDirectory);
+            Log("Update completed successfully.");
+            Thread.Sleep(500);
             return 0;
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine(exception);
+            Log("Update failed: " + exception);
+            if (window is not null)
+            {
+                window.Apply(new LauncherUpdateProgress("Update failed", exception.Message, 100));
+                window.PumpUi();
+            }
+            MessageBox.Show($"The launcher update could not be completed.\n\n{exception.Message}", "SNL Updater", MessageBoxButton.OK, MessageBoxImage.Error);
             return 1;
+        }
+        finally
+        {
+            try { window?.Close(); } catch { }
+            try { application?.Shutdown(); } catch { }
         }
     }
 
@@ -32,21 +66,17 @@ internal static class Program
         string? source = ReadOption(args, "--source-dir");
         string? target = ReadOption(args, "--target-dir");
         string? pidText = ReadOption(args, "--pid");
-
+        string version = ReadOption(args, "--version") ?? "Unknown";
         if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(target) ||
             !int.TryParse(pidText, out int processId) || processId <= 0)
-        {
-            throw new ArgumentException("Usage: --source-dir <downloaded-update-directory> --target-dir <launcher-directory> --pid <launcher-pid>");
-        }
+            throw new ArgumentException("Usage: --source-dir <directory> --target-dir <directory> --pid <launcher-pid> [--version <version>]");
 
         string sourcePath = Path.GetFullPath(source);
-        string targetPath = Path.GetFullPath(target);
-        if (!Directory.Exists(sourcePath))
-            throw new DirectoryNotFoundException("Downloaded update directory was not found: " + sourcePath);
+        string targetPath = Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar);
+        if (!Directory.Exists(sourcePath)) throw new DirectoryNotFoundException("Downloaded update directory was not found: " + sourcePath);
         if (!File.Exists(Path.Combine(sourcePath, "SubnauticaLauncher.exe")))
             throw new FileNotFoundException("Downloaded update does not contain SubnauticaLauncher.exe.");
-
-        return new UpdateArguments(sourcePath, targetPath, processId);
+        return new UpdateArguments(sourcePath, targetPath, processId, version);
     }
 
     private static string? ReadOption(string[] args, string name)
@@ -60,48 +90,62 @@ internal static class Program
         try
         {
             using Process launcher = Process.GetProcessById(processId);
+            Log($"Waiting for launcher PID {processId} to close.");
             launcher.WaitForExit(15000);
         }
         catch (ArgumentException)
         {
-            // The launcher has already exited.
+            Log("Launcher was already closed.");
         }
     }
 
-    private static void ApplyPayload(string sourceDirectory, string targetDirectory)
+    private static void ApplyPayload(string sourceDirectory, string targetDirectory, UpdateProgressWindow window)
     {
         Directory.CreateDirectory(targetDirectory);
         try
         {
-            foreach (string sourcePath in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+            string[] ordinaryFiles = Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories)
+                .Where(path =>
+                {
+                    string relative = Path.GetRelativePath(sourceDirectory, path);
+                    return !relative.StartsWith("Dependencies" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(relative, "Dependencies.zip", StringComparison.OrdinalIgnoreCase);
+                })
+                .ToArray();
+
+            for (int index = 0; index < ordinaryFiles.Length; index++)
             {
+                string sourcePath = ordinaryFiles[index];
                 string relativePath = Path.GetRelativePath(sourceDirectory, sourcePath);
-                if (relativePath.StartsWith("Dependencies" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                    continue;
                 string targetPath = Path.GetFullPath(Path.Combine(targetDirectory, relativePath));
                 if (!targetPath.StartsWith(targetDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("Update payload path cannot leave the launcher directory.");
 
-                Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
-                string stagedPath = targetPath + ".staged";
-                File.Copy(sourcePath, stagedPath, overwrite: true);
-                for (int attempt = 1; attempt <= ReplaceAttempts; attempt++)
-                {
-                    try
-                    {
-                        File.Move(stagedPath, targetPath, overwrite: true);
-                        break;
-                    }
-                    catch (IOException) when (attempt < ReplaceAttempts) { Thread.Sleep(RetryDelayMs); }
-                    catch (UnauthorizedAccessException) when (attempt < ReplaceAttempts) { Thread.Sleep(RetryDelayMs); }
-                }
-                if (File.Exists(stagedPath))
-                    throw new IOException("Could not replace update file after repeated attempts: " + relativePath);
+                window.Apply(new LauncherUpdateProgress(
+                    "Replacing launcher files...",
+                    Path.GetFileName(relativePath),
+                    10 + ((index + 1d) / Math.Max(ordinaryFiles.Length, 1) * 35)));
+                window.PumpUi();
+                ReplaceFile(sourcePath, targetPath);
             }
 
-            string sourceDependencies = Path.Combine(sourceDirectory, "Dependencies");
-            if (Directory.Exists(sourceDependencies))
-                ReplaceDirectory(sourceDependencies, Path.Combine(targetDirectory, "Dependencies"));
+            string dependencyArchive = Path.Combine(sourceDirectory, "Dependencies.zip");
+            string dependencyDirectory = Path.Combine(sourceDirectory, "Dependencies");
+            if (File.Exists(dependencyArchive))
+            {
+                window.Apply(new LauncherUpdateProgress("Updating dependencies...", "Extracting dependency bundle...", 55));
+                window.PumpUi();
+                ReplaceDependencyArchive(dependencyArchive, Path.Combine(targetDirectory, "Dependencies"));
+            }
+            else if (Directory.Exists(dependencyDirectory))
+            {
+                window.Apply(new LauncherUpdateProgress("Updating dependencies...", "Replacing dependency files...", 55));
+                window.PumpUi();
+                ReplaceDirectoryFromDirectory(dependencyDirectory, Path.Combine(targetDirectory, "Dependencies"));
+            }
+
+            window.Apply(new LauncherUpdateProgress("Cleaning up...", "Removing temporary update files...", 92));
+            window.PumpUi();
         }
         finally
         {
@@ -109,38 +153,62 @@ internal static class Program
         }
     }
 
-    private static void ReplaceDirectory(string sourceDirectory, string targetDirectory)
+    private static void ReplaceFile(string sourcePath, string targetPath)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+        string stagedPath = targetPath + ".staged";
+        File.Copy(sourcePath, stagedPath, overwrite: true);
+        for (int attempt = 1; attempt <= ReplaceAttempts; attempt++)
+        {
+            try { File.Move(stagedPath, targetPath, overwrite: true); return; }
+            catch (IOException) when (attempt < ReplaceAttempts) { Thread.Sleep(RetryDelayMs); }
+            catch (UnauthorizedAccessException) when (attempt < ReplaceAttempts) { Thread.Sleep(RetryDelayMs); }
+        }
+        throw new IOException("Could not replace update file after repeated attempts: " + Path.GetFileName(targetPath));
+    }
+
+    private static void ReplaceDependencyArchive(string archivePath, string targetDirectory)
     {
         string staged = targetDirectory + ".update-staged";
-        string backup = targetDirectory + ".update-backup";
         DeleteDirectoryWithRetry(staged);
-        DeleteDirectoryWithRetry(backup);
-        CopyDirectory(sourceDirectory, staged);
+        Directory.CreateDirectory(staged);
+        ZipFile.ExtractToDirectory(archivePath, staged, overwriteFiles: true);
+        SwapDirectory(staged, targetDirectory);
+    }
 
+    private static void ReplaceDirectoryFromDirectory(string sourceDirectory, string targetDirectory)
+    {
+        string staged = targetDirectory + ".update-staged";
+        DeleteDirectoryWithRetry(staged);
+        CopyDirectory(sourceDirectory, staged);
+        SwapDirectory(staged, targetDirectory);
+    }
+
+    private static void SwapDirectory(string staged, string target)
+    {
+        string backup = target + ".update-backup";
+        DeleteDirectoryWithRetry(backup);
         try
         {
-            if (Directory.Exists(targetDirectory)) MoveDirectoryWithRetry(targetDirectory, backup);
-            MoveDirectoryWithRetry(staged, targetDirectory);
+            if (Directory.Exists(target)) MoveDirectoryWithRetry(target, backup);
+            MoveDirectoryWithRetry(staged, target);
             DeleteDirectoryWithRetry(backup);
         }
         catch
         {
-            if (!Directory.Exists(targetDirectory) && Directory.Exists(backup))
-                MoveDirectoryWithRetry(backup, targetDirectory);
+            if (!Directory.Exists(target) && Directory.Exists(backup)) MoveDirectoryWithRetry(backup, target);
             throw;
         }
     }
 
-    private static void CopyDirectory(string sourceDirectory, string destinationDirectory)
+    private static void CopyDirectory(string source, string destination)
     {
-        foreach (string directory in Directory.EnumerateDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
-            Directory.CreateDirectory(Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, directory)));
-        Directory.CreateDirectory(destinationDirectory);
-        foreach (string file in Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+        Directory.CreateDirectory(destination);
+        foreach (string file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
         {
-            string destination = Path.Combine(destinationDirectory, Path.GetRelativePath(sourceDirectory, file));
-            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-            File.Copy(file, destination, overwrite: true);
+            string destinationPath = Path.Combine(destination, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            File.Copy(file, destinationPath, overwrite: true);
         }
     }
 
@@ -168,16 +236,26 @@ internal static class Program
 
     private static void TryDeleteDirectory(string path)
     {
-        try
-        {
-            if (Directory.Exists(path))
-                Directory.Delete(path, recursive: true);
-        }
-        catch
-        {
-            // Temporary-file cleanup must not stop the launcher from reopening.
-        }
+        try { if (Directory.Exists(path)) Directory.Delete(path, recursive: true); }
+        catch (Exception exception) { Log("Temporary update cleanup failed: " + exception.Message); }
     }
 
-    private sealed record UpdateArguments(string SourceDirectory, string TargetDirectory, int ProcessId);
+    private static void StartLauncher(string targetDirectory) => Process.Start(new ProcessStartInfo
+    {
+        FileName = Path.Combine(targetDirectory, "SubnauticaLauncher.exe"),
+        WorkingDirectory = targetDirectory,
+        UseShellExecute = true
+    });
+
+    private static void Log(string message)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(_logPath))
+                File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}{Environment.NewLine}", Encoding.UTF8);
+        }
+        catch { }
+    }
+
+    private sealed record UpdateArguments(string SourceDirectory, string TargetDirectory, int ProcessId, string Version);
 }

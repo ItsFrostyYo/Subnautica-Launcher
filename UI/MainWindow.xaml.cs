@@ -735,24 +735,34 @@ public partial class MainWindow : Window
     private async Task RunUpdateChecksIfIdleAsync(bool updatePlugins = true)
     {
         if (IsAnySubnauticaRunning() || !await _updateCheckGate.WaitAsync(0)) return;
+        UpdateProgressWindow? progressWindow = null;
+        bool updateAccepted = false;
         try
         {
             LauncherUpdate? update = await _updateService.CheckForUpdateAsync();
             if (update is not null && !IsAnySubnauticaRunning() && update.Version != _lastPromptedLauncherUpdate)
             {
                 _lastPromptedLauncherUpdate = update.Version;
-                if (WpfMessageBox.Show($"Launcher update v{update.Version.ToString(3)} is available. Update now?", "Launcher Update Available", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                var prompt = new LauncherUpdatePromptWindow(update) { Owner = this };
+                if (prompt.ShowDialog() == true)
                 {
+                    updateAccepted = true;
                     if (IsAnySubnauticaRunning()) return;
-                    string updaterPath = await _updaterUpdateService.EnsureLatestAsync();
+                    progressWindow = new UpdateProgressWindow(update.Version.ToString(3)) { Owner = this };
+                    progressWindow.SetDetectedUpdate($"Updating to v{update.Version.ToString(3)} - {update.Title}");
+                    progressWindow.Show();
+                    IsEnabled = false;
+                    var progress = new Progress<LauncherUpdateProgress>(progressWindow.Apply);
+                    string updaterPath = await _updaterUpdateService.EnsureLatestAsync(progress);
                     if (IsAnySubnauticaRunning()) return;
-                    string payloadDirectory = await _updateService.DownloadLauncherAsync(update);
+                    string payloadDirectory = await _updateService.DownloadLauncherAsync(update, progress);
                     if (IsAnySubnauticaRunning())
                     {
                         try { Directory.Delete(payloadDirectory, recursive: true); } catch { }
                         return;
                     }
-                    _updateService.StartUpdater(payloadDirectory, updaterPath);
+                    progressWindow.Apply(new LauncherUpdateProgress("Handing off to SNLUpdater...", "The launcher will close and reopen automatically.", 100));
+                    _updateService.StartUpdater(payloadDirectory, update.Version, updaterPath);
                     _updateHandoffStarted = true;
                     Close();
                     return;
@@ -765,9 +775,18 @@ public partial class MainWindow : Window
                 await ReloadPluginCardsAsync(checkForUpdates: false);
             }
         }
-        catch { }
+        catch (Exception exception)
+        {
+            if (updateAccepted)
+                WpfMessageBox.Show(this, $"The launcher update could not be completed.\n\n{exception.Message}", "Launcher Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
         finally
         {
+            if (!_updateHandoffStarted)
+            {
+                try { progressWindow?.Close(); } catch { }
+                if (IsLoaded) IsEnabled = true;
+            }
             _updateCheckGate.Release();
         }
     }

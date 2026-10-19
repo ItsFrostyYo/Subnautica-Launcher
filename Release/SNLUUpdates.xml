@@ -1,8 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <updates>
-  <update version="1.0.0.0" title="Initial SNL Updater">
+  <update version="1.0.1.0" title="Visual Update Handoff">
     <files>
       <file path="Release/SNLUpdater.exe" status="changed" />
     </files>
+  </update>
+  <update version="1.0.0.0" title="Initial SNL Updater">
   </update>
 </updates>
