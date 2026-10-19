@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!-- Keep compiler intermediates out of the source tree. -->
+    <BaseOutputPath>Artifacts\Intermediate\bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>Artifacts\Intermediate\obj\</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>Artifacts\Intermediate\obj\</MSBuildProjectExtensionsPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**\bin\**;**\obj\**;**\Artifacts\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

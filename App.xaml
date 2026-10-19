@@ -1,46 +1,32 @@
-<Application x:Class="SubnauticaLauncher.Core.App"
+<Application x:Class="SubnauticaLauncher.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="UI/MainWindow.xaml">
-
     <Application.Resources>
         <ResourceDictionary>
-            <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Subnautica/#Aller</FontFamily>
+        <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="UI/Styles/CommonStyles.xaml" />
+        </ResourceDictionary.MergedDictionaries>
 
-            <Style TargetType="{x:Type Window}">
-                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-                <Setter Property="UseLayoutRounding" Value="True"/>
-                <Setter Property="SnapsToDevicePixels" Value="True"/>
-                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
-                <Setter Property="TextOptions.TextRenderingMode" Value="Grayscale"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
-            </Style>
+        <FontFamily x:Key="AppFontFamily">pack://application:,,,/Assets/Subnautica/#Aller</FontFamily>
 
-            <Style TargetType="{x:Type Control}">
-                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
-                <Setter Property="TextOptions.TextRenderingMode" Value="Grayscale"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
-            </Style>
+        <Style TargetType="Window">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            <Setter Property="UseLayoutRounding" Value="True" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+            <Setter Property="TextOptions.TextRenderingMode" Value="Grayscale" />
+        </Style>
 
-            <Style TargetType="{x:Type TextBlock}">
-                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
-                <Setter Property="TextOptions.TextRenderingMode" Value="Grayscale"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
-            </Style>
+        <Style TargetType="Control">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
 
-            <Style TargetType="{x:Type TextElement}">
-                <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}"/>
-                <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
-                <Setter Property="TextOptions.TextRenderingMode" Value="Grayscale"/>
-                <Setter Property="TextOptions.TextHintingMode" Value="Fixed"/>
-            </Style>
-
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="UI/Styles/CommonStyles.xaml"/>
-            </ResourceDictionary.MergedDictionaries>
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
-

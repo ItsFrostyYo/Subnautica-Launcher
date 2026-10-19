@@ -1,9 +1,8 @@
-namespace SubnauticaLauncher.Enums
+namespace SubnauticaLauncher.Enums;
+
+public enum LauncherGame
 {
-    public enum LauncherGame
-    {
-        Subnautica,
-        BelowZero,
-        Subnautica2
-    }
+    Subnautica,
+    BelowZero,
+    Subnautica2
 }

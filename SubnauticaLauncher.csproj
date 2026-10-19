@@ -1,115 +1,62 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationIcon>Assets\Icons\SNL.ico</ApplicationIcon>
+    <StartupObject>SubnauticaLauncher.Program</StartupObject>
+    <RootNamespace>SubnauticaLauncher</RootNamespace>
+    <Version>4.0.0</Version>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
 
-	<PropertyGroup>
-		<OutputType>WinExe</OutputType>
-		<TargetFramework>net8.0-windows</TargetFramework>
-		<UseWPF>true</UseWPF>
-		<UseWindowsForms>true</UseWindowsForms>
-
-		<Version>3.3.2</Version>
-		<AssemblyVersion>$(Version).0</AssemblyVersion>
-		<FileVersion>$(Version).0</FileVersion>
-
-		<Nullable>enable</Nullable>
-		<ImplicitUsings>enable</ImplicitUsings>
-		<ApplicationIcon>Assets\Icons\SNL.ico</ApplicationIcon>
-	</PropertyGroup>
-
-	<PropertyGroup>
-		<EnableDebugTelemetry Condition="'$(EnableDebugTelemetry)' == '' and '$(Configuration)' == 'Debug'">true</EnableDebugTelemetry>
-		<EnableDebugTelemetry Condition="'$(EnableDebugTelemetry)' == '' and '$(Configuration)' != 'Debug'">false</EnableDebugTelemetry>
-		<DefineConstants Condition="'$(EnableDebugTelemetry)' == 'true'">$(DefineConstants);ENABLE_DEBUG_TELEMETRY</DefineConstants>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<Optimize>false</Optimize>
-		<DebugType>portable</DebugType>
-		<DebugSymbols>true</DebugSymbols>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-	  <Optimize>True</Optimize>
-	</PropertyGroup>
-
-	<ItemGroup>
-	  <Compile Remove="tools\SNLUpdater\**\*.cs" />
-	  <EmbeddedResource Remove="tools\SNLUpdater\**\*" />
-	  <None Remove="tools\SNLUpdater\**\*" />
-	  <Compile Remove="External Research\**\*.cs" />
-	  <Compile Remove="SprinterAutosplitter\**\*.cs" />
-	  <EmbeddedResource Remove="SprinterAutosplitter\**\*" />
-	  <None Remove="SprinterAutosplitter\**\*" />
-	  <Content Remove="SprinterAutosplitter\**\*" />
-	  <None Remove="Assets\Backgrounds\**\*.png" />
-	  <None Remove="Assets\Icons\**\*.png" />
-	  <None Remove="Assets\Icons\**\*.ico" />
-	  <None Remove="Assets\Subnautica\**\*.ttf" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <PackageReference Include="System.Drawing.Common" Version="10.0.2" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Resource Include="Assets\Backgrounds\**\*.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\**\*.png">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Icons\**\*.ico">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	  <Resource Include="Assets\Subnautica\**\*.ttf">
-	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-	  </Resource>
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Compile Update="Properties\Settings.Designer.cs">
-	    <DesignTimeSharedInput>True</DesignTimeSharedInput>
-	    <AutoGen>True</AutoGen>
-	    <DependentUpon>Settings.settings</DependentUpon>
-	  </Compile>
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Update="Properties\Settings.settings">
-	    <Generator>SettingsSingleFileGenerator</Generator>
-	    <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-	  </None>
-	</ItemGroup>
-
-	<Target Name="BuildUpdaterProject" BeforeTargets="Build;Publish" Condition="'$(SkipUpdaterBuild)' != 'true'">
-	  <MSBuild
-		Projects="$(MSBuildProjectDirectory)\tools\SNLUpdater\SNLUpdater.csproj"
-		Targets="Restore;Build"
-		Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained)" />
-	</Target>
-
-	<Target Name="CopyUpdaterToBuildOutput" AfterTargets="Build" Condition="'$(SkipUpdaterBuild)' != 'true'">
-	  <Copy
-		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe"
-		DestinationFolder="$(OutDir)"
-		SkipUnchangedFiles="true"
-		Condition="'$(RuntimeIdentifier)' != '' and Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe')" />
-	  <Copy
-		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe"
-		DestinationFolder="$(OutDir)"
-		SkipUnchangedFiles="true"
-		Condition="Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe')" />
-	</Target>
-
-	<Target Name="CopyUpdaterToPublishOutput" AfterTargets="Publish" Condition="'$(SkipUpdaterBuild)' != 'true'">
-	  <Copy
-		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe"
-		DestinationFolder="$(PublishDir)"
-		SkipUnchangedFiles="true"
-		Condition="'$(RuntimeIdentifier)' != '' and Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe')" />
-	  <Copy
-		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe"
-		DestinationFolder="$(PublishDir)"
-		SkipUnchangedFiles="true"
-		Condition="Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe')" />
-	</Target>
-
+  <ItemGroup>
+    <Compile Remove="Updater\**\*.cs" />
+    <Compile Remove="Artifacts\**\*.cs" />
+    <Compile Remove="External Research\**\*.cs" />
+    <EmbeddedResource Remove="Updater\**\*" />
+    <None Remove="Updater\**\*" />
+    <Resource Include="Assets\**\*" />
+    <Content Include="Dependencies\**\*" Exclude="Dependencies\LiveSplit\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Reference Include="LiveSplit.Core">
+      <HintPath>Dependencies\LiveSplit\LiveSplit.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="UpdateManager">
+      <HintPath>Dependencies\LiveSplit\UpdateManager.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="System.Text.Json">
+      <HintPath>Dependencies\LiveSplit\System.Text.Json.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="System.Text.Encodings.Web">
+      <HintPath>Dependencies\LiveSplit\System.Text.Encodings.Web.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="System.IO.Pipelines">
+      <HintPath>Dependencies\LiveSplit\System.IO.Pipelines.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Content Include="Updates\SNLUpdates.xml">
+      <Link>SNLUpdates.xml</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="Updates\SNLUUpdates.xml">
+      <Link>SNLUUpdates.xml</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

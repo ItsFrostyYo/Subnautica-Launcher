@@ -1,0 +1,156 @@
+using System.IO;
+using System.Text.Json;
+using System.Xml.Linq;
+using SubnauticaLauncher.Core;
+using SubnauticaLauncher.Models;
+
+namespace SubnauticaLauncher.Services;
+
+internal sealed class PluginStateStore
+{
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
+    public PluginPersistentState Load(string pluginId)
+    {
+        try
+        {
+            string path = GetStatePath(pluginId);
+            string legacyPath = GetLegacyStatePath(pluginId);
+            string source = File.Exists(path) ? path : legacyPath;
+            PluginPersistentState state = File.Exists(source)
+                ? JsonSerializer.Deserialize<PluginPersistentState>(File.ReadAllText(source)) ?? new PluginPersistentState()
+                : new PluginPersistentState();
+            if (source == legacyPath)
+            {
+                WriteAtomic(path, state);
+                TryDelete(legacyPath);
+            }
+            return state;
+        }
+        catch
+        {
+            return new PluginPersistentState();
+        }
+    }
+
+    public void Save(string pluginId, PluginPersistentState state, string reason)
+    {
+        state.LastChangedUtc = DateTime.UtcNow;
+        state.LastChangeReason = reason;
+        WriteAtomic(GetStatePath(pluginId), state);
+        TryDelete(GetLegacyStatePath(pluginId));
+    }
+
+    public SubnauticaMacroPluginSettings LoadMacroSettings(string pluginId)
+    {
+        try
+        {
+            string xmlPath = GetLiveSplitSettingsPath(pluginId);
+            if (File.Exists(xmlPath))
+            {
+                TryDelete(GetLegacySettingsPath(pluginId));
+                return ParseMacroSettings(xmlPath);
+            }
+
+            string legacyPath = GetLegacySettingsPath(pluginId);
+            SubnauticaMacroPluginSettings settings = File.Exists(legacyPath)
+                ? JsonSerializer.Deserialize<SubnauticaMacroPluginSettings>(File.ReadAllText(legacyPath)) ?? new SubnauticaMacroPluginSettings()
+                : new SubnauticaMacroPluginSettings();
+            SaveMacroSettingsFiles(pluginId, settings);
+            return settings;
+        }
+        catch
+        {
+            return new SubnauticaMacroPluginSettings();
+        }
+    }
+
+    public void SaveMacroSettings(string pluginId, SubnauticaMacroPluginSettings settings) =>
+        SaveMacroSettingsFiles(pluginId, settings);
+
+    public string EnsureLiveSplitSettings(string pluginId)
+    {
+        string path = GetLiveSplitSettingsPath(pluginId);
+        if (!File.Exists(path)) SaveMacroSettingsFiles(pluginId, LoadMacroSettings(pluginId));
+        TryDelete(GetLegacySettingsPath(pluginId));
+        return path;
+    }
+
+    public string GetLiveSplitSettingsPath(string pluginId) => Path.Combine(GetPluginDataPath(pluginId), "settings.xml");
+
+    public string GetPluginDataDirectory(string pluginId)
+    {
+        string path = GetPluginDataPath(pluginId);
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static string GetPluginDataPath(string pluginId) => Path.Combine(AppPaths.DataPath, "Plugins", pluginId);
+    private static string GetStatePath(string pluginId) => Path.Combine(GetPluginDataPath(pluginId), "plugin.json");
+    private static string GetLegacyStatePath(string pluginId) => Path.Combine(GetPluginDataPath(pluginId), "state.json");
+    private static string GetLegacySettingsPath(string pluginId) => Path.Combine(GetPluginDataPath(pluginId), "settings.json");
+    private void SaveMacroSettingsFiles(string pluginId, SubnauticaMacroPluginSettings settings)
+    {
+        string[] gameModes = ["Survival", "Hardcore", "Creative", "Freedom", "BetterRngSurvival", "BetterRngHardcore", "BetterRngCreative"];
+        string[] presets = ["Minutes46To46_30", "Minutes46To47", "Minutes46To48", "Minutes46To50", "UnderOneHour", "OverOneHour", "Custom"];
+        var document = new XDocument(
+            new XElement("Settings",
+                new XElement("Version", "1.1"),
+                new XElement("Enabled", settings.MacroEnabled),
+                new XElement("Hotkey", settings.Hotkey),
+                new XElement("GameMode", gameModes[Math.Clamp(settings.GameMode, 0, gameModes.Length - 1)]),
+                new XElement("ExplosionReset", settings.ExplosionReset),
+                new XElement("ExplosionPreset", presets[Math.Clamp(settings.ExplosionPreset, 0, presets.Length - 1)]),
+                new XElement("CustomMinimumSeconds", settings.CustomMinimumSeconds),
+                new XElement("CustomMaximumSeconds", settings.CustomMaximumSeconds)));
+        WriteTextAtomic(GetLiveSplitSettingsPath(pluginId), document.ToString(SaveOptions.DisableFormatting));
+        TryDelete(GetLegacySettingsPath(pluginId));
+    }
+
+    private static SubnauticaMacroPluginSettings ParseMacroSettings(string path)
+    {
+        string[] gameModes = ["Survival", "Hardcore", "Creative", "Freedom", "BetterRngSurvival", "BetterRngHardcore", "BetterRngCreative"];
+        string[] presets = ["Minutes46To46_30", "Minutes46To47", "Minutes46To48", "Minutes46To50", "UnderOneHour", "OverOneHour", "Custom"];
+        XElement root = XDocument.Load(path).Root ?? throw new InvalidDataException("The plugin settings XML has no root element.");
+        int gameMode = Array.FindIndex(gameModes, value => string.Equals(value, root.Element("GameMode")?.Value, StringComparison.OrdinalIgnoreCase));
+        int preset = Array.FindIndex(presets, value => string.Equals(value, root.Element("ExplosionPreset")?.Value, StringComparison.OrdinalIgnoreCase));
+        return new SubnauticaMacroPluginSettings
+        {
+            MacroEnabled = bool.TryParse(root.Element("Enabled")?.Value, out bool enabled) && enabled,
+            Hotkey = int.TryParse(root.Element("Hotkey")?.Value, out int hotkey) ? hotkey : 116,
+            GameMode = Math.Max(0, gameMode),
+            ExplosionReset = bool.TryParse(root.Element("ExplosionReset")?.Value, out bool explosion) && explosion,
+            ExplosionPreset = Math.Max(0, preset),
+            CustomMinimumSeconds = int.TryParse(root.Element("CustomMinimumSeconds")?.Value, out int minimum) ? minimum : 2760,
+            CustomMaximumSeconds = int.TryParse(root.Element("CustomMaximumSeconds")?.Value, out int maximum) ? maximum : 2790
+        };
+    }
+
+    private static void WriteAtomic<T>(string path, T value)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        string temporary = path + ".tmp";
+        File.WriteAllText(temporary, JsonSerializer.Serialize(value, JsonOptions));
+        File.Move(temporary, path, true);
+    }
+
+    private static void WriteTextAtomic(string path, string value)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        string temporary = path + ".tmp";
+        File.WriteAllText(temporary, value);
+        File.Move(temporary, path, true);
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { File.Delete(path); } catch { }
+    }
+}
+
+internal sealed class PluginPersistentState
+{
+    public bool Enabled { get; set; }
+    public DateTime? LastChangedUtc { get; set; }
+    public string? LastChangeReason { get; set; }
+}
