@@ -4,6 +4,6 @@ using System.Windows;
 [assembly: AssemblyTitle("Subnautica Launcher")]
 [assembly: AssemblyDescription("A launcher for Subnautica.")]
 [assembly: AssemblyProduct("Subnautica Launcher")]
-[assembly: AssemblyVersion("4.0.1.0")]
-[assembly: AssemblyFileVersion("4.0.1.0")]
+[assembly: AssemblyVersion("4.0.1.1")]
+[assembly: AssemblyFileVersion("4.0.1.1")]
 [assembly: ThemeInfo(ResourceDictionaryLocation.None, ResourceDictionaryLocation.SourceAssembly)]

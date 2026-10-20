@@ -6,9 +6,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>SNLUpdater</AssemblyName>
-    <Version>1.0.1</Version>
-    <AssemblyVersion>1.0.1.0</AssemblyVersion>
-    <FileVersion>1.0.1.0</FileVersion>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>1.0.2.0</AssemblyVersion>
+    <FileVersion>1.0.2.0</FileVersion>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
@@ -16,5 +16,7 @@
   <ItemGroup>
     <Compile Include="..\Updates\LauncherUpdateModels.cs" Link="Updates\LauncherUpdateModels.cs" />
     <Compile Include="..\Updates\UpdateProgressWindow.cs" Link="Updates\UpdateProgressWindow.cs" />
+    <Resource Include="..\Assets\Icons\SNLIcon.png" Link="Assets\Icons\SNLIcon.png" />
+    <Resource Include="..\Assets\Subnautica\aller.regular.ttf" Link="Assets\Subnautica\aller.regular.ttf" />
   </ItemGroup>
 </Project>

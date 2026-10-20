@@ -32,8 +32,9 @@ internal static class Program
             window = new UpdateProgressWindow(options.Version);
             window.SetDetectedUpdate($"Updating to v{options.Version}");
             window.Show();
-            window.Apply(new LauncherUpdateProgress("Launcher closed", "Applying downloaded update files...", 5));
+            window.Apply(new LauncherUpdateProgress("Launcher closed", "Waiting for launcher helpers to finish...", 5));
             window.PumpUi();
+            WaitForLauncherHelpers(options.TargetDirectory, window);
 
             ApplyPayload(options.SourceDirectory, options.TargetDirectory, window);
             window.Apply(new LauncherUpdateProgress("Update complete", "Reopening Subnautica Launcher...", 100));
@@ -66,7 +67,7 @@ internal static class Program
         string? source = ReadOption(args, "--source-dir");
         string? target = ReadOption(args, "--target-dir");
         string? pidText = ReadOption(args, "--pid");
-        string version = ReadOption(args, "--version") ?? "Unknown";
+        string? requestedVersion = ReadOption(args, "--version");
         if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(target) ||
             !int.TryParse(pidText, out int processId) || processId <= 0)
             throw new ArgumentException("Usage: --source-dir <directory> --target-dir <directory> --pid <launcher-pid> [--version <version>]");
@@ -74,9 +75,18 @@ internal static class Program
         string sourcePath = Path.GetFullPath(source);
         string targetPath = Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar);
         if (!Directory.Exists(sourcePath)) throw new DirectoryNotFoundException("Downloaded update directory was not found: " + sourcePath);
-        if (!File.Exists(Path.Combine(sourcePath, "SubnauticaLauncher.exe")))
+        string launcherPayload = Path.Combine(sourcePath, "SubnauticaLauncher.exe");
+        if (!File.Exists(launcherPayload))
             throw new FileNotFoundException("Downloaded update does not contain SubnauticaLauncher.exe.");
+        string version = ResolveUpdateVersion(requestedVersion, launcherPayload);
         return new UpdateArguments(sourcePath, targetPath, processId, version);
+    }
+
+    private static string ResolveUpdateVersion(string? requestedVersion, string launcherPayload)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedVersion)) return requestedVersion;
+        string? fileVersion = FileVersionInfo.GetVersionInfo(launcherPayload).FileVersion;
+        return Version.TryParse(fileVersion, out Version? version) ? version.ToString() : "Unknown";
     }
 
     private static string? ReadOption(string[] args, string name)
@@ -91,7 +101,8 @@ internal static class Program
         {
             using Process launcher = Process.GetProcessById(processId);
             Log($"Waiting for launcher PID {processId} to close.");
-            launcher.WaitForExit(15000);
+            if (!launcher.WaitForExit(30000))
+                throw new TimeoutException("The launcher did not close within 30 seconds.");
         }
         catch (ArgumentException)
         {
@@ -99,58 +110,123 @@ internal static class Program
         }
     }
 
+    private static void WaitForLauncherHelpers(string targetDirectory, UpdateProgressWindow window)
+    {
+        var gracefulWait = Stopwatch.StartNew();
+        while (gracefulWait.Elapsed < TimeSpan.FromSeconds(5))
+        {
+            using ProcessCollection helpers = FindLauncherHelpers(targetDirectory);
+            if (helpers.Count == 0) return;
+            window.Apply(new LauncherUpdateProgress(
+                "Closing launcher helpers...",
+                $"Waiting for {helpers.Count} launcher helper process{(helpers.Count == 1 ? string.Empty : "es")}...",
+                7));
+            window.PumpUi();
+            Thread.Sleep(150);
+        }
+
+        using (ProcessCollection helpers = FindLauncherHelpers(targetDirectory))
+        {
+            foreach (Process helper in helpers.Processes)
+            {
+                try
+                {
+                    Log($"Stopping launcher helper PID {helper.Id}: {helper.ProcessName}.");
+                    helper.Kill(entireProcessTree: true);
+                    helper.WaitForExit(5000);
+                }
+                catch (Exception exception)
+                {
+                    Log($"Could not stop launcher helper PID {helper.Id}: {exception.Message}");
+                }
+            }
+        }
+
+        using ProcessCollection remaining = FindLauncherHelpers(targetDirectory);
+        if (remaining.Count > 0)
+            throw new IOException("Launcher helper processes are still using update files. Close them and try again.");
+    }
+
+    private static ProcessCollection FindLauncherHelpers(string targetDirectory)
+    {
+        string launcherPath = Path.Combine(targetDirectory, "SubnauticaLauncher.exe");
+        string imGuiHostPath = Path.Combine(targetDirectory, "Dependencies", "SubnauticaLauncher.ImGuiHost.exe");
+        var matches = new List<Process>();
+        foreach (Process process in Process.GetProcesses())
+        {
+            if (process.Id == Environment.ProcessId)
+            {
+                process.Dispose();
+                continue;
+            }
+
+            try
+            {
+                string? executablePath = process.MainModule?.FileName;
+                if (string.Equals(executablePath, launcherPath, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(executablePath, imGuiHostPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    matches.Add(process);
+                    continue;
+                }
+            }
+            catch
+            {
+                // Protected and already-exited processes cannot be launcher helpers at these paths.
+            }
+
+            process.Dispose();
+        }
+        return new ProcessCollection(matches);
+    }
+
     private static void ApplyPayload(string sourceDirectory, string targetDirectory, UpdateProgressWindow window)
     {
         Directory.CreateDirectory(targetDirectory);
-        try
+        string[] ordinaryFiles = Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories)
+            .Where(path =>
+            {
+                string relative = Path.GetRelativePath(sourceDirectory, path);
+                return !relative.StartsWith("Dependencies" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(relative, "Dependencies.zip", StringComparison.OrdinalIgnoreCase);
+            })
+            .OrderBy(path => string.Equals(Path.GetFileName(path), "SubnauticaLauncher.exe", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
+            .ToArray();
+
+        string dependencyArchive = Path.Combine(sourceDirectory, "Dependencies.zip");
+        string dependencyDirectory = Path.Combine(sourceDirectory, "Dependencies");
+        if (File.Exists(dependencyArchive))
         {
-            string[] ordinaryFiles = Directory.EnumerateFiles(sourceDirectory, "*", SearchOption.AllDirectories)
-                .Where(path =>
-                {
-                    string relative = Path.GetRelativePath(sourceDirectory, path);
-                    return !relative.StartsWith("Dependencies" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(relative, "Dependencies.zip", StringComparison.OrdinalIgnoreCase);
-                })
-                .ToArray();
-
-            for (int index = 0; index < ordinaryFiles.Length; index++)
-            {
-                string sourcePath = ordinaryFiles[index];
-                string relativePath = Path.GetRelativePath(sourceDirectory, sourcePath);
-                string targetPath = Path.GetFullPath(Path.Combine(targetDirectory, relativePath));
-                if (!targetPath.StartsWith(targetDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("Update payload path cannot leave the launcher directory.");
-
-                window.Apply(new LauncherUpdateProgress(
-                    "Replacing launcher files...",
-                    Path.GetFileName(relativePath),
-                    10 + ((index + 1d) / Math.Max(ordinaryFiles.Length, 1) * 35)));
-                window.PumpUi();
-                ReplaceFile(sourcePath, targetPath);
-            }
-
-            string dependencyArchive = Path.Combine(sourceDirectory, "Dependencies.zip");
-            string dependencyDirectory = Path.Combine(sourceDirectory, "Dependencies");
-            if (File.Exists(dependencyArchive))
-            {
-                window.Apply(new LauncherUpdateProgress("Updating dependencies...", "Extracting dependency bundle...", 55));
-                window.PumpUi();
-                ReplaceDependencyArchive(dependencyArchive, Path.Combine(targetDirectory, "Dependencies"));
-            }
-            else if (Directory.Exists(dependencyDirectory))
-            {
-                window.Apply(new LauncherUpdateProgress("Updating dependencies...", "Replacing dependency files...", 55));
-                window.PumpUi();
-                ReplaceDirectoryFromDirectory(dependencyDirectory, Path.Combine(targetDirectory, "Dependencies"));
-            }
-
-            window.Apply(new LauncherUpdateProgress("Cleaning up...", "Removing temporary update files...", 92));
+            window.Apply(new LauncherUpdateProgress("Updating dependencies...", "Extracting dependency bundle...", 15));
             window.PumpUi();
+            ReplaceDependencyArchive(dependencyArchive, Path.Combine(targetDirectory, "Dependencies"));
         }
-        finally
+        else if (Directory.Exists(dependencyDirectory))
         {
-            TryDeleteDirectory(sourceDirectory);
+            window.Apply(new LauncherUpdateProgress("Updating dependencies...", "Replacing dependency files...", 15));
+            window.PumpUi();
+            ReplaceDirectoryFromDirectory(dependencyDirectory, Path.Combine(targetDirectory, "Dependencies"));
         }
+
+        for (int index = 0; index < ordinaryFiles.Length; index++)
+        {
+            string sourcePath = ordinaryFiles[index];
+            string relativePath = Path.GetRelativePath(sourceDirectory, sourcePath);
+            string targetPath = Path.GetFullPath(Path.Combine(targetDirectory, relativePath));
+            if (!targetPath.StartsWith(targetDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Update payload path cannot leave the launcher directory.");
+
+            window.Apply(new LauncherUpdateProgress(
+                "Replacing launcher files...",
+                Path.GetFileName(relativePath),
+                60 + ((index + 1d) / Math.Max(ordinaryFiles.Length, 1) * 30)));
+            window.PumpUi();
+            ReplaceFile(sourcePath, targetPath);
+        }
+
+        window.Apply(new LauncherUpdateProgress("Cleaning up...", "Removing temporary update files...", 92));
+        window.PumpUi();
+        TryDeleteDirectory(sourceDirectory);
     }
 
     private static void ReplaceFile(string sourcePath, string targetPath)
@@ -255,6 +331,17 @@ internal static class Program
                 File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}{Environment.NewLine}", Encoding.UTF8);
         }
         catch { }
+    }
+
+    private sealed class ProcessCollection(List<Process> processes) : IDisposable
+    {
+        public IReadOnlyList<Process> Processes { get; } = processes;
+        public int Count => Processes.Count;
+
+        public void Dispose()
+        {
+            foreach (Process process in Processes) process.Dispose();
+        }
     }
 
     private sealed record UpdateArguments(string SourceDirectory, string TargetDirectory, int ProcessId, string Version);

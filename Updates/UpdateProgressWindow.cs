@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -136,9 +135,9 @@ public sealed class UpdateProgressWindow : Window
     {
         try
         {
-            string fonts = Path.Combine(AppContext.BaseDirectory, "Dependencies", "Assets", "Fonts") + Path.DirectorySeparatorChar;
-            if (File.Exists(Path.Combine(fonts, "aller.regular.ttf")))
-                return new WpfFontFamily(new Uri(fonts, UriKind.Absolute), "./#Aller");
+            return new WpfFontFamily(
+                new Uri("pack://application:,,,/", UriKind.Absolute),
+                "./Assets/Subnautica/#Aller");
         }
         catch { }
         return new WpfFontFamily("Segoe UI");
@@ -148,12 +147,10 @@ public sealed class UpdateProgressWindow : Window
     {
         try
         {
-            string path = Path.Combine(AppContext.BaseDirectory, "Dependencies", "Assets", "Icons", "SNLIcon.png");
-            if (!File.Exists(path)) return null;
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.UriSource = new Uri(path, UriKind.Absolute);
+            bitmap.UriSource = new Uri("pack://application:,,,/Assets/Icons/SNLIcon.png", UriKind.Absolute);
             bitmap.EndInit();
             bitmap.Freeze();
             return new WpfImage

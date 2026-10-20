@@ -1,12 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <updates>
-  <update version="4.0.1.0" title="Updater and Plugin Reliability" date="October 19, 2026 | Contributors (1) - ItsFrosti.">
+  <update version="4.0.1.1" title="Updater Reliability Hotfix" date="October 19, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Fixed a dependency lock that could leave the launcher only partially updated</change>
+      <change>Improved updater handoff so launcher helpers close fully before files are replaced</change>
+    </changelog>
     <files>
       <file path="Release/Dependencies.zip" status="changed" />
       <file path="Release/SNLUpdates.xml" status="changed" />
       <file path="Release/SNLUUpdates.xml" status="changed" />
       <file path="Release/SubnauticaLauncher.exe" status="changed" />
     </files>
+  </update>
+  <update version="4.0.1.0" title="Updater and Plugin Reliability" date="October 19, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
       <change>Added detailed launcher update prompts that show the full changelog before updating</change>
       <change>Added matching download and installation progress windows across the launcher and updater handoff</change>

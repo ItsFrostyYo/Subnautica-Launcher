@@ -256,7 +256,10 @@ public static class ImGuiAddVersionWindow
             try
             {
                 if (!process.HasExited)
+                {
                     process.Kill(entireProcessTree: true);
+                    process.WaitForExit(5000);
+                }
             }
             catch { }
             finally
