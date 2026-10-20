@@ -7,4 +7,4 @@
 *.dll binary
 *.exe binary
 *.zip binary
-Release/*.zip filter=lfs diff=lfs merge=lfs -text
+Release/SubnauticaLauncher.zip filter=lfs diff=lfs merge=lfs -text
