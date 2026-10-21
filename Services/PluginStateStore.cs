@@ -49,7 +49,10 @@ internal sealed class PluginStateStore
             if (File.Exists(xmlPath))
             {
                 TryDelete(GetLegacySettingsPath(pluginId));
-                return ParseMacroSettings(xmlPath);
+                SubnauticaMacroPluginSettings parsedSettings = ParseMacroSettings(xmlPath);
+                if (NormalizeHotkey(parsedSettings))
+                    SaveMacroSettingsFiles(pluginId, parsedSettings);
+                return parsedSettings;
             }
 
             string legacyPath = GetLegacySettingsPath(pluginId);
@@ -71,8 +74,7 @@ internal sealed class PluginStateStore
     public string EnsureLiveSplitSettings(string pluginId)
     {
         string path = GetLiveSplitSettingsPath(pluginId);
-        if (!File.Exists(path)) SaveMacroSettingsFiles(pluginId, LoadMacroSettings(pluginId));
-        TryDelete(GetLegacySettingsPath(pluginId));
+        _ = LoadMacroSettings(pluginId);
         return path;
     }
 
@@ -91,6 +93,7 @@ internal sealed class PluginStateStore
     private static string GetLegacySettingsPath(string pluginId) => Path.Combine(GetPluginDataPath(pluginId), "settings.json");
     private void SaveMacroSettingsFiles(string pluginId, SubnauticaMacroPluginSettings settings)
     {
+        NormalizeHotkey(settings);
         string[] gameModes = ["Survival", "Hardcore", "Creative", "Freedom", "BetterRngSurvival", "BetterRngHardcore", "BetterRngCreative"];
         string[] presets = ["Minutes46To46_30", "Minutes46To47", "Minutes46To48", "Minutes46To50", "UnderOneHour", "OverOneHour", "Custom"];
         var document = new XDocument(
@@ -105,6 +108,27 @@ internal sealed class PluginStateStore
                 new XElement("CustomMaximumSeconds", settings.CustomMaximumSeconds)));
         WriteTextAtomic(GetLiveSplitSettingsPath(pluginId), document.ToString(SaveOptions.DisableFormatting));
         TryDelete(GetLegacySettingsPath(pluginId));
+    }
+
+    private static bool NormalizeHotkey(SubnauticaMacroPluginSettings settings)
+    {
+        const int keyCodeMask = 0xFFFF;
+        const int shiftModifier = 0x10000;
+        const int controlModifier = 0x20000;
+        const int altModifier = 0x40000;
+        int original = settings.Hotkey;
+        int keyCode = original & keyCodeMask;
+        int normalized = original;
+
+        if (keyCode is 0x10 or 0xA0 or 0xA1)
+            normalized &= ~shiftModifier;
+        if (keyCode is 0x11 or 0xA2 or 0xA3)
+            normalized &= ~controlModifier;
+        if (keyCode is 0x12 or 0xA4 or 0xA5)
+            normalized &= ~altModifier;
+
+        settings.Hotkey = normalized;
+        return normalized != original;
     }
 
     private static SubnauticaMacroPluginSettings ParseMacroSettings(string path)

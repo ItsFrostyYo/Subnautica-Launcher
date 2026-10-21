@@ -223,19 +223,65 @@ static std::string FindSteamLaunchOptions()
     return {};
 }
 
+static bool IsModifierKey(int key)
+{
+    return key == VK_SHIFT || key == VK_LSHIFT || key == VK_RSHIFT
+        || key == VK_CONTROL || key == VK_LCONTROL || key == VK_RCONTROL
+        || key == VK_MENU || key == VK_LMENU || key == VK_RMENU;
+}
+
+static bool IsShiftKey(int key)
+{
+    return key == VK_SHIFT || key == VK_LSHIFT || key == VK_RSHIFT;
+}
+
+static bool IsControlKey(int key)
+{
+    return key == VK_CONTROL || key == VK_LCONTROL || key == VK_RCONTROL;
+}
+
+static bool IsAltKey(int key)
+{
+    return key == VK_MENU || key == VK_LMENU || key == VK_RMENU;
+}
+
+static int NormalizeHotkey(int value)
+{
+    int key = value & 0xFFFF;
+    if (IsShiftKey(key)) value &= ~0x10000;
+    if (IsControlKey(key)) value &= ~0x20000;
+    if (IsAltKey(key)) value &= ~0x40000;
+    return value;
+}
+
 static LRESULT WINAPI WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    if (g_capturePluginHotkey && message == WM_KEYDOWN)
+    if (g_capturePluginHotkey && (message == WM_KEYDOWN || message == WM_SYSKEYDOWN))
     {
         int key = static_cast<int>(wParam);
-        if (key == VK_ESCAPE) key = 0;
+        if (IsModifierKey(key))
+            return 0;
+
+        if (key == VK_ESCAPE)
+            key = 0;
         else
         {
             if ((GetKeyState(VK_SHIFT) & 0x8000) != 0) key |= 0x10000;
             if ((GetKeyState(VK_CONTROL) & 0x8000) != 0) key |= 0x20000;
             if ((GetKeyState(VK_MENU) & 0x8000) != 0) key |= 0x40000;
         }
-        g_pluginCapturedHotkey = key;
+        g_pluginCapturedHotkey = NormalizeHotkey(key);
+        g_capturePluginHotkey = false;
+        return 0;
+    }
+    if (g_capturePluginHotkey && (message == WM_KEYUP || message == WM_SYSKEYUP))
+    {
+        int key = static_cast<int>(wParam);
+        if (!IsModifierKey(key))
+            return 0;
+
+        // Match LiveSplit: a modifier only completes capture when released alone.
+        g_pluginCapturedHotkey = NormalizeHotkey(key);
         g_capturePluginHotkey = false;
         return 0;
     }
@@ -328,6 +374,7 @@ static std::string Decode(const std::string& value)
 
 static std::string FormatHotkey(int value)
 {
+    value = NormalizeHotkey(value);
     if (value <= 0) return "None";
     std::string result;
     if ((value & 0x20000) != 0) result += "Ctrl + ";
@@ -575,7 +622,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
     const std::string settingsVersionsArgument = GetArgument(args, "--settings-versions");
     const std::string settingsEntriesArgument = GetArgument(args, "--settings-entries");
     bool pluginMacroEnabled = GetArgument(args, "--macro-enabled") == "1";
-    g_pluginCapturedHotkey = std::atoi(GetArgument(args, "--plugin-hotkey").c_str());
+    g_pluginCapturedHotkey = NormalizeHotkey(std::atoi(GetArgument(args, "--plugin-hotkey").c_str()));
     int pluginGameMode = std::clamp(std::atoi(GetArgument(args, "--plugin-game-mode").c_str()), 0, 6);
     bool pluginExplosionReset = GetArgument(args, "--plugin-explosion") == "1";
     int pluginExplosionPreset = std::clamp(std::atoi(GetArgument(args, "--plugin-explosion-preset").c_str()), 0, 6);
