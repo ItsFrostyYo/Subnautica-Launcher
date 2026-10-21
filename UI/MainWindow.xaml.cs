@@ -191,10 +191,78 @@ namespace SubnauticaLauncher.UI
             OldRemover.Run();
             LauncherSettings.Load();
             ApplyInitialUiState();
-            ShowView(InstallsView);
+            ShowView(InfoView);
+            BuildUpdatesView();
+
+            await Dispatcher.Yield(DispatcherPriority.Loaded);
+            await ShowDiscontinuedLauncherNoticeAsync();
 
             await Dispatcher.Yield(DispatcherPriority.Background);
             _ = RunDeferredStartupStagesAsync();
+        }
+
+        private async Task ShowDiscontinuedLauncherNoticeAsync()
+        {
+            var notice = new LauncherDiscontinuedWindow
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            notice.ShowDialog();
+
+            if (notice.Choice != LauncherDiscontinuedChoice.UpdateToNewLauncher)
+                return;
+
+            MessageBoxResult confirmation = MessageBox.Show(
+                this,
+                "This will replace this discontinued launcher installation with the new Subnautica Launcher. " +
+                "The old launcher files and settings in this installation will be removed. Continue?",
+                "Update to new Launcher",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (confirmation != MessageBoxResult.Yes)
+                return;
+
+            await RunNewLauncherMigrationAsync();
+        }
+
+        private async Task RunNewLauncherMigrationAsync()
+        {
+            UpdateProgressWindow? progressWindow = null;
+            try
+            {
+                progressWindow = new UpdateProgressWindow
+                {
+                    Owner = this,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner
+                };
+                progressWindow.SetDetectedMigration();
+                progressWindow.SetStatus("Preparing launcher migration...");
+                progressWindow.SetIndeterminate("Connecting to GitHub...");
+                progressWindow.Show();
+                IsEnabled = false;
+
+                var statusProgress = new Progress<string>(progressWindow.SetStatus);
+                var downloadProgress = new Progress<double>(progressWindow.SetProgress);
+                await LegacyLauncherMigrationService.DownloadAndStartAsync(statusProgress, downloadProgress);
+            }
+            catch (Exception ex)
+            {
+                Logger.Exception(ex, "New launcher migration failed");
+                progressWindow?.Close();
+                progressWindow = null;
+                MessageBox.Show(
+                    this,
+                    "The new launcher could not be installed. This discontinued launcher was not changed.\n\n" + ex.Message,
+                    "Launcher Migration Failed",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            finally
+            {
+                progressWindow?.Close();
+                IsEnabled = true;
+            }
         }
 
         private void ApplyInitialUiState()

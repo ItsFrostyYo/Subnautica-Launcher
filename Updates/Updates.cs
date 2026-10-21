@@ -32,6 +32,17 @@ public static class Updates
     {
         new UpdateEntry
     {
+        Version = "3.4.0",
+        Title = "Discontinued Launcher",
+        Date = "October 20, 2026 | Contributors (1) - ItsFrosti.",
+        Changes = new[]
+        {
+            "The Subnautica Trilogy Launcher is now discontinued. It can still be used, but it will no longer receive updates."
+        }
+    },
+
+        new UpdateEntry
+    {
         Version = "3.3.2",
         Title = "Reset Macro Update",
         Date = "October 12, 2026 | Contributors (1) - ItsFrosti.",

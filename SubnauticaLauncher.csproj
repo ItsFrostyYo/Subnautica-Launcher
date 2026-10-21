@@ -6,7 +6,7 @@
 		<UseWPF>true</UseWPF>
 		<UseWindowsForms>true</UseWindowsForms>
 
-		<Version>3.3.2</Version>
+		<Version>3.4.0</Version>
 		<AssemblyVersion>$(Version).0</AssemblyVersion>
 		<FileVersion>$(Version).0</FileVersion>
 
@@ -28,6 +28,10 @@
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
 	  <Optimize>True</Optimize>
+	</PropertyGroup>
+
+	<PropertyGroup>
+	  <UpdaterPublishDir>$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\win-x64\publish\</UpdaterPublishDir>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -82,34 +86,22 @@
 	<Target Name="BuildUpdaterProject" BeforeTargets="Build;Publish" Condition="'$(SkipUpdaterBuild)' != 'true'">
 	  <MSBuild
 		Projects="$(MSBuildProjectDirectory)\tools\SNLUpdater\SNLUpdater.csproj"
-		Targets="Restore;Build"
-		Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained)" />
+		Targets="Restore;Publish"
+		Properties="Configuration=$(Configuration);RuntimeIdentifier=win-x64;SelfContained=true;PublishSingleFile=true;IncludeNativeLibrariesForSelfExtract=true;DebugType=None;DebugSymbols=false;PublishDir=$(UpdaterPublishDir)" />
 	</Target>
 
 	<Target Name="CopyUpdaterToBuildOutput" AfterTargets="Build" Condition="'$(SkipUpdaterBuild)' != 'true'">
 	  <Copy
-		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe"
+		SourceFiles="$(UpdaterPublishDir)SNLUpdater.exe"
 		DestinationFolder="$(OutDir)"
-		SkipUnchangedFiles="true"
-		Condition="'$(RuntimeIdentifier)' != '' and Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe')" />
-	  <Copy
-		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe"
-		DestinationFolder="$(OutDir)"
-		SkipUnchangedFiles="true"
-		Condition="Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe')" />
+		SkipUnchangedFiles="true" />
 	</Target>
 
 	<Target Name="CopyUpdaterToPublishOutput" AfterTargets="Publish" Condition="'$(SkipUpdaterBuild)' != 'true'">
 	  <Copy
-		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe"
+		SourceFiles="$(UpdaterPublishDir)SNLUpdater.exe"
 		DestinationFolder="$(PublishDir)"
-		SkipUnchangedFiles="true"
-		Condition="'$(RuntimeIdentifier)' != '' and Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\$(RuntimeIdentifier)\SNLUpdater.exe')" />
-	  <Copy
-		SourceFiles="$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe"
-		DestinationFolder="$(PublishDir)"
-		SkipUnchangedFiles="true"
-		Condition="Exists('$(MSBuildProjectDirectory)\tools\SNLUpdater\bin\$(Configuration)\net8.0-windows\SNLUpdater.exe')" />
+		SkipUnchangedFiles="true" />
 	</Target>
 
 </Project>

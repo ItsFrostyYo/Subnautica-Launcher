@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Drawing;
+using System.IO.Compression;
 using System.Text;
 using System.Windows.Forms;
 
@@ -17,6 +18,9 @@ internal static class Program
         try
         {
             ApplicationConfiguration.Initialize();
+
+            if (args.Length > 0 && string.Equals(args[0], "--migrate", StringComparison.OrdinalIgnoreCase))
+                return RunMigration(args);
 
             if (args.Length < 2)
                 return Fail("Usage: SNLUpdater.exe <newExePath> <targetExePath> [launcherPid]");
@@ -95,6 +99,234 @@ internal static class Program
             {
                 // Best effort cleanup only.
             }
+        }
+    }
+
+    private static int RunMigration(string[] args)
+    {
+        if (args.Length < 3)
+            return Fail("Usage: SNLUpdater.exe --migrate <packageZip> <targetDirectory> [launcherPid]");
+
+        string packagePath = Path.GetFullPath(args[1]);
+        string targetDirectory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(args[2]));
+        int? launcherPid = args.Length >= 4 && int.TryParse(args[3], out int pid) && pid > 0
+            ? pid
+            : null;
+        string workspace = Path.GetDirectoryName(packagePath) ?? Path.GetTempPath();
+        LogPath = Path.Combine(workspace, "migration.log");
+
+        string? parentDirectory = Path.GetDirectoryName(targetDirectory);
+        if (string.IsNullOrWhiteSpace(parentDirectory) ||
+            string.Equals(targetDirectory, Path.GetPathRoot(targetDirectory), StringComparison.OrdinalIgnoreCase))
+            return Fail("The launcher installation directory is not safe to replace.");
+
+        string currentUpdater = Environment.ProcessPath ?? string.Empty;
+        if (IsPathInside(currentUpdater, targetDirectory))
+            return Fail("Migration updater must run outside the old launcher installation.");
+
+        string migrationId = Guid.NewGuid().ToString("N");
+        string directoryName = Path.GetFileName(targetDirectory);
+        string stagedDirectory = Path.Combine(parentDirectory, $".{directoryName}.migration-staged-{migrationId}");
+        string backupDirectory = Path.Combine(parentDirectory, $".{directoryName}.migration-backup-{migrationId}");
+        bool oldDirectoryMoved = false;
+        bool newDirectoryInstalled = false;
+        bool newLauncherStarted = false;
+
+        try
+        {
+            Log("Full launcher migration started");
+            Log($"Package: {packagePath}");
+            Log($"Target: {targetDirectory}");
+
+            if (!File.Exists(packagePath))
+                throw new FileNotFoundException("The downloaded new launcher package is missing.", packagePath);
+            if (!Directory.Exists(targetDirectory))
+                throw new DirectoryNotFoundException("The discontinued launcher installation no longer exists.");
+
+            _statusWindow = new UpdateStatusWindow();
+            _statusWindow.SetDetectedUpdate("Installing the new Subnautica Launcher");
+            _statusWindow.SetStatus("Waiting for the discontinued launcher to close...");
+            _statusWindow.SetIndeterminate("Preparing migration...");
+            _statusWindow.Show();
+            PumpUi();
+
+            string targetLauncher = Path.Combine(targetDirectory, "SubnauticaLauncher.exe");
+            WaitForLauncherToExit(launcherPid, targetLauncher);
+
+            SetUiStep("Extracting new launcher...", "Validating and staging the new installation...", indeterminate: true);
+            ExtractMigrationPackage(packagePath, stagedDirectory);
+            ValidateStagedInstallation(stagedDirectory);
+
+            SetUiStep("Replacing discontinued launcher...", "Moving the old installation to a temporary backup...", indeterminate: true);
+            MoveDirectoryWithRetry(targetDirectory, backupDirectory);
+            oldDirectoryMoved = true;
+
+            try
+            {
+                MoveDirectoryWithRetry(stagedDirectory, targetDirectory);
+                newDirectoryInstalled = true;
+            }
+            catch
+            {
+                MoveDirectoryWithRetry(backupDirectory, targetDirectory);
+                oldDirectoryMoved = false;
+                throw;
+            }
+
+            string newLauncher = Path.Combine(targetDirectory, "SubnauticaLauncher.exe");
+            SetUiStep("Starting new launcher...", "Opening the new Subnautica Launcher...", percent: 100);
+            StartUpdatedLauncher(newLauncher);
+            newLauncherStarted = true;
+
+            SetUiStep("Migration complete", "Removing discontinued launcher files...", percent: 100);
+            DeleteDirectoryWithRetry(backupDirectory);
+            oldDirectoryMoved = false;
+            CleanupFile(packagePath);
+            Log("Full launcher migration completed successfully");
+            Thread.Sleep(600);
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Log("Migration failed: " + ex);
+
+            if (oldDirectoryMoved && !newLauncherStarted && Directory.Exists(backupDirectory))
+            {
+                try
+                {
+                    if (newDirectoryInstalled && Directory.Exists(targetDirectory))
+                    {
+                        MoveDirectoryWithRetry(targetDirectory, stagedDirectory);
+                        newDirectoryInstalled = false;
+                    }
+
+                    MoveDirectoryWithRetry(backupDirectory, targetDirectory);
+                    oldDirectoryMoved = false;
+                    Log("The discontinued launcher installation was restored.");
+                }
+                catch (Exception rollbackException)
+                {
+                    Log("Rollback failed: " + rollbackException);
+                }
+            }
+
+            return Fail("Launcher migration failed: " + ex.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(stagedDirectory))
+                CleanupDirectory(stagedDirectory);
+        }
+    }
+
+    private static void ExtractMigrationPackage(string packagePath, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        string destinationRoot = Path.GetFullPath(destination) + Path.DirectorySeparatorChar;
+
+        using ZipArchive archive = ZipFile.OpenRead(packagePath);
+        foreach (ZipArchiveEntry entry in archive.Entries)
+        {
+            string relativePath = entry.FullName.Replace('/', Path.DirectorySeparatorChar);
+            string targetPath = Path.GetFullPath(Path.Combine(destination, relativePath));
+            if (!targetPath.StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"The package contains an unsafe path: {entry.FullName}");
+
+            if (string.IsNullOrEmpty(entry.Name))
+            {
+                Directory.CreateDirectory(targetPath);
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+            entry.ExtractToFile(targetPath, overwrite: true);
+        }
+    }
+
+    private static void ValidateStagedInstallation(string stagedDirectory)
+    {
+        string launcher = Path.Combine(stagedDirectory, "SubnauticaLauncher.exe");
+        string updater = Path.Combine(stagedDirectory, "SNLUpdater.exe");
+        string dependencies = Path.Combine(stagedDirectory, "Dependencies");
+        if (!File.Exists(launcher) || !File.Exists(updater) || !Directory.Exists(dependencies))
+            throw new InvalidDataException("The staged new launcher installation is incomplete.");
+    }
+
+    private static void MoveDirectoryWithRetry(string source, string destination)
+    {
+        for (int attempt = 1; attempt <= MaxReplaceAttempts; attempt++)
+        {
+            try
+            {
+                Directory.Move(source, destination);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Log($"Directory move attempt {attempt}/{MaxReplaceAttempts} failed: {ex.Message}");
+                Thread.Sleep(ReplaceDelayMs);
+                PumpUi();
+            }
+        }
+
+        throw new IOException($"Failed to move launcher directory '{source}' to '{destination}'.");
+    }
+
+    private static void DeleteDirectoryWithRetry(string path)
+    {
+        for (int attempt = 1; attempt <= MaxReplaceAttempts; attempt++)
+        {
+            try
+            {
+                NormalizeFileAttributes(path);
+                Directory.Delete(path, recursive: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Log($"Old installation cleanup attempt {attempt}/{MaxReplaceAttempts} failed: {ex.Message}");
+                Thread.Sleep(ReplaceDelayMs);
+                PumpUi();
+            }
+        }
+
+        throw new IOException("The new launcher was installed, but the discontinued launcher backup could not be removed.");
+    }
+
+    private static void NormalizeFileAttributes(string directory)
+    {
+        if (!Directory.Exists(directory))
+            return;
+
+        foreach (string file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
+            File.SetAttributes(file, FileAttributes.Normal);
+        foreach (string child in Directory.EnumerateDirectories(directory, "*", SearchOption.AllDirectories))
+            File.SetAttributes(child, FileAttributes.Directory);
+    }
+
+    private static bool IsPathInside(string path, string directory)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        string fullPath = Path.GetFullPath(path);
+        string directoryRoot = Path.GetFullPath(directory) + Path.DirectorySeparatorChar;
+        return fullPath.StartsWith(directoryRoot, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void CleanupDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                NormalizeFileAttributes(path);
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"Directory cleanup failed for {path}: {ex.Message}");
         }
     }
 

@@ -23,6 +23,14 @@ public partial class UpdateProgressWindow : Window
         });
     }
 
+    public void SetDetectedMigration()
+    {
+        Dispatcher.Invoke(() =>
+        {
+            DetectedUpdateText.Text = "New Subnautica Launcher";
+        });
+    }
+
     public void SetStatus(string status)
     {
         Dispatcher.Invoke(() =>
