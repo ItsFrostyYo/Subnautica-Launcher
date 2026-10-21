@@ -9,7 +9,7 @@
     <ApplicationIcon>Assets\Icons\SNL.ico</ApplicationIcon>
     <StartupObject>SubnauticaLauncher.Program</StartupObject>
     <RootNamespace>SubnauticaLauncher</RootNamespace>
-    <Version>4.0.4.0</Version>
+    <Version>4.0.5.0</Version>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

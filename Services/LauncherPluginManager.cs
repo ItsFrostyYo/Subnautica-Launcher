@@ -25,6 +25,7 @@ public sealed class LauncherPluginManager : IDisposable
         Directory.CreateDirectory(AppPaths.PluginsPath);
         Directory.CreateDirectory(AppPaths.LogsPath);
         MigrateLegacyLog("SubnauticaMarco.log");
+        MigrateLegacyLog("_SubnauticaMarco.log");
     }
 
     public async Task InitializeAsync()
@@ -203,6 +204,8 @@ public sealed class LauncherPluginManager : IDisposable
     {
         settings.GameMode = Math.Clamp(settings.GameMode, 0, 6);
         settings.ExplosionPreset = Math.Clamp(settings.ExplosionPreset, 0, 6);
+        settings.SaveDeletionGameMode = Math.Clamp(settings.SaveDeletionGameMode, 0, 1);
+        settings.SaveDeletionTiming = Math.Clamp(settings.SaveDeletionTiming, 0, 1);
         settings.CustomMinimumSeconds = Math.Max(0, settings.CustomMinimumSeconds);
         settings.CustomMaximumSeconds = Math.Max(settings.CustomMinimumSeconds, settings.CustomMaximumSeconds);
         await _operations.WaitAsync();

@@ -98,14 +98,17 @@ internal sealed class PluginStateStore
         string[] presets = ["Minutes46To46_30", "Minutes46To47", "Minutes46To48", "Minutes46To50", "UnderOneHour", "OverOneHour", "Custom"];
         var document = new XDocument(
             new XElement("Settings",
-                new XElement("Version", "1.1"),
+                new XElement("Version", "1.2"),
                 new XElement("Enabled", settings.MacroEnabled),
                 new XElement("Hotkey", settings.Hotkey),
                 new XElement("GameMode", gameModes[Math.Clamp(settings.GameMode, 0, gameModes.Length - 1)]),
                 new XElement("ExplosionReset", settings.ExplosionReset),
                 new XElement("ExplosionPreset", presets[Math.Clamp(settings.ExplosionPreset, 0, presets.Length - 1)]),
                 new XElement("CustomMinimumSeconds", settings.CustomMinimumSeconds),
-                new XElement("CustomMaximumSeconds", settings.CustomMaximumSeconds)));
+                new XElement("CustomMaximumSeconds", settings.CustomMaximumSeconds),
+                new XElement("HardcoreSaveDeleter", settings.HardcoreSaveDeleter),
+                new XElement("SaveDeletionGameMode", settings.SaveDeletionGameMode == 1 ? "AllGamemodes" : "Hardcore"),
+                new XElement("SaveDeletionTiming", settings.SaveDeletionTiming == 1 ? "AutomaticallyDeleteAllSaves" : "AfterResetCompletes")));
         WriteTextAtomic(GetLiveSplitSettingsPath(pluginId), document.ToString(SaveOptions.DisableFormatting));
         TryDelete(GetLegacySettingsPath(pluginId));
     }
@@ -146,7 +149,10 @@ internal sealed class PluginStateStore
             ExplosionReset = bool.TryParse(root.Element("ExplosionReset")?.Value, out bool explosion) && explosion,
             ExplosionPreset = Math.Max(0, preset),
             CustomMinimumSeconds = int.TryParse(root.Element("CustomMinimumSeconds")?.Value, out int minimum) ? minimum : 2760,
-            CustomMaximumSeconds = int.TryParse(root.Element("CustomMaximumSeconds")?.Value, out int maximum) ? maximum : 2790
+            CustomMaximumSeconds = int.TryParse(root.Element("CustomMaximumSeconds")?.Value, out int maximum) ? maximum : 2790,
+            HardcoreSaveDeleter = bool.TryParse(root.Element("HardcoreSaveDeleter")?.Value, out bool deleterEnabled) && deleterEnabled,
+            SaveDeletionGameMode = string.Equals(root.Element("SaveDeletionGameMode")?.Value, "AllGamemodes", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
+            SaveDeletionTiming = string.Equals(root.Element("SaveDeletionTiming")?.Value, "AutomaticallyDeleteAllSaves", StringComparison.OrdinalIgnoreCase) ? 1 : 0,
         };
     }
 

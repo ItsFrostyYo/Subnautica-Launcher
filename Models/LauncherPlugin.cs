@@ -33,4 +33,7 @@ public sealed class SubnauticaMacroPluginSettings
     public int ExplosionPreset { get; set; }
     public int CustomMinimumSeconds { get; set; } = 2760;
     public int CustomMaximumSeconds { get; set; } = 2790;
+    public bool HardcoreSaveDeleter { get; set; } = false;
+    public int SaveDeletionGameMode { get; set; } = 0;
+    public int SaveDeletionTiming { get; set; } = 0;
 }

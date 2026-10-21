@@ -486,7 +486,7 @@ static bool TitleIconButton(const char* id, const ImVec2& position, bool isBack)
 static void ResizeForMode(HWND window, const std::string& mode)
 {
     const int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "plugin-settings" ? 520 : 380;
-    const int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 500 : 340;
+    const int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 590 : 340;
     g_minWidth = width;
     g_minHeight = height;
     g_hasBackButton = mode == "existing" || mode == "install" || mode == "login";
@@ -550,7 +550,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
     WNDCLASSEXW windowClass{ sizeof(windowClass), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, nullptr, nullptr, nullptr, L"SubnauticaLauncherNativeImGui", nullptr };
     RegisterClassExW(&windowClass);
     int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "plugin-settings" ? 520 : 380;
-    int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 500 : 340;
+    int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 590 : 340;
     g_minWidth = width;
     g_minHeight = height;
     g_hasBackButton = mode == "existing" || mode == "install" || mode == "login";
@@ -622,6 +622,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
     const std::string settingsVersionsArgument = GetArgument(args, "--settings-versions");
     const std::string settingsEntriesArgument = GetArgument(args, "--settings-entries");
     bool pluginMacroEnabled = GetArgument(args, "--macro-enabled") == "1";
+    bool pluginSaveDeleter = GetArgument(args, "--plugin-save-deleter") == "1";
+    int pluginSaveGameMode = std::clamp(std::atoi(GetArgument(args, "--plugin-save-game-mode").c_str()), 0, 1);
+    int pluginSaveTiming = std::clamp(std::atoi(GetArgument(args, "--plugin-save-timing").c_str()), 0, 1);
     g_pluginCapturedHotkey = NormalizeHotkey(std::atoi(GetArgument(args, "--plugin-hotkey").c_str()));
     int pluginGameMode = std::clamp(std::atoi(GetArgument(args, "--plugin-game-mode").c_str()), 0, 6);
     bool pluginExplosionReset = GetArgument(args, "--plugin-explosion") == "1";
@@ -902,13 +905,46 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
                 ImGui::InputText("##plugin-custom-max", pluginCustomMaximum, sizeof(pluginCustomMaximum));
             }
             ImGui::EndDisabled();
+            ImGui::Dummy(ImVec2(0, 9));
+            ImGui::Checkbox("Hardcore Save Deleter", &pluginSaveDeleter);
+            if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            ImGui::BeginDisabled(!pluginSaveDeleter);
+            const char* deletionModes[] = { "Hardcore", "All Gamemodes" };
+            const char* deletionTimes[] = { "After Reset Completes", "Automatically Delete all Saves" };
+            ImGui::TextUnformatted("Gamemode");
+            ImGui::SameLine(185.0f);
+            ImGui::SetNextItemWidth(280.0f);
+            if (ImGui::BeginCombo("##plugin-save-game-mode", deletionModes[pluginSaveGameMode]))
+            {
+                for (int index = 0; index < 2; ++index)
+                {
+                    if (ImGui::Selectable(deletionModes[index], pluginSaveGameMode == index)) pluginSaveGameMode = index;
+                    if (pluginSaveGameMode == index) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::TextUnformatted("When to Delete");
+            ImGui::SameLine(185.0f);
+            ImGui::SetNextItemWidth(280.0f);
+            if (ImGui::BeginCombo("##plugin-save-timing", deletionTimes[pluginSaveTiming]))
+            {
+                for (int index = 0; index < 2; ++index)
+                {
+                    if (ImGui::Selectable(deletionTimes[index], pluginSaveTiming == index)) pluginSaveTiming = index;
+                    if (pluginSaveTiming == index) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            ImGui::EndDisabled();
             ImGui::SetCursorPos(ImVec2((ImGui::GetWindowWidth() - 150.0f) * 0.5f, ImGui::GetWindowHeight() - 58.0f));
             if (LauncherButton("Save Settings", ImVec2(150, 36)))
             {
                 result = std::string("PLUGIN_SETTINGS|") + (pluginMacroEnabled ? "1" : "0") + "|"
                     + std::to_string(g_pluginCapturedHotkey) + "|" + std::to_string(pluginGameMode) + "|"
                     + (pluginExplosionReset ? "1" : "0") + "|" + std::to_string(pluginExplosionPreset) + "|"
-                    + pluginCustomMinimum + "|" + pluginCustomMaximum;
+                    + pluginCustomMinimum + "|" + pluginCustomMaximum + "|"
+                    + (pluginSaveDeleter ? "1" : "0") + "|" + std::to_string(pluginSaveGameMode) + "|"
+                    + std::to_string(pluginSaveTiming);
                 g_done = true;
             }
         }

@@ -32,6 +32,10 @@ public static class ImGuiPluginSettingsWindow
         Add(startInfo, "--plugin-explosion-preset", settings.ExplosionPreset.ToString(CultureInfo.InvariantCulture));
         Add(startInfo, "--plugin-custom-min", FormatTime(settings.CustomMinimumSeconds));
         Add(startInfo, "--plugin-custom-max", FormatTime(settings.CustomMaximumSeconds));
+        Add(startInfo, "--plugin-save-deleter", settings.HardcoreSaveDeleter ? "1" : "0");
+        Add(startInfo, "--plugin-save-game-mode", settings.SaveDeletionGameMode.ToString(CultureInfo.InvariantCulture));
+        Add(startInfo, "--plugin-save-timing", settings.SaveDeletionTiming.ToString(CultureInfo.InvariantCulture));
+
 
         string output;
         using (Process process = Process.Start(startInfo) ?? throw new InvalidOperationException("The plugin settings window could not start."))
@@ -50,12 +54,14 @@ public static class ImGuiPluginSettingsWindow
 
         string? result = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
         string[] values = result?.Split('|') ?? [];
-        if (values.Length != 8 || values[0] != "PLUGIN_SETTINGS") return;
+        if (values.Length != 11 || values[0] != "PLUGIN_SETTINGS") return;
         if (!int.TryParse(values[2], out int hotkey) ||
             !int.TryParse(values[3], out int gameMode) ||
             !int.TryParse(values[5], out int preset) ||
             !TryParseTime(values[6], out int minimum) ||
-            !TryParseTime(values[7], out int maximum))
+            !TryParseTime(values[7], out int maximum) ||
+            !int.TryParse(values[9], out int saveGameMode) ||
+            !int.TryParse(values[10], out int saveTiming))
             throw new InvalidDataException("The plugin settings window returned invalid values.");
 
         await manager.SaveMacroSettingsAsync(pluginId, new SubnauticaMacroPluginSettings
@@ -66,7 +72,10 @@ public static class ImGuiPluginSettingsWindow
             ExplosionReset = values[4] == "1",
             ExplosionPreset = preset,
             CustomMinimumSeconds = minimum,
-            CustomMaximumSeconds = maximum
+            CustomMaximumSeconds = maximum,
+            HardcoreSaveDeleter = values[8] == "1",
+            SaveDeletionGameMode = Math.Clamp(saveGameMode, 0, 1),
+            SaveDeletionTiming = Math.Clamp(saveTiming, 0, 1)
         });
     }
 
