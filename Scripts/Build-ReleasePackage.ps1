@@ -16,6 +16,8 @@ $launcherPublishRoot = Join-Path $publishRoot "Launcher"
 $updaterPublishRoot = Join-Path $publishRoot "Updater"
 $packageRoot = Join-Path $artifactsRoot "Package"
 $releaseRoot = Join-Path $repoRoot "Release"
+$packageDataRoot = Join-Path $packageRoot "Data"
+$releaseDataRoot = Join-Path $releaseRoot "Data"
 $zipPath = Join-Path $releaseRoot "SubnauticaLauncher.zip"
 $launcherManifest = Join-Path $repoRoot "Updates\SNLUpdates.xml"
 $updaterManifest = Join-Path $repoRoot "Updates\SNLUUpdates.xml"
@@ -59,10 +61,33 @@ function Set-ManifestFiles([string]$manifestPath, [string[]]$relativePaths) {
     $document.Save($manifestPath)
 }
 
+function New-IntegrityManifest([string]$packageDirectory, [string]$outputPath, [string]$version) {
+    $outputFullPath = [System.IO.Path]::GetFullPath($outputPath)
+    $packagePrefix = [System.IO.Path]::GetFullPath($packageDirectory).TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    $files = @(
+        Get-ChildItem -LiteralPath $packageDirectory -File -Recurse |
+            Where-Object { [System.IO.Path]::GetFullPath($_.FullName) -ne $outputFullPath } |
+            Sort-Object FullName |
+            ForEach-Object {
+                [ordered]@{
+                    path = [System.IO.Path]::GetFullPath($_.FullName).Substring($packagePrefix.Length).Replace('\', '/')
+                    size = $_.Length
+                    sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+                }
+            }
+    )
+    $manifest = [ordered]@{
+        version = $version
+        files = $files
+    }
+    $json = $manifest | ConvertTo-Json -Depth 5
+    [System.IO.File]::WriteAllText($outputPath, $json, [System.Text.UTF8Encoding]::new($false))
+}
+
 Remove-RepoDirectory $publishRoot
 Remove-RepoDirectory $packageRoot
 Remove-RepoDirectory $releaseRoot
-New-Item -ItemType Directory -Path $launcherPublishRoot, $updaterPublishRoot, $packageRoot, $releaseRoot -Force | Out-Null
+New-Item -ItemType Directory -Path $launcherPublishRoot, $updaterPublishRoot, $packageRoot, $packageDataRoot, $releaseRoot, $releaseDataRoot -Force | Out-Null
 
 & dotnet publish $project --configuration Release --runtime $RuntimeIdentifier --self-contained true `
     -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `
@@ -86,18 +111,27 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Copy-Item -LiteralPath (Join-Path $launcherPublishRoot "SubnauticaLauncher.exe") -Destination $releaseRoot -Force
 Copy-Item -LiteralPath (Join-Path $updaterPublishRoot "SNLUpdater.exe") -Destination $releaseRoot -Force
 Copy-Item -LiteralPath (Join-Path $launcherPublishRoot "Dependencies") -Destination (Join-Path $releaseRoot "Dependencies") -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $repoRoot "README.md") -Destination $releaseRoot -Force
 $dependencyArchive = Join-Path $releaseRoot "Dependencies.zip"
 Compress-Archive -Path (Join-Path $releaseRoot "Dependencies\*") -DestinationPath $dependencyArchive -CompressionLevel Optimal -Force
 
-Set-ManifestFiles $launcherManifest @("SubnauticaLauncher.exe", "Dependencies.zip", "SNLUpdates.xml", "SNLUUpdates.xml")
+Set-ManifestFiles $launcherManifest @("SubnauticaLauncher.exe", "Dependencies.zip", "Data/IntegrityManifest.json", "Data/SNLUpdates.xml", "Data/SNLUUpdates.xml", "README.md")
 Set-ManifestFiles $updaterManifest @("SNLUpdater.exe")
+Copy-Item -LiteralPath $launcherManifest, $updaterManifest -Destination $releaseDataRoot -Force
+# Keep release-root feed mirrors so installed 4.0.3 clients can discover the
+# one-time move to Data. Packaged 4.0.4 installations use only Data afterward.
 Copy-Item -LiteralPath $launcherManifest, $updaterManifest -Destination $releaseRoot -Force
 
 Copy-Item -LiteralPath (Join-Path $releaseRoot "SubnauticaLauncher.exe"), (Join-Path $releaseRoot "SNLUpdater.exe") -Destination $packageRoot -Force
 Copy-Item -LiteralPath (Join-Path $releaseRoot "Dependencies") -Destination (Join-Path $packageRoot "Dependencies") -Recurse -Force
-Copy-Item -LiteralPath $launcherManifest, $updaterManifest -Destination $packageRoot -Force
-Copy-Item -LiteralPath (Join-Path $repoRoot "README.md") -Destination $packageRoot -Force
-New-Item -ItemType Directory -Path (Join-Path $packageRoot "Data"), (Join-Path $packageRoot "Plugins"), (Join-Path $packageRoot "Logs") -Force | Out-Null
+Copy-Item -LiteralPath $launcherManifest, $updaterManifest -Destination $packageDataRoot -Force
+Copy-Item -LiteralPath (Join-Path $releaseRoot "README.md") -Destination $packageRoot -Force
+New-Item -ItemType Directory -Path (Join-Path $packageRoot "Plugins"), (Join-Path $packageRoot "Logs") -Force | Out-Null
+
+$launcherVersion = (Get-Item -LiteralPath (Join-Path $releaseRoot "SubnauticaLauncher.exe")).VersionInfo.FileVersion
+$integrityManifest = Join-Path $packageDataRoot "IntegrityManifest.json"
+New-IntegrityManifest $packageRoot $integrityManifest $launcherVersion
+Copy-Item -LiteralPath $integrityManifest -Destination $releaseDataRoot -Force
 
 foreach ($manifestPath in @($launcherManifest, $updaterManifest)) {
     [xml]$manifest = Get-Content -LiteralPath $manifestPath

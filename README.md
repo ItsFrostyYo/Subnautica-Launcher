@@ -1,12 +1,10 @@
 # Subnautica Launcher
 
-Subnautica Launcher is a Windows launcher for managing and playing multiple versions of the original **Subnautica** from one place.
-
-It is a complete rebuild of the discontinued Subnautica Trilogy Launcher, with a cleaner version-management workflow, native secondary windows, saved Subnautica settings profiles, and a plugin system for optional tools.
+Subnautica Launcher is a Windows launcher for **Subnautica.** It is a Remake of the Discontinued Subnautica Trilogy Launcher, with a Similar Functions and new Plugins system.
 
 Repository:
 
-- https://github.com/ItsFrostyYo/Subnautica-Launcher
+- [https://github.com/ItsFrostyYo/Subnautica-Launcher](https://github.com/ItsFrostyYo/Subnautica-Launcher)
 
 ## Supported Games
 
@@ -14,31 +12,31 @@ The current launcher supports:
 
 - **Subnautica**
 
-It does not currently support **Subnautica: Below Zero** or **Subnautica 2**. Below Zero support is planned for the future. Subnautica 2 support from the discontinued launcher is not included in this rebuild.
+It does not currently support **Subnautica: Below Zero** or **Subnautica 2**. Below Zero support is planned for the future.
 
 ## What It Does
 
 The launcher can:
 
-- install supported Subnautica versions, from the first Early Access builds through current releases
-- add an existing Subnautica installation and detect its known build automatically
-- organize, rename, reorder, and launch managed versions
-- save launch options separately for each version
-- launch versions directly with the correct Steam AppID handling
-- optionally use Steam-compatible folder switching
-- detect an existing Subnautica Speedrunning Mod installation and use its launch command
-- save Subnautica in-game settings and copy them between managed versions
-- apply saved in-game settings automatically to new installs
-- install and manage optional launcher plugins
-- update the launcher, updater, and installed plugins
+- Install Any Public Subnautica Version From Steam.
+- Add Existing Supported Steam Builds and potentially other from Launchers.
+- Organize/Reorder/Rename Managed Versions in the UI, and Launch or Switch between Versions.
+- Save Steam Launch Options Separately for each Version.
+- Launch using Steam Directly or using Steam AppID for Faster Launching.
+- Supports Launching with the Subnautica Speedrunning Mod.
+- Save Subnautica In-Game Settings and Automatically or Manually Copy into Versions for Settings Saving.
+- Install and Manage Launcher Plugins like Subnautica Speedrunning Reset Macros.
+- Automatic Launcher and Plugins Updating.
+
+
 
 ## Requirements
 
 - 64-bit Windows 10 or Windows 11
-- Steam installed
-- a Steam account that owns Subnautica
-- internet access for version downloads, launcher updates, and plugin installation
-- enough free disk space for every Subnautica version you want to keep
+- Steam Installed
+- Steam account with Valid Subnautica Ownership (For Installing Versions you cannot have it through Family Share)
+- Internet Acces for Installing Versions and Updating the Luancher and Plugins.
+- Enough Disk Space for what is wanted.
 
 Release builds are self-contained, so a separate .NET installation is not required.
 
@@ -53,7 +51,7 @@ Do not run the launcher from inside the ZIP. The launcher needs write access to 
 
 ## Main Window
 
-The main navigation contains:
+The Main Navigation on the Left of the Launcher Contains:
 
 - `Play`
 - `Settings`
@@ -130,6 +128,8 @@ The `Switch` button adapts to the current state:
 - when another version is running, it closes that version and launches the selected one
 - when the selected version is running, it changes to `Restart`
 
+
+
 ### Changing Version Order
 
 Press `Change Ordering` to show left and right controls under each version. Move the tiles into the order you want, then press `Done Ordering`.
@@ -198,6 +198,8 @@ Its settings include:
 - built-in explosion-time presets
 - a custom minimum and maximum explosion-time range
 
+
+
 ### Plugin Runtime
 
 Compatible LiveSplit component plugins run through an isolated host mode built into `SubnauticaLauncher.exe`. A separate LiveSplit installation is not required.
@@ -207,6 +209,8 @@ The launcher manages installation, enabled state, updates, process startup, and 
 Launcher and plugin update work is deferred while Subnautica is running.
 
 ## Settings Tab
+
+
 
 ### Background
 
@@ -229,8 +233,10 @@ The launcher refuses the switch if Steam's active `Subnautica` folder is not man
 The Launcher Info page shows the launcher update history and provides links to:
 
 - GitHub releases
-- the developer's YouTube channel
+- the YouTube channel
 - the Subnautica speedrunning Discord
+
+
 
 ## Updates
 
@@ -246,6 +252,16 @@ When a launcher update is available, you can choose `Later` or `Update Now`. The
 
 Update checks and installation are deferred while Subnautica is running. Launcher updates preserve the user-owned `Data`, `Plugins`, and `Logs` directories.
 
+### Verify Launcher Integrity
+
+Use `Verify Launcher Integrity` in the top-right title bar to check every installed launcher file.
+
+After you confirm the check, the launcher compares the installed files with the official release integrity manifest. This includes the launcher, updater, update manifests, README, and all extracted dependency files.
+
+If everything is present and valid, the launcher reports that the check passed. If files are missing, damaged, or were not extracted correctly, the launcher enters update mode, downloads clean copies, repairs the installation, and restarts automatically.
+
+Integrity repair refreshes only the three launcher-managed manifest files inside `Data`; saved versions and settings in `Data`, plus user-owned `Plugins` and `Logs`, are preserved. Subnautica must be closed before verification or repair begins.
+
 ## Launcher Files and User Data
 
 Keep these release items together:
@@ -253,8 +269,10 @@ Keep these release items together:
 - `SubnauticaLauncher.exe` — main launcher and isolated plugin host
 - `SNLUpdater.exe` — launcher updater
 - `Dependencies` — native UI host, assets, DepotDownloader, and required runtime files
-- `SNLUpdates.xml` — launcher update history and payload manifest
-- `SNLUUpdates.xml` — updater manifest
+- `Data/SNLUpdates.xml` — launcher update history and payload manifest
+- `Data/SNLUUpdates.xml` — updater manifest
+- `Data/IntegrityManifest.json` — integrity information for the shipped launcher files
+- `README.md` — launcher setup and usage guide
 
 The launcher creates or maintains:
 
@@ -267,6 +285,8 @@ Back up `Data` if you want to preserve your managed-version list and launcher pr
 
 ## Troubleshooting
 
+
+
 ### A version does not appear
 
 Try:
@@ -275,6 +295,8 @@ Try:
 - checking that the game folder still exists
 - checking that the folder contains `Subnautica.exe`
 - adding the version again if its folder was moved outside the launcher
+
+
 
 ### An existing version is not recognized
 
@@ -296,6 +318,8 @@ Check that:
 - Steam's active `Subnautica` folder is already managed by the launcher
 - the folder name needed to restore the previous version is not already occupied
 
+
+
 ### A plugin will not update
 
 Close Subnautica and try again. Plugin replacement is intentionally blocked while the game is running. Plugin errors are shown on the plugin card and additional details may be available under `Logs`.
@@ -303,29 +327,6 @@ Close Subnautica and try again. Plugin replacement is intentionally blocked whil
 ### A native launcher window is missing
 
 Make sure the complete `Dependencies` folder was extracted next to `SubnauticaLauncher.exe`. Re-extract the release ZIP if any dependency files are missing.
-
-## Development
-
-Build the solution:
-
-```powershell
-.\Scripts\Build.ps1
-```
-
-Create a clean release package:
-
-```powershell
-.\Scripts\Build-ReleasePackage.ps1 -Clean
-```
-
-The packaging script recreates the top-level `Release` folder with:
-
-- `SubnauticaLauncher.zip`
-- loose launcher and updater executables
-- `Dependencies` and `Dependencies.zip`
-- launcher and updater XML manifests
-
-Launcher updates use `Updates/SNLUpdates.xml`, and updater updates use `Updates/SNLUUpdates.xml`. Both are LiveSplit-style XML manifests whose payloads are hosted in the repository's `Release` directory.
 
 ## Notes
 

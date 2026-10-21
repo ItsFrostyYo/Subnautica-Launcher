@@ -37,6 +37,7 @@ public partial class MainWindow : Window
     private readonly System.Windows.Threading.DispatcherTimer _statusTimer;
     private readonly LauncherUpdateService _updateService = new();
     private readonly UpdaterUpdateService _updaterUpdateService = new();
+    private readonly LauncherIntegrityService _integrityService = new();
     private readonly System.Windows.Threading.DispatcherTimer _updateTimer;
     private readonly SemaphoreSlim _updateCheckGate = new(1, 1);
     private LauncherPluginManager? _pluginManager;
@@ -120,6 +121,92 @@ public partial class MainWindow : Window
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
+    private async void VerifyLauncherIntegrity_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBoxResult confirmation = WpfMessageBox.Show(
+            this,
+            "This will check every installed launcher file. If files are missing or damaged, the launcher will enter update mode, repair the installation, and restart.\n\nContinue?",
+            "Verify Launcher Integrity",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirmation != MessageBoxResult.Yes)
+            return;
+
+        if (IsAnySubnauticaRunning())
+        {
+            WpfMessageBox.Show(this, "Close Subnautica before verifying or repairing the launcher.", "Verify Launcher Integrity", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (LauncherIntegrityService.IsDevelopmentWorkspace())
+        {
+            WpfMessageBox.Show(this, "Launcher integrity repair is available from an installed or extracted release package.", "Verify Launcher Integrity", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!await _updateCheckGate.WaitAsync(0))
+        {
+            WpfMessageBox.Show(this, "Another launcher update operation is already running.", "Verify Launcher Integrity", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        UpdateProgressWindow? progressWindow = null;
+        try
+        {
+            Version currentVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0, 0);
+            progressWindow = new UpdateProgressWindow(currentVersion.ToString(3))
+            {
+                Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            progressWindow.SetDetectedUpdate("Verifying Launcher Integrity");
+            progressWindow.Show();
+            IsEnabled = false;
+
+            var progress = new Progress<LauncherUpdateProgress>(progressWindow.Apply);
+            LauncherIntegrityResult result = await _integrityService.VerifyAsync(progress);
+            if (result.IsValid)
+            {
+                progressWindow.Close();
+                progressWindow = null;
+                WpfMessageBox.Show(this, "All launcher files are present and valid.", "Launcher Integrity Verified", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            LauncherUpdate repairRelease = await _updateService.GetLatestReleaseAsync();
+            if (repairRelease.Version != result.Version)
+                throw new InvalidDataException("The launcher repair manifests do not describe the same release.");
+
+            progressWindow.Apply(new LauncherUpdateProgress(
+                "Repairing launcher installation...",
+                $"Replacing {result.Issues.Count} missing or damaged file{(result.Issues.Count == 1 ? string.Empty : "s")}...",
+                62));
+
+            string updaterPath = await _updaterUpdateService.EnsureLatestAsync(progress, forceDownload: true);
+            string payloadDirectory = await _updateService.DownloadLauncherAsync(repairRelease, progress);
+            progressWindow.Apply(new LauncherUpdateProgress(
+                "Handing off to SNLUpdater...",
+                "The launcher will close, repair its files, and reopen automatically.",
+                100));
+            _updateService.StartUpdater(payloadDirectory, repairRelease.Version, updaterPath);
+            _updateHandoffStarted = true;
+            Close();
+        }
+        catch (Exception exception)
+        {
+            WpfMessageBox.Show(this, $"Launcher integrity could not be verified or repaired.\n\n{exception.Message}", "Launcher Integrity Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            if (!_updateHandoffStarted)
+            {
+                try { progressWindow?.Close(); } catch { }
+                if (IsLoaded) IsEnabled = true;
+            }
+            _updateCheckGate.Release();
+        }
+    }
+
     private void ToggleMaximize()
     {
         WindowState = WindowState == WindowState.Maximized
@@ -178,6 +265,7 @@ public partial class MainWindow : Window
         PluginsView.Visibility = Visibility.Collapsed;
         InfoView.Visibility = Visibility.Collapsed;
         AddVersionButton.Visibility = Visibility.Visible;
+        ModsButton.Visibility = Visibility.Visible;
         ChangeOrderingButton.Visibility = Visibility.Visible;
         PlayVersionsPanel.Visibility = Visibility.Visible;
         UpdateNavigationState(PlayNavButton);
@@ -189,6 +277,7 @@ public partial class MainWindow : Window
         PluginsView.Visibility = view == PluginsView ? Visibility.Visible : Visibility.Collapsed;
         InfoView.Visibility = view == InfoView ? Visibility.Visible : Visibility.Collapsed;
         AddVersionButton.Visibility = Visibility.Collapsed;
+        ModsButton.Visibility = Visibility.Collapsed;
         ChangeOrderingButton.Visibility = Visibility.Collapsed;
         PlayVersionsPanel.Visibility = Visibility.Collapsed;
         UpdateNavigationState(view == SettingsView ? SettingsNavButton : view == PluginsView ? PluginsNavButton : InfoNavButton);
@@ -718,8 +807,7 @@ public partial class MainWindow : Window
     private void BuildUpdatesView()
     {
         UpdatesPanel.Children.Clear();
-        string xmlPath = Path.Combine(AppContext.BaseDirectory, "SNLUpdates.xml");
-        if (!File.Exists(xmlPath)) xmlPath = Path.Combine(AppContext.BaseDirectory, "Data", "SNLUpdates.xml");
+        string xmlPath = Path.Combine(AppContext.BaseDirectory, "Data", "SNLUpdates.xml");
         if (!File.Exists(xmlPath)) xmlPath = Path.Combine(AppContext.BaseDirectory, "Updates", "SNLUpdates.xml");
         if (!File.Exists(xmlPath)) return;
         foreach (LauncherUpdate update in LauncherUpdateService.ParseManifest(File.ReadAllText(xmlPath)).OrderByDescending(item => item.Version))

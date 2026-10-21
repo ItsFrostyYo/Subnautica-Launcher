@@ -19,14 +19,20 @@ public sealed class LauncherUpdateService
 
     public async Task<LauncherUpdate?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
-        string xml = await HttpClient.GetStringAsync(LauncherUpdateFeed.ManifestUri, cancellationToken);
-        IReadOnlyList<LauncherUpdate> updates = ParseManifest(xml);
+        LauncherUpdate latest = await GetLatestReleaseAsync(cancellationToken);
         Version currentVersion = GetCurrentVersion();
 
-        return updates
-            .Where(update => update.Version > currentVersion)
+        return latest.Version > currentVersion ? latest : null;
+    }
+
+    public async Task<LauncherUpdate> GetLatestReleaseAsync(CancellationToken cancellationToken = default)
+    {
+        string xml = await HttpClient.GetStringAsync(LauncherUpdateFeed.ManifestUri, cancellationToken);
+        return ParseManifest(xml)
+            .Where(update => update.Files.Count > 0)
             .OrderByDescending(update => update.Version)
-            .FirstOrDefault();
+            .FirstOrDefault()
+            ?? throw new InvalidDataException("The launcher update manifest does not contain a repairable release.");
     }
 
     public async Task<string> DownloadLauncherAsync(

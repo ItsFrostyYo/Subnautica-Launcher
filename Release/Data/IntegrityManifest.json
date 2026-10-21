@@ -1,0 +1,230 @@
+{
+    "version":  "4.0.4.0",
+    "files":  [
+                  {
+                      "path":  "Data/SNLUpdates.xml",
+                      "size":  23354,
+                      "sha256":  "774CE172E937785E6309DAB3135F41EB036F734598B2248BBBBE442217FA2630"
+                  },
+                  {
+                      "path":  "Data/SNLUUpdates.xml",
+                      "size":  372,
+                      "sha256":  "AEBD761AA11C92E49B4629F64114331637183AF7126511F47DC73595520571C4"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Arcitect Facility.png",
+                      "size":  711267,
+                      "sha256":  "2F53DC5F034D0309DA244C5642F61B515FA103DA3039864384428D6065E493B3"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Aurora Borealis.png",
+                      "size":  39820,
+                      "sha256":  "0216A0F00D7E44280D3272B074F3A0C189B90A637A333E0F9A664812BFE2C949"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Cove Tree.png",
+                      "size":  926002,
+                      "sha256":  "118CB6CB8E516A78A0A725923C5E06D12106B8262719D7931A6A42542239908C"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Floating Island.png",
+                      "size":  708505,
+                      "sha256":  "721CCAFEE31AC275134058BD81EBA7DD06284B60AF4F3F52FEBC6CFCEE809504"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Ghost Leviathan.png",
+                      "size":  894507,
+                      "sha256":  "4C1180F2FC4EB1BC025C160EDEED8A935CC55FAC13B3399ABDE3B309A2E998F7"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Grand Reef.png",
+                      "size":  317789,
+                      "sha256":  "949C4CADDC57015BE8C9289E01230C6D2510E66D2C5F71F79629FA1FA3D8C7A4"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Grassy Plateau.png",
+                      "size":  1196227,
+                      "sha256":  "CAC4DB665DFB3FBE2242F4E41F2B7C0339E6C4A3DB5D39D29EF9AB053822520B"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Ice Worm.png",
+                      "size":  199011,
+                      "sha256":  "665AAC7783C9D8BE2D5832BD9DC4BDEF1C4A9CB512D0A7FC19329AEAEE6725C5"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Icy Land.png",
+                      "size":  855053,
+                      "sha256":  "C845BDDAC4153B3E20CADBD4DB502B87C8716717822BDBF2B217046E2BDBBD68"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Jellyshroom Caves.png",
+                      "size":  2462283,
+                      "sha256":  "99CADF21A3BB306D2D0D31F913753B43263B137677D888EA2D930A02CB4093F7"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Kelp Forest.png",
+                      "size":  1109698,
+                      "sha256":  "6567C11D9CE5131919AD841A7D7AE496802F373DD5C51F28CB3492261E3CDEEE"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Lifepod.png",
+                      "size":  49190,
+                      "sha256":  "073828933DED22CD44576909CC380A05700F0602795F3FDC73DE369F933AB612"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Lost River.png",
+                      "size":  868882,
+                      "sha256":  "D79BC6CC15B038AF51A24DB13350D75718F45A1D25655388C562A13CE09F113C"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Reaper Leviathan.png",
+                      "size":  91982,
+                      "sha256":  "34D01DCB300EC0029405DD42EBA52D31252365B2F4E0B7CA813F47B0C537170E"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Red Crystals.png",
+                      "size":  348275,
+                      "sha256":  "A554A5B2C9878B5DB57548CD53449266C3A1CF92FB5293BE08F6EBC3D324ED27"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Safe Shallows.png",
+                      "size":  326409,
+                      "sha256":  "E079DCEC3FBA61166CF0879640AD47557A199B2D24A8FABE0087269CBEC6746C"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Sea Dragon Leviathan.png",
+                      "size":  2113059,
+                      "sha256":  "E763375A6B463E4C53B252D1ED5DB6502533CEB02EAAA87412C3AA6781311A3C"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Shadow Leviathan.png",
+                      "size":  175678,
+                      "sha256":  "59F1EB0DA4F3742DB6D735C5AC580CAD8EAD8288744374A035CBA724EFCFB450"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Snow Stalker.png",
+                      "size":  321558,
+                      "sha256":  "7527E05710356191446E32D82213C1E6DB2AFF3B8335E7EA1E4CAF8888EB975E"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Snowfox.png",
+                      "size":  429734,
+                      "sha256":  "CF8AEE555DA0D7998C17765A3F84E888CDA8B00E9AD1A5C63510B5C550BFEFEC"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Squid Shark.png",
+                      "size":  410840,
+                      "sha256":  "98852510A530A57D8973BDBD47C34B955EAE86DDE13D2DD72D5B21DC4CF37245"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Backgrounds/Twisty Bridges.png",
+                      "size":  317183,
+                      "sha256":  "171A226FB03AE454588F654A900B70EB77006279E7C3869E6FA46B9F14263C08"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Fonts/aller.regular.ttf",
+                      "size":  96396,
+                      "sha256":  "CE14036C181BDEA31C40384FE840BB020774453867B8089CC4E8EB09AB69CD69"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/DiscordIcon.png",
+                      "size":  24403,
+                      "sha256":  "C7539176C56026AEBA03A6830FCE5F1F2CA5AEDA3D15C041428FA8310922D8DF"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/GithubIcon.png",
+                      "size":  8640,
+                      "sha256":  "D83DDF4EA98E9D2E77848869CBE5F0ECABB3058EDE22C681BBE07B45A9091909"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/Gold.png",
+                      "size":  170826,
+                      "sha256":  "D4A11965681731F35823AE5776520BDFB8A7374537E513996605A40B8B1101C8"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/HatchingEnzymes.png",
+                      "size":  118299,
+                      "sha256":  "2B7F3096F70C1117E1950499EC990261F1F23BE1EE0F97D7C2490A9B62337D9D"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/IonCube.png",
+                      "size":  182727,
+                      "sha256":  "099B836B5E331CE4977A453A77B62BCC071767E5717F4ED6DA4F0AA7FEBD4A89"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/Kyanite.png",
+                      "size":  155271,
+                      "sha256":  "2F5CBAA796D2E58C847F21EAA2FE6AFE4724764500B042709587C2D80EAEB866"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/SNL.ico",
+                      "size":  100253,
+                      "sha256":  "30BA5F14D1EB88A81C4080B8FD8AB42C37B2B044D4559314647278870978DDB3"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/SNLButton.png",
+                      "size":  1196227,
+                      "sha256":  "CAC4DB665DFB3FBE2242F4E41F2B7C0339E6C4A3DB5D39D29EF9AB053822520B"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/SNLBZ.ico",
+                      "size":  81824,
+                      "sha256":  "226319DA3BB4429908DD7B6669525F10B495D1D8E5A44B6D536280686FF2C70F"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/SNLBZButton.png",
+                      "size":  199011,
+                      "sha256":  "665AAC7783C9D8BE2D5832BD9DC4BDEF1C4A9CB512D0A7FC19329AEAEE6725C5"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/SNLIcon.png",
+                      "size":  100253,
+                      "sha256":  "30BA5F14D1EB88A81C4080B8FD8AB42C37B2B044D4559314647278870978DDB3"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/SNLIconBZ.png",
+                      "size":  81824,
+                      "sha256":  "226319DA3BB4429908DD7B6669525F10B495D1D8E5A44B6D536280686FF2C70F"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/StalkerTooth.png",
+                      "size":  124018,
+                      "sha256":  "F0964430112AFA7133B34C98A72BA065CE62A108231DB75C302C746BF45A2780"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/Titanium.png",
+                      "size":  177861,
+                      "sha256":  "28141749498AED2A01599324AD8867BC30CDAD8189F292ECCBDE1E10B29B40D8"
+                  },
+                  {
+                      "path":  "Dependencies/Assets/Icons/YoutubeIcon.png",
+                      "size":  6108,
+                      "sha256":  "FF01619A71A42C7E0720E2E0FCCA83550309292DEA0DD51D082B84634C3880C9"
+                  },
+                  {
+                      "path":  "Dependencies/SDL2.dll",
+                      "size":  1334272,
+                      "sha256":  "24CB7B791C05255FC35757542F307190D9668A072F1DDCB38EEB8CF8DFC7DC91"
+                  },
+                  {
+                      "path":  "Dependencies/SubnauticaLauncher.ImGuiHost.exe",
+                      "size":  968704,
+                      "sha256":  "467FD6E067B2C0E21DEECDA807D4B56A66C93A55C1D1503845CCC4EA333ADC86"
+                  },
+                  {
+                      "path":  "README.md",
+                      "size":  13259,
+                      "sha256":  "29ABDE47C5B0050F664162CDEF47301B65128FA0C22CEDE697290DC342030427"
+                  },
+                  {
+                      "path":  "SNLUpdater.exe",
+                      "size":  71724564,
+                      "sha256":  "0B735CFC07234A06327500FE9866C24DB2473C13619FB751118EC7248519A809"
+                  },
+                  {
+                      "path":  "SubnauticaLauncher.exe",
+                      "size":  91949821,
+                      "sha256":  "B9BC11430D294467F023B9F4825F2B3EB7AEE73AF4184AC7802C3E11F2B5E38D"
+                  }
+              ]
+}

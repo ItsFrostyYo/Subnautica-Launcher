@@ -164,6 +164,16 @@
                 <TextBlock x:Name="LauncherVersionText" FontSize="13" Opacity="0.7" />
             </StackPanel>
             <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Content="Verify Launcher Integrity"
+                        Height="25"
+                        Padding="12,0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Foreground="#AFFFFFFF"
+                        FontSize="11"
+                        Cursor="Hand"
+                        Click="VerifyLauncherIntegrity_Click"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True" />
                 <Button Content="&#x2014;" Width="44" Height="25" Background="Transparent" BorderBrush="#55000000" BorderThickness="1"
                         Click="Minimize_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
                 <Button Content="&#x25A1;" Width="44" Height="25" Background="Transparent" BorderBrush="#55000000" BorderThickness="1"
@@ -358,6 +368,13 @@
                                 Padding="12,5"
                                 Style="{StaticResource RoundedButton}"
                                 Click="AddVersion_Click" />
+                        <Button Content="Mods"
+                                x:Name="ModsButton"
+                                Width="112"
+                                Height="38"
+                                Margin="12,0,0,0"
+                                Padding="12,5"
+                                Style="{StaticResource RoundedButton}" />
                         <Button Content="Change Ordering"
                                 x:Name="ChangeOrderingButton"
                                 Width="164"

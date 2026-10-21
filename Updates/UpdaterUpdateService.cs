@@ -11,11 +11,12 @@ public sealed class UpdaterUpdateService
     private static readonly HttpClient HttpClient = new();
     private static Uri ManifestUri => new(
         Environment.GetEnvironmentVariable("SNL_UPDATER_MANIFEST_URL")
-        ?? "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/Release/SNLUUpdates.xml");
+        ?? "https://raw.githubusercontent.com/ItsFrostyYo/Subnautica-Launcher/main/Release/Data/SNLUUpdates.xml");
 
     public async Task<string> EnsureLatestAsync(
         IProgress<LauncherUpdateProgress>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool forceDownload = false)
     {
         progress?.Report(new LauncherUpdateProgress("Checking updater...", "Making sure SNLUpdater is current...", null));
         string updaterPath = Path.Combine(AppContext.BaseDirectory, UpdaterName);
@@ -24,13 +25,16 @@ public sealed class UpdaterUpdateService
             .OrderByDescending(item => item.Version)
             .FirstOrDefault();
 
-        if (update is null || GetFileVersion(updaterPath) >= update.Version)
+        if (!forceDownload && (update is null || GetFileVersion(updaterPath) >= update.Version))
         {
             if (!File.Exists(updaterPath))
                 throw new FileNotFoundException("SNLUpdater.exe is missing.", updaterPath);
             progress?.Report(new LauncherUpdateProgress("Updater ready", "The latest updater is installed.", 3));
             return updaterPath;
         }
+
+        if (update is null)
+            throw new InvalidDataException("The updater manifest does not contain a downloadable release.");
 
         LauncherUpdateFile file = update.Files.FirstOrDefault(item => string.Equals(Path.GetFileName(item.Path), UpdaterName, StringComparison.OrdinalIgnoreCase))
             ?? throw new InvalidDataException("SNLUUpdates.xml does not contain SNLUpdater.exe.");

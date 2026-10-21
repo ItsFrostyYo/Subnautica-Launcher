@@ -8,7 +8,7 @@ public static class LauncherUpdateFeed
 
     public static Uri ManifestUri => new(
         Environment.GetEnvironmentVariable("SNL_UPDATE_MANIFEST_URL")
-        ?? RepositoryRoot + "Release/SNLUpdates.xml");
+        ?? RepositoryRoot + "Release/Data/SNLUpdates.xml");
 
     public static Uri ContentBaseUri => new(
         Environment.GetEnvironmentVariable("SNL_UPDATE_CONTENT_BASE_URL")

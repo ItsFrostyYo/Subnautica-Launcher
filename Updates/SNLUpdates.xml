@@ -1,15 +1,24 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <updates>
+  <update version="4.0.4.0" title="Launcher Integrity and Navigation" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added a launcher integrity check that repairs missing, damaged, or incorrectly extracted launcher files through the normal updater</change>
+      <change>Added the Mods button to the Play page for future mod management</change>
+      <change>Updated the launcher guide and included it in release and update packages</change>
+    </changelog>
+    <files>
+      <file path="Release/Data/IntegrityManifest.json" status="changed" />
+      <file path="Release/Data/SNLUpdates.xml" status="changed" />
+      <file path="Release/Data/SNLUUpdates.xml" status="changed" />
+      <file path="Release/Dependencies.zip" status="changed" />
+      <file path="Release/README.md" status="changed" />
+      <file path="Release/SubnauticaLauncher.exe" status="changed" />
+    </files>
+  </update>
   <update version="4.0.3.0" title="Updater Reliability Hotfix" date="October 19, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
       <change>Fixed Plugin Hotkey Bug</change>
     </changelog>
-    <files>
-      <file path="Release/Dependencies.zip" status="changed" />
-      <file path="Release/SNLUpdates.xml" status="changed" />
-      <file path="Release/SNLUUpdates.xml" status="changed" />
-      <file path="Release/SubnauticaLauncher.exe" status="changed" />
-    </files>
   </update>
   <update version="4.0.2.0" title="Updater Reliability Hotfix" date="October 19, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
