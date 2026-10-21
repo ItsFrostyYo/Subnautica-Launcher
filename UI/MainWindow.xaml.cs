@@ -138,12 +138,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (LauncherIntegrityService.IsDevelopmentWorkspace())
-        {
-            WpfMessageBox.Show(this, "Launcher integrity repair is available from an installed or extracted release package.", "Verify Launcher Integrity", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
         if (!await _updateCheckGate.WaitAsync(0))
         {
             WpfMessageBox.Show(this, "Another launcher update operation is already running.", "Verify Launcher Integrity", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -175,11 +169,16 @@ public partial class MainWindow : Window
 
             LauncherUpdate repairRelease = await _updateService.GetLatestReleaseAsync();
             if (repairRelease.Version != result.Version)
-                throw new InvalidDataException("The launcher repair manifests do not describe the same release.");
+                throw new InvalidDataException($"The integrity manifest describes v{result.Version}, but the available repair files describe v{repairRelease.Version}.");
+
+            LauncherIntegrityIssue firstIssue = result.Issues[0];
+            string issueSummary = result.Issues.Count == 1
+                ? $"{firstIssue.Path}: {firstIssue.Reason}. Downloading a clean replacement..."
+                : $"Found {result.Issues.Count} missing or damaged files. First issue: {firstIssue.Path} ({firstIssue.Reason}).";
 
             progressWindow.Apply(new LauncherUpdateProgress(
                 "Repairing launcher installation...",
-                $"Replacing {result.Issues.Count} missing or damaged file{(result.Issues.Count == 1 ? string.Empty : "s")}...",
+                issueSummary,
                 62));
 
             string updaterPath = await _updaterUpdateService.EnsureLatestAsync(progress, forceDownload: true);

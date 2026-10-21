@@ -240,65 +240,80 @@ The Launcher Info page shows the launcher update history and provides links to:
 
 ## Updates
 
-The launcher checks for launcher updates before checking installed plugins.
+The launcher checks for launcher updates automatically. Launcher and plugin updates wait until Subnautica is closed.
 
-When a launcher update is available, you can choose `Later` or `Update Now`. The visible update flow:
+When an update is available, choose `Later` to continue using the current version or `Update Now` to install it. During an update, the launcher:
 
-1. updates `SNLUpdater.exe` if required
-2. downloads and validates the launcher payload
-3. closes the launcher
-4. replaces changed files through SNLUpdater
-5. reopens the updated launcher
+1. Makes sure `SNLUpdater.exe` is current.
+2. Downloads the launcher files listed in the official update manifest.
+3. Closes the launcher and starts SNLUpdater.
+4. Replaces launcher files and fully re-extracts the dependency bundle when required.
+5. Reopens the updated launcher.
 
-Update checks and installation are deferred while Subnautica is running. Launcher updates preserve the user-owned `Data`, `Plugins`, and `Logs` directories.
+Updates preserve managed versions, launcher preferences, plugin settings, installed plugins, and logs.
 
 ### Verify Launcher Integrity
 
-Use `Verify Launcher Integrity` in the top-right title bar to check every installed launcher file.
+Select `Verify Launcher Integrity` in the top-right title bar and confirm with `Yes` to check the launcher installation against the current official release.
 
-After you confirm the check, the launcher compares the installed files with the official release integrity manifest. This includes the launcher, updater, update manifests, README, and all extracted dependency files.
+- If every managed file has the expected size and SHA-256 checksum, the launcher reports that all files are present and valid.
+- If a file is missing or damaged, the progress window identifies the problem and enters repair mode automatically.
+- Repair mode downloads clean launcher files, refreshes the updater when necessary, replaces the dependency bundle, and restarts the launcher.
+- If the installed launcher is older than the current integrity manifest, the same process updates it to the current release.
 
-If everything is present and valid, the launcher reports that the check passed. If files are missing, damaged, or were not extracted correctly, the launcher enters update mode, downloads clean copies, repairs the installation, and restarts automatically.
+The check covers `SubnauticaLauncher.exe`, `SNLUpdater.exe`, the README, launcher-managed manifests, and every shipped dependency file. It does not inspect Subnautica installations, saved games, user configuration, logs, or third-party plugin files.
 
-Integrity repair refreshes only the three launcher-managed manifest files inside `Data`; saved versions and settings in `Data`, plus user-owned `Plugins` and `Logs`, are preserved. Subnautica must be closed before verification or repair begins.
+Subnautica must be closed before verification or repair begins. An internet connection is required to download the official integrity manifest and any replacement files.
 
 ## Launcher Files and User Data
 
-Keep these release items together:
+Extract the complete release ZIP into one writable folder. The installed launcher includes:
 
-- `SubnauticaLauncher.exe` — main launcher and isolated plugin host
-- `SNLUpdater.exe` — launcher updater
-- `Dependencies` — native UI host, assets, DepotDownloader, and required runtime files
-- `Data/SNLUpdates.xml` — launcher update history and payload manifest
-- `Data/SNLUUpdates.xml` — updater manifest
-- `Data/IntegrityManifest.json` — integrity information for the shipped launcher files
-- `README.md` — launcher setup and usage guide
+- `SubnauticaLauncher.exe` — the launcher and isolated plugin host
+- `SNLUpdater.exe` — the update and integrity-repair helper
+- `Dependencies` — launcher assets, DepotDownloader, the native UI host, and required runtime files
+- `Data/SNLUpdates.xml` — launcher update history and launcher payload list
+- `Data/SNLUUpdates.xml` — updater release information
+- `Data/IntegrityManifest.json` — expected sizes and SHA-256 checksums for managed launcher files
+- `README.md` — setup and usage instructions
 
-The launcher creates or maintains:
+The launcher also creates and maintains user data:
 
-- `Data/config.json` — launcher preferences and managed-version state
-- `Data/Plugins` — plugin state and settings
-- `Plugins` — installed plugin assemblies
-- `Logs` — runtime and plugin logs
+- `Data/config.json` — preferences and the managed-version list
+- `Data/Plugins` — plugin state and plugin settings
+- `Plugins` — installed plugin files
+- `Logs` — launcher, updater, and plugin logs
 
-Back up `Data` if you want to preserve your managed-version list and launcher preferences manually.
+The updater replaces only launcher-managed files. It does not delete `Data/config.json`, `Data/Plugins`, `Plugins`, or `Logs`. Back up `Data` if you want a manual copy of your launcher configuration.
 
 ## Troubleshooting
 
+### Verify Launcher Integrity cannot start
 
+Check that:
 
-### A version does not appear
+- Subnautica is closed.
+- No launcher update or plugin update is already running.
+- The computer is connected to the internet and can reach GitHub.
+- The launcher folder is writable and is not being run from inside the ZIP.
 
-Try:
+If verification reports a download or manifest error, try again after confirming GitHub is reachable. The launcher does not report a successful check unless it downloaded the official integrity manifest and checked every listed file.
 
-- reopening the launcher
-- checking that the game folder still exists
-- checking that the folder contains `Subnautica.exe`
-- adding the version again if its folder was moved outside the launcher
+### Integrity repair fails
 
+Close the launcher, reopen it, and run `Verify Launcher Integrity` again. Make sure antivirus software has not quarantined `SNLUpdater.exe` or files inside `Dependencies`.
 
+If the updater opened but could not finish, read `Logs/SNLUpdater.log` for the affected file and error. Confirm the launcher folder is writable and no launcher or dependency process is still running.
 
-### An existing version is not recognized
+### A launcher update fails
+
+Close Subnautica and retry. If the update still fails, run `Verify Launcher Integrity`. A missing or damaged updater, dependency, or launcher file will be downloaded again automatically.
+
+### A managed version does not appear
+
+Restart the launcher and confirm that the game folder still exists and contains `Subnautica.exe`. If you moved the folder outside the launcher, add the version again from its new location.
+
+### An existing installation is not recognized
 
 The launcher identifies supported builds from known build metadata. Make sure you selected the actual game folder and that its files have not been mixed with another Subnautica build.
 
@@ -318,16 +333,14 @@ Check that:
 - Steam's active `Subnautica` folder is already managed by the launcher
 - the folder name needed to restore the previous version is not already occupied
 
-
-
 ### A plugin will not update
 
 Close Subnautica and try again. Plugin replacement is intentionally blocked while the game is running. Plugin errors are shown on the plugin card and additional details may be available under `Logs`.
 
-### A native launcher window is missing
+### A launcher window is missing or does not open
 
-Make sure the complete `Dependencies` folder was extracted next to `SubnauticaLauncher.exe`. Re-extract the release ZIP if any dependency files are missing.
+Run `Verify Launcher Integrity`. It checks and repairs the native UI host, launcher assets, and other required dependency files. If verification itself cannot run, extract the complete release ZIP into a new writable folder.
 
 ## Notes
 
-This rebuild is focused on safe Subnautica version management and an extensible plugin-based tool system. Keep managed folders inside the launcher workflow, especially when using Steam-compatible folder switching, so launcher metadata and physical folders remain synchronized.
+Keep managed game folders inside the launcher workflow, especially when using Steam-compatible folder switching. Moving or renaming those folders outside the launcher can leave its saved paths out of sync with the files on disk.

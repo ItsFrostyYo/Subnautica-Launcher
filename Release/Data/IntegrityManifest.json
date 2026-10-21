@@ -209,22 +209,22 @@
                   {
                       "path":  "Dependencies/SubnauticaLauncher.ImGuiHost.exe",
                       "size":  968704,
-                      "sha256":  "467FD6E067B2C0E21DEECDA807D4B56A66C93A55C1D1503845CCC4EA333ADC86"
+                      "sha256":  "26ECBC63DADF136BE308EC9DDB47D2836505FD5456638B19406CD0432AAEBFD1"
                   },
                   {
                       "path":  "README.md",
-                      "size":  13259,
-                      "sha256":  "29ABDE47C5B0050F664162CDEF47301B65128FA0C22CEDE697290DC342030427"
+                      "size":  15056,
+                      "sha256":  "9CF663AF9F5D4F3F0BE907EB26A3436A92889B40D6F8EF15CF8D70EACCC8394F"
                   },
                   {
                       "path":  "SNLUpdater.exe",
-                      "size":  71724564,
-                      "sha256":  "0B735CFC07234A06327500FE9866C24DB2473C13619FB751118EC7248519A809"
+                      "size":  71724567,
+                      "sha256":  "3B2B00461B682055D1688889EEA5FD47B4C777C7A8BB9F3A11B89EFE3DC5DBB4"
                   },
                   {
                       "path":  "SubnauticaLauncher.exe",
                       "size":  91949821,
-                      "sha256":  "B9BC11430D294467F023B9F4825F2B3EB7AEE73AF4184AC7802C3E11F2B5E38D"
+                      "sha256":  "90B968FC6A48044ABBCE26716B47AA3FF4D933095C373218B603FFE417092520"
                   }
               ]
 }

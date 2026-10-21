@@ -101,19 +101,6 @@ public sealed class LauncherIntegrityService
         return new LauncherIntegrityResult(version, issues);
     }
 
-    public static bool IsDevelopmentWorkspace()
-    {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        for (int depth = 0; directory is not null && depth < 8; depth++, directory = directory.Parent)
-        {
-            if (Directory.Exists(Path.Combine(directory.FullName, ".git")) ||
-                Directory.EnumerateFiles(directory.FullName, "*.sln", SearchOption.TopDirectoryOnly).Any() ||
-                Directory.EnumerateFiles(directory.FullName, "*.csproj", SearchOption.TopDirectoryOnly).Any())
-                return true;
-        }
-        return false;
-    }
-
     private sealed class IntegrityManifest
     {
         public string Version { get; set; } = string.Empty;
