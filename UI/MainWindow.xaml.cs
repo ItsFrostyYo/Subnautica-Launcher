@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -49,6 +50,8 @@ public partial class MainWindow : Window
     private string? _activeVersionFolder;
     private bool _showInstalledPlugins = true;
     private bool _updateHandoffStarted;
+    private bool _shutdownInProgress;
+    private bool _shutdownReady;
 
     public bool IsOrdering
     {
@@ -73,7 +76,7 @@ public partial class MainWindow : Window
         _statusTimer.Tick += async (_, _) =>
         {
             RefreshVersionStatus();
-            if (_pluginManager is null || _maintainingPlugins) return;
+            if (_shutdownInProgress || _pluginManager is null || _maintainingPlugins) return;
             _maintainingPlugins = true;
             try { await _pluginManager.MaintainEnabledPluginsAsync(); }
             finally { _maintainingPlugins = false; }
@@ -86,21 +89,27 @@ public partial class MainWindow : Window
         };
         Loaded += async (_, _) =>
         {
+            if (_shutdownInProgress) return;
             BuildUpdatesView();
             _pluginManager = new LauncherPluginManager(new WindowInteropHelper(this).Handle);
             await RunUpdateChecksIfIdleAsync(updatePlugins: false);
-            if (_updateHandoffStarted) return;
+            if (_updateHandoffStarted || _shutdownInProgress) return;
             await _pluginManager.UpdateInstalledPluginsAsync(() => false);
+            if (_shutdownInProgress) return;
             await _pluginManager.InitializeAsync();
+            if (_shutdownInProgress) return;
             await ReloadPluginCardsAsync(checkForUpdates: false);
             _updateTimer.Start();
         };
+        Closing += MainWindow_Closing;
         Closed += (_, _) =>
         {
             _statusTimer.Stop();
             _updateTimer.Stop();
             ImGuiAddVersionWindow.CloseAll();
-            _pluginManager?.Dispose();
+            InputReleaseService.ReleaseAllInjectedInput();
+            if (System.Windows.Application.Current is { ShutdownMode: not ShutdownMode.OnExplicitShutdown } application)
+                application.Shutdown();
         };
     }
 
@@ -120,6 +129,34 @@ public partial class MainWindow : Window
     private void Maximize_Click(object sender, RoutedEventArgs e) => ToggleMaximize();
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+
+    private async void MainWindow_Closing(object? sender, CancelEventArgs e)
+    {
+        if (_shutdownReady) return;
+        e.Cancel = true;
+        if (_shutdownInProgress) return;
+
+        _shutdownInProgress = true;
+        IsEnabled = false;
+        _statusTimer.Stop();
+        _updateTimer.Stop();
+        InputReleaseService.ReleaseAllInjectedInput();
+        ImGuiAddVersionWindow.CloseAll();
+        try
+        {
+            if (_pluginManager is not null)
+            {
+                await _pluginManager.ShutdownAsync();
+                _pluginManager = null;
+            }
+        }
+        finally
+        {
+            InputReleaseService.ReleaseAllInjectedInput();
+            _shutdownReady = true;
+            _ = Dispatcher.BeginInvoke(Close);
+        }
+    }
 
     private async void VerifyLauncherIntegrity_Click(object sender, RoutedEventArgs e)
     {
@@ -223,6 +260,18 @@ public partial class MainWindow : Window
                 SelectVersion(version);
             });
         });
+    }
+
+    private async void ModsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await ImGuiModsWindow.ShowAsync(_versionStore, _selectedVersion, new WindowInteropHelper(this).Handle);
+        }
+        catch (Exception exception)
+        {
+            System.Windows.MessageBox.Show(exception.Message, "Manage Mods", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void ChangeOrdering_Click(object sender, RoutedEventArgs e)

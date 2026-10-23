@@ -57,6 +57,25 @@ struct SavedSettingEntry
     std::string value;
 };
 
+struct ModWindowVersion
+{
+    std::string path;
+    std::string displayName;
+};
+
+struct ModWindowCard
+{
+    std::string id;
+    std::string name;
+    std::string author;
+    std::string version;
+    std::string description;
+    std::string action;
+    bool installed = false;
+    bool canAction = true;
+    std::string unavailableReason;
+};
+
 // Title-bar controls: adjust these to change spacing without breaking hit testing.
 static constexpr float kTitleButtonSize = 19.0f;
 static constexpr float kTitleBarHeight = 30.0f;
@@ -485,8 +504,8 @@ static bool TitleIconButton(const char* id, const ImVec2& position, bool isBack)
 
 static void ResizeForMode(HWND window, const std::string& mode)
 {
-    const int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "plugin-settings" ? 520 : 380;
-    const int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 590 : 340;
+    const int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "plugin-settings" ? 520 : mode == "mods" ? 760 : 380;
+    const int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 590 : mode == "mods" ? 590 : 340;
     g_minWidth = width;
     g_minHeight = height;
     g_hasBackButton = mode == "existing" || mode == "install" || mode == "login";
@@ -549,8 +568,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
 
     WNDCLASSEXW windowClass{ sizeof(windowClass), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, nullptr, nullptr, nullptr, L"SubnauticaLauncherNativeImGui", nullptr };
     RegisterClassExW(&windowClass);
-    int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "plugin-settings" ? 520 : 380;
-    int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 590 : 340;
+    int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "plugin-settings" ? 520 : mode == "mods" ? 760 : 380;
+    int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 590 : mode == "mods" ? 590 : 340;
     g_minWidth = width;
     g_minHeight = height;
     g_hasBackButton = mode == "existing" || mode == "install" || mode == "login";
@@ -588,6 +607,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowRounding = 10.0f;
+    style.ChildRounding = 12.0f;
     style.FrameRounding = 15.0f;
     style.GrabRounding = 15.0f;
     style.FrameBorderSize = 1.0f;
@@ -621,6 +641,13 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
     const std::string librariesArgument = GetArgument(args, "--libraries");
     const std::string settingsVersionsArgument = GetArgument(args, "--settings-versions");
     const std::string settingsEntriesArgument = GetArgument(args, "--settings-entries");
+    const std::string modVersionsArgument = GetArgument(args, "--mod-versions");
+    const std::string modInstalledArgument = GetArgument(args, "--mod-installed");
+    const std::string modLoadersArgument = GetArgument(args, "--mod-loaders");
+    std::string modSelectedPath = Decode(GetArgument(args, "--mod-selected"));
+    std::string modStatus = Decode(GetArgument(args, "--mod-status"));
+    std::string modWarning = Decode(GetArgument(args, "--mod-warning"));
+    bool modFolderEnabled = GetArgument(args, "--mod-folder-enabled") == "1";
     bool pluginMacroEnabled = GetArgument(args, "--macro-enabled") == "1";
     bool pluginSaveDeleter = GetArgument(args, "--plugin-save-deleter") == "1";
     int pluginSaveGameMode = std::clamp(std::atoi(GetArgument(args, "--plugin-save-game-mode").c_str()), 0, 1);
@@ -681,6 +708,70 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
         if (recordEnd == std::string::npos) break;
         recordStart = recordEnd + 1;
     }
+    std::vector<ModWindowVersion> modVersions;
+    recordStart = 0;
+    while (recordStart < modVersionsArgument.size())
+    {
+        size_t recordEnd = modVersionsArgument.find('\n', recordStart);
+        std::string record = modVersionsArgument.substr(recordStart, recordEnd == std::string::npos ? std::string::npos : recordEnd - recordStart);
+        size_t separator = record.find('\t');
+        if (separator != std::string::npos)
+            modVersions.push_back({ Decode(record.substr(0, separator)), Decode(record.substr(separator + 1)) });
+        if (recordEnd == std::string::npos) break;
+        recordStart = recordEnd + 1;
+    }
+    auto parseModCards = [](const std::string& argument, bool loaderCards)
+    {
+        std::vector<ModWindowCard> cards;
+        size_t start = 0;
+        while (start < argument.size())
+        {
+            size_t end = argument.find('\n', start);
+            std::string record = argument.substr(start, end == std::string::npos ? std::string::npos : end - start);
+            std::vector<std::string> fields;
+            size_t fieldStart = 0;
+            while (fieldStart <= record.size())
+            {
+                size_t fieldEnd = record.find('\t', fieldStart);
+                fields.push_back(record.substr(fieldStart, fieldEnd == std::string::npos ? std::string::npos : fieldEnd - fieldStart));
+                if (fieldEnd == std::string::npos) break;
+                fieldStart = fieldEnd + 1;
+            }
+            if ((!loaderCards && fields.size() >= 6) || (loaderCards && fields.size() >= 9))
+            {
+                ModWindowCard card;
+                card.id = Decode(fields[0]);
+                card.name = Decode(fields[1]);
+                card.author = Decode(fields[2]);
+                card.version = Decode(fields[3]);
+                card.description = Decode(fields[4]);
+                card.action = Decode(fields[5]);
+                if (loaderCards)
+                {
+                    card.installed = fields[6] == "1";
+                    card.canAction = fields[7] == "1";
+                    card.unavailableReason = Decode(fields[8]);
+                }
+                else card.installed = true;
+                cards.push_back(std::move(card));
+            }
+            if (end == std::string::npos) break;
+            start = end + 1;
+        }
+        return cards;
+    };
+    std::vector<ModWindowCard> installedModCards = parseModCards(modInstalledArgument, false);
+    std::vector<ModWindowCard> loaderModCards = parseModCards(modLoadersArgument, true);
+    int selectedModVersion = 0;
+    for (int index = 0; index < static_cast<int>(modVersions.size()); ++index)
+        if (_stricmp(modVersions[index].path.c_str(), modSelectedPath.c_str()) == 0) selectedModVersion = index;
+    bool showInstalledMods = true;
+    bool showModRemovalConfirmation = false;
+    bool modBusy = false;
+    std::string modOperationError;
+    std::string pendingModCommand;
+    std::string pendingModId;
+    std::string pendingModName;
     bool hasSavedSettings = GetArgument(args, "--settings-has-saved") == "1";
     bool applySavedSettings = GetArgument(args, "--settings-apply") != "0";
     const std::string savedSettingsSource = GetArgument(args, "--settings-source");
@@ -788,6 +879,39 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
                 }
             }
         }
+        else if (mode == "mods")
+        {
+            for (const std::string& line : PollProtocolInput(protocolPending))
+            {
+                std::vector<std::string> fields;
+                size_t start = 0;
+                while (start <= line.size())
+                {
+                    size_t end = line.find('|', start);
+                    fields.push_back(line.substr(start, end == std::string::npos ? std::string::npos : end - start));
+                    if (end == std::string::npos) break;
+                    start = end + 1;
+                }
+                if (fields.size() >= 7 && fields[0] == "MOD_DATA")
+                {
+                    modSelectedPath = Decode(fields[1]);
+                    modStatus = Decode(fields[2]);
+                    modWarning = Decode(fields[3]);
+                    installedModCards = parseModCards(Decode(fields[4]), false);
+                    loaderModCards = parseModCards(Decode(fields[5]), true);
+                    modFolderEnabled = fields[6] == "1";
+                    for (int index = 0; index < static_cast<int>(modVersions.size()); ++index)
+                        if (_stricmp(modVersions[index].path.c_str(), modSelectedPath.c_str()) == 0) selectedModVersion = index;
+                    modBusy = false;
+                    modOperationError.clear();
+                }
+                else if (fields.size() >= 2 && fields[0] == "MOD_ERROR")
+                {
+                    modOperationError = Decode(fields[1]);
+                    modBusy = false;
+                }
+            }
+        }
         if (mode == "progress" && automaticCloseAt != 0 && GetTickCount64() >= automaticCloseAt)
         {
             WriteResult("CLOSE");
@@ -800,7 +924,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
         ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
         std::string dynamicTitle = mode == "progress" && !installName.empty() ? "Installing " + installName : "Installing Subnautica";
-        const char* title = mode == "choice" ? "Add Version to Launcher" : mode == "edit" ? "Edit Version" : mode == "install" ? "Select a Version to Install" : mode == "login" ? "Login to Depot Downloader" : mode == "progress" ? dynamicTitle.c_str() : mode == "settings" ? "Subnautica In-Game Settings" : mode == "plugin-settings" ? "Subnautica Reset Macro Settings" : "Add Existing Version to Launcher";
+        const char* title = mode == "choice" ? "Add Version to Launcher" : mode == "edit" ? "Edit Version" : mode == "install" ? "Select a Version to Install" : mode == "login" ? "Login to Depot Downloader" : mode == "progress" ? dynamicTitle.c_str() : mode == "settings" ? "Subnautica In-Game Settings" : mode == "plugin-settings" ? "Subnautica Reset Macro Settings" : mode == "mods" ? "Manage Mods" : "Add Existing Version to Launcher";
         ImGui::Begin("##LauncherHost", nullptr, flags);
         if (g_background)
         {
@@ -840,6 +964,158 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
             if (LauncherButton("Add Existing Version", ImVec2(buttonWidth, 42))) { mode = "existing"; ResizeForMode(window, mode); }
             ImGui::SameLine();
             if (LauncherButton("Install New Version", ImVec2(buttonWidth, 42))) { mode = "install"; ResizeForMode(window, mode); }
+        }
+        else if (mode == "mods")
+        {
+            ImGui::TextUnformatted("Installed Version");
+            ImGui::SameLine(170.0f);
+            ImGui::SetNextItemWidth(-1.0f);
+            const char* selectedVersionName = modVersions.empty() ? "No managed versions" : modVersions[selectedModVersion].displayName.c_str();
+            if (ImGui::BeginCombo("##mod-version", selectedVersionName))
+            {
+                for (int index = 0; index < static_cast<int>(modVersions.size()); ++index)
+                {
+                    bool selectedItem = index == selectedModVersion;
+                    if (ImGui::Selectable(modVersions[index].displayName.c_str(), selectedItem) && index != selectedModVersion)
+                    {
+                        selectedModVersion = index;
+                        modStatus = "Loading mod information...";
+                        modWarning.clear();
+                        modOperationError.clear();
+                        installedModCards.clear();
+                        loaderModCards.clear();
+                        modFolderEnabled = false;
+                        modBusy = true;
+                        WriteResult("MOD_SELECT|" + Encode(modVersions[index].path));
+                    }
+                    if (selectedItem) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            ImGui::Dummy(ImVec2(0, 3));
+            ImGui::TextWrapped("%s", modStatus.c_str());
+            if (!modOperationError.empty())
+            {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.55f, 0.55f, 1.0f));
+                ImGui::TextWrapped("%s", modOperationError.c_str());
+                ImGui::PopStyleColor();
+            }
+
+            if (!modWarning.empty())
+            {
+                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.32f, 0.09f, 0.07f, 0.88f));
+                ImGui::BeginChild("##mod-warning", ImVec2(-1, 82), true);
+                ImGui::PushTextWrapPos(ImGui::GetContentRegionAvail().x - 150.0f);
+                ImGui::TextWrapped("%s", modWarning.c_str());
+                ImGui::PopTextWrapPos();
+                ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 145.0f, 24.0f));
+                ImGui::BeginDisabled(modBusy);
+                if (LauncherButton("Remove Conflict", ImVec2(125, 34)))
+                {
+                    pendingModCommand = "MOD_REMOVE_INCOMPATIBLE";
+                    pendingModId.clear();
+                    pendingModName = "incompatible BepInEx and QModManager files";
+                    showModRemovalConfirmation = true;
+                }
+                ImGui::EndDisabled();
+                ImGui::EndChild();
+                ImGui::PopStyleColor();
+            }
+
+            ImGui::Dummy(ImVec2(0, 2));
+            std::string installedLabel = "Installed (" + std::to_string(installedModCards.size()) + ")";
+            bool installedTabActive = showInstalledMods;
+            if (installedTabActive) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.44f, 0.24f, 0.40f));
+            if (LauncherButton((installedLabel + "##installed-mods").c_str(), ImVec2(150, 34))) showInstalledMods = true;
+            if (installedTabActive) ImGui::PopStyleColor();
+            ImGui::SameLine();
+            bool loaderTabActive = !showInstalledMods;
+            if (loaderTabActive) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.44f, 0.24f, 0.40f));
+            if (LauncherButton("Mod Loaders##mod-loaders", ImVec2(150, 34))) showInstalledMods = false;
+            if (loaderTabActive) ImGui::PopStyleColor();
+            ImGui::Separator();
+
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(16.0f / 255.0f, 23.0f / 255.0f, 37.0f / 255.0f, 168.0f / 255.0f));
+            ImGui::BeginChild("##mod-card-list", ImVec2(-1, -1), true);
+            const std::vector<ModWindowCard>& cards = showInstalledMods ? installedModCards : loaderModCards;
+            if (cards.empty())
+            {
+                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 22.0f);
+                ImGui::TextDisabled(showInstalledMods ? "No direct mods are installed." : "No supported mod loaders are available for this version.");
+            }
+            for (int index = 0; index < static_cast<int>(cards.size()); ++index)
+            {
+                const ModWindowCard& card = cards[index];
+                std::string childId = "##mod-card-" + std::to_string(index) + (showInstalledMods ? "-installed" : "-loader");
+                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(16.0f / 255.0f, 23.0f / 255.0f, 37.0f / 255.0f, 138.0f / 255.0f));
+                ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(124.0f / 255.0f, 149.0f / 255.0f, 189.0f / 255.0f, 69.0f / 255.0f));
+                ImGui::BeginChild(childId.c_str(), ImVec2(-1, 154), true);
+                ImGui::SetWindowFontScale(1.18f);
+                ImGui::TextUnformatted(card.name.c_str());
+                ImGui::SetWindowFontScale(0.82f);
+                ImGui::TextDisabled("%s", card.author.c_str());
+                ImGui::SetWindowFontScale(0.88f);
+                ImGui::PushTextWrapPos(ImGui::GetWindowWidth() - 145.0f);
+                ImGui::TextWrapped("%s", card.description.c_str());
+                ImGui::PopTextWrapPos();
+                ImGui::SetWindowFontScale(0.82f);
+                ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 125.0f, 13.0f));
+                ImGui::TextDisabled("Version %s", card.version.c_str());
+                ImGui::SetWindowFontScale(1.0f);
+                ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 125.0f, 40.0f));
+                ImGui::BeginDisabled(!card.canAction || modBusy);
+                if (LauncherButton((card.action + "##mod-action-" + std::to_string(index)).c_str(), ImVec2(105, 34)))
+                {
+                    if (card.action == "Remove")
+                    {
+                        pendingModCommand = showInstalledMods ? "MOD_REMOVE" : "MOD_REMOVE_LOADER";
+                        pendingModId = card.id;
+                        pendingModName = card.name;
+                        showModRemovalConfirmation = true;
+                    }
+                    else
+                    {
+                        modBusy = true;
+                        modOperationError.clear();
+                        WriteResult("MOD_INSTALL|" + Encode(card.id));
+                    }
+                }
+                ImGui::EndDisabled();
+                if (!card.canAction && !card.unavailableReason.empty())
+                {
+                    ImGui::SetWindowFontScale(0.82f);
+                    ImGui::SetCursorPos(ImVec2(15.0f, 126.0f));
+                    ImGui::PushTextWrapPos(ImGui::GetWindowWidth() - 15.0f);
+                    ImGui::TextDisabled("%s", card.unavailableReason.c_str());
+                    ImGui::PopTextWrapPos();
+                    ImGui::SetWindowFontScale(1.0f);
+                }
+                ImGui::EndChild();
+                ImGui::PopStyleColor();
+                ImGui::PopStyleColor();
+                ImGui::Dummy(ImVec2(0, 5));
+            }
+
+            if (showInstalledMods && modFolderEnabled)
+            {
+                ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(16.0f / 255.0f, 23.0f / 255.0f, 37.0f / 255.0f, 138.0f / 255.0f));
+                ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(124.0f / 255.0f, 149.0f / 255.0f, 189.0f / 255.0f, 69.0f / 255.0f));
+                ImGui::BeginChild("##bepinex-folder-card", ImVec2(-1, 92), true);
+                ImGui::TextUnformatted("Install More BepInEx Mods");
+                ImGui::PushTextWrapPos(ImGui::GetWindowWidth() - 150.0f);
+                ImGui::TextWrapped("Add compatible mod files directly to the BepInEx plugins folder.");
+                ImGui::PopTextWrapPos();
+                ImGui::SetCursorPos(ImVec2(ImGui::GetWindowWidth() - 125.0f, 28.0f));
+                ImGui::BeginDisabled(modBusy);
+                if (LauncherButton("Open Folder", ImVec2(105, 34))) { modBusy = true; WriteResult("MOD_OPEN_FOLDER"); }
+                ImGui::EndDisabled();
+                ImGui::EndChild();
+                ImGui::PopStyleColor();
+                ImGui::PopStyleColor();
+            }
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
         }
         else if (mode == "plugin-settings")
         {
@@ -1330,6 +1606,30 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
         {
             ImGui::TextUnformatted("No Steam launch options were found for Subnautica.");
             if (LauncherButton("OK", ImVec2(90, 30))) ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+        if (mode == "mods" && showModRemovalConfirmation)
+        {
+            ImGui::OpenPopup("Confirm Mod Removal");
+            showModRemovalConfirmation = false;
+        }
+        ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        if (mode == "mods" && ImGui::BeginPopupModal("Confirm Mod Removal", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings))
+        {
+            ImGui::TextWrapped("Remove %s?", pendingModName.c_str());
+            ImGui::TextUnformatted("This permanently removes its managed files from the selected game version.");
+            ImGui::Dummy(ImVec2(0, 8));
+            if (LauncherButton("Remove", ImVec2(110, 34)))
+            {
+                std::string command = pendingModCommand;
+                if (!pendingModId.empty()) command += "|" + Encode(pendingModId);
+                modBusy = true;
+                modOperationError.clear();
+                WriteResult(command);
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (LauncherButton("Cancel", ImVec2(110, 34))) ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }
         if (showDetectionConfirmation)

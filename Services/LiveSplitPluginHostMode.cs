@@ -207,6 +207,7 @@ internal static class LiveSplitPluginHostMode
             _updateTimer.Stop();
             try { SaveSettings(); } catch (Exception exception) { Console.Error.WriteLine(Unwrap(exception)); }
             try { _component.Dispose(); } catch (Exception exception) { Console.Error.WriteLine(Unwrap(exception)); }
+            InputReleaseService.ReleaseAllInjectedInput();
             try { _hostForm.Dispose(); } catch { }
             ExitThread();
         }

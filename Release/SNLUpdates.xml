@@ -1,0 +1,416 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<updates>
+  <update version="4.1.0.3" title="Launcher Integrity and Navigation" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Mods Manager and Mod Loader Downloading Support, aswell as Subnautica Speedrunning Mod Downloading Support</change>
+      <change>Improved Launcher Shutdown Cleanup</change>
+    </changelog>
+    <files>
+      <file path="Release/Data/IntegrityManifest.json" status="changed" />
+      <file path="Release/Data/SNLUpdates.xml" status="changed" />
+      <file path="Release/Data/SNLUUpdates.xml" status="changed" />
+      <file path="Release/Dependencies.zip" status="changed" />
+      <file path="Release/README.md" status="changed" />
+      <file path="Release/SubnauticaLauncher.exe" status="changed" />
+    </files>
+  </update>
+  <update version="4.0.5.0" title="Launcher Integrity and Navigation" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added Support for Rest Macro Plugin's Hardcore Save Deleter</change>
+    </changelog>
+  </update>
+  <update version="4.0.4.0" title="Launcher Integrity and Navigation" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added a launcher integrity check that repairs missing, damaged, or incorrectly extracted launcher files through the normal updater</change>
+      <change>Added the Mods button to the Play page for future mod management</change>
+      <change>Updated the launcher guide and included it in release and update packages</change>
+    </changelog>
+  </update>
+  <update version="4.0.3.0" title="Updater Reliability Hotfix" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Fixed Plugin Hotkey Bug</change>
+    </changelog>
+  </update>
+  <update version="4.0.2.0" title="Updater Reliability Hotfix" date="October 19, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Fixed a dependency lock that could leave the launcher only partially updated</change>
+      <change>Improved updater handoff so launcher helpers close fully before files are replaced</change>
+    </changelog>
+  </update>
+  <update version="4.0.1.0" title="Updater and Plugin Reliability" date="October 19, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added detailed launcher update prompts that show the full changelog before updating</change>
+      <change>Added matching download and installation progress windows across the launcher and updater handoff</change>
+      <change>Improved LiveSplit plugin updates, plugin state storage, and plugin logging</change>
+      <change>Simplified launcher update files into a reliable packaged dependency bundle</change>
+    </changelog>
+  </update>
+  <update version="4.0.0.27" title="Subnautica Launcher Rebuild" date="October 18, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Rebuild the Subnautica Launcher</change>
+    </changelog>
+  </update>
+  <update version="3.3.2.0" title="Reset Macro Update" date="October 12, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Reset Macro now checks specifically for the buttons to be ready rather then just main menu</change>
+    </changelog>
+  </update>
+  <update version="3.3.1.0" title="Subnautica 2 Versions" date="September 12, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added more Subnautica 2 Versions</change>
+    </changelog>
+  </update>
+  <update version="3.3.0.0" title="Launching and Subnautica 2 Fixes" date="August 19, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>By Default the Launcher will Launch Without Steam for Smoother Launches, and now you have the Option to Launch Without Steam in Settings</change>
+      <change>Updated the Subnautica 2 Versions to Include all Currently Available Versions Instead of Being Behind</change>
+    </changelog>
+  </update>
+  <update version="3.2.2.0" title="Steam App ID" date="August 4, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updated Steam App ID to not delete unless setting is disabled</change>
+    </changelog>
+  </update>
+  <update version="3.2.1.0" title="Hardcore BetterRNG Reset Macro" date="August 4, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updated Hardcore BetterRNG Reset Macro to work with the new Subnautica Speedrunning Mod Quit Button</change>
+    </changelog>
+  </update>
+  <update version="3.2.0.0" title="Small Fixes for Launching and SN2" date="July 15, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Removed SN2 Reset Macro that was Old+Broken</change>
+      <change>Made steam_appid.txt for Steamless Launches stay even when launcher isnt open</change>
+      <change>Updated Mod for SN1 to Subnuatica Speedrunning Mod instead of Old RNG Mod</change>
+    </changelog>
+  </update>
+  <update version="3.1.1.0" title="Launching Hotfix" date="May 29, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Quick Hotfix to make folder luanching stop renaming constantly, now works like it should</change>
+      <change>Also forgot to list other changes from last update...</change>
+      <change>Added Option to Launch without Steam Always, Enable to Launch Without Steam, Disable for Pure Folder Rename Launching Slower but Makes steam happy</change>
+      <change>Other Overlay Fixes, like swapping versions</change>
+    </changelog>
+  </update>
+  <update version="3.1.0.0" title="Subnautica 2 Reset Macro Update" date="May 29, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updated Subnautica 2 Reset Macro to Uhara-Memory Reading</change>
+      <change>Updated Subnautica 2 Reset Macro to also Select Character (Selects 1-4 Character at random)</change>
+      <change>Updated Subnautica 2 Versions</change>
+      <change>Updated few Overlay Features</change>
+      <change>Small flow cleanups</change>
+    </changelog>
+  </update>
+  <update version="3.0.2.0" title="Launcher Overlay Revamp" date="May 16, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updated the Overlay to be a Customizable Game Bar Style Overlay</change>
+      <change>Added the New Subnautica 2 Update</change>
+    </changelog>
+  </update>
+  <update version="3.0.1.0" title="Subnautica 2 Cleanup and Reset Macro" date="May 16, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updated SN2 Detection</change>
+      <change>Added earlier version of SN2 to launcher</change>
+      <change>Added SN2 Reset macro for current available gamemodes [60fps required] (Survival, Creative)</change>
+    </changelog>
+  </update>
+  <update version="3.0.0.0" title="Subnautica 2 Game Launch and Launcher Revamp" date="May 14, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added SN2 to the Launcher</change>
+      <change>Revamped UI for Game Seperation</change>
+      <change>UI is now Customizable for each Game</change>
+      <change>Tools Section is Revamped for easy access to showing only tools that are accessible for each game</change>
+      <change>Improved the Updater to show exactly what its doing after the launcher restarts</change>
+    </changelog>
+  </update>
+  <update version="2.8.5.0" title="Launch Options Update" date="May 11, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added the ability to specify Launch Options to the version you are launching so you dont lose that feature when launching without steam, now you can use stuff like -high and hopefully not see any worse performance of the game</change>
+    </changelog>
+  </update>
+  <update version="2.8.4.0" title="Below Zero Reset and Game Tracking Updates" date="May 9, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Improved Below Zero reset macro reliability when moving between in-game and main menu states</change>
+      <change>Cleaned up Below Zero support so version handling and reset behavior stay more consistent</change>
+    </changelog>
+  </update>
+  <update version="2.8.3.0" title="Reset Macro Improvements" date="May 8, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Reset Macro's for Subnautica now support Windowed Resolutions for 3840x2160, 2560x1440, 1920x1080, 1760x990, 1600x900, 1366x768, 1280x720, 1128x634</change>
+      <change>Explosion reset now supports a saved Custom time window with minimum and maximum inputs</change>
+      <change>Explosion reset refreshes the live configured range while it is running so preset changes apply mid-session</change>
+      <change>Improved Launcher Info update text wrapping so longer notes stay readable</change>
+    </changelog>
+  </update>
+  <update version="2.8.2.0" title="Refresh and Window Behavior Fixes" date="Apr 19, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Improved installed version refreshing after version actions and during the background update timer</change>
+      <change>Fixed dialog return behavior so the launcher comes back to the front more reliably</change>
+      <change>Changed normal minimizing so the launcher stays on the taskbar instead of hiding straight to tray</change>
+    </changelog>
+  </update>
+  <update version="2.8.1.0" title="Launcher Reliability and Cleanup" date="Apr 17, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Add Existing Version now auto-detects the original version from build files instead of asking you to select it manually</change>
+      <change>New installs can choose a detected Steam library, with better multi-drive Steam library detection and path handling</change>
+      <change>Subnautica and Below Zero launch, status, and metadata flows were cleaned up to stay more closely synced</change>
+      <change>Improved overall launcher reliability and removed old unused explosion helper files</change>
+    </changelog>
+  </update>
+  <update version="2.8.0.0" title="Mod Management Fixes" date="Apr 16, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Cleaned up mod management so it detects mods correctly</change>
+      <change>Updated managed Subnautica mod support for compatibility and crash fixes</change>
+      <change>Improved startup and version loading behavior</change>
+    </changelog>
+  </update>
+  <update version="2.7.4.0" title="Steam Launch Safety Fixes" date="Apr 12, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Made Steam-safe Subnautica folder handling always enabled by default</change>
+      <change>Stopped relying on folder swapping for normal launches when direct launch is safer</change>
+      <change>Fixed Below Zero steam_appid.txt handling to use the correct app id</change>
+      <change>Updated the README with the current launch and Steam behavior</change>
+    </changelog>
+  </update>
+  <update version="2.7.3.0" title="Mod Management Fixes" date="Apr 11, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Cleaned up mod management so it detects mods correctly</change>
+      <change>Fixed Below Zero version metadata so it stays separated from Subnautica correctly</change>
+      <change>Improved startup and version loading behavior</change>
+      <change>Updated the public README to be a real user guide</change>
+      <change>Updated managed Subnautica mod support</change>
+    </changelog>
+  </update>
+  <update version="2.7.2.0" title="Steam Login Fixes" date="Apr 11, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Hopefully fixed the steam code prompt issue</change>
+    </changelog>
+  </update>
+  <update version="2.7.1.0" title="Version List and Install Flow Fixes" date="Apr 11, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Fixed version row actions so Edit and Open Folder stay visible for both Subnautica and Below Zero</change>
+      <change>Improved version list refresh so installs and edits show up immediately</change>
+      <change>Fixed dropdown rendering and Steam code or email authentication prompts during installs</change>
+      <change>Improved remembered Steam login flow and launcher side install UX polish</change>
+    </changelog>
+  </update>
+  <update version="2.7.0.0" title="Mod Support and Version Management" date="Apr 11, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added launcher managed Subnautica speedrunning mod support for compatible September 2018 Subnautica versions</change>
+      <change>Added Install Mods flow for new modded installs and existing version mod installs</change>
+      <change>Split installed version lists into Modded and Vanilla sections</change>
+      <change>Added mod management from Edit Version, including managed mod removal</change>
+      <change>Updated launcher dialogs to open centered over the launcher and parent windows</change>
+    </changelog>
+  </update>
+  <update version="2.6.0.0" title="UI and Launching Improvements" date="Apr 10, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updated the main launcher UI and dialog styling to be cleaner and more responsive</change>
+      <change>Improved normal Subnautica launching by ensuring steam_appid.txt is present before launch</change>
+      <change>Installed and unmanaged Subnautica versions now get steam_appid.txt automatically</change>
+      <change>Fixed the 100% Tracker overlay so it stays on top of the game like the speedrun timer</change>
+    </changelog>
+  </update>
+  <update version="2.5.0.0" title="Reset Macro Detection Update" date="Apr 9, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Improved normal Subnautica reset macros to use memory-based Main Menu and In Game detection</change>
+      <change>Removed reliance on screen-color checks for normal Subnautica menu and in-game state detection</change>
+      <change>Kept black screen detection for loading synchronization where it is still useful</change>
+    </changelog>
+  </update>
+  <update version="2.4.1.0" title="UI Hotfixes" date="Feb 21, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updated Overlay UI's</change>
+      <change>Allowed OBS Captures of the Overlays</change>
+    </changelog>
+  </update>
+  <update version="2.4.0.0" title="Speedrun Timer" date="Feb 19, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Speedrun Timer Added, Full Customization.</change>
+      <change>Improved Gameplay Tracking</change>
+      <change>Small UI Updates</change>
+      <change>Small Code Updates</change>
+    </changelog>
+  </update>
+  <update version="2.3.4.0" title="Tiny Fixes" date="Feb 19, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Fixed a few small UI issues</change>
+      <change>Fixed a few small code issues</change>
+    </changelog>
+  </update>
+  <update version="2.3.3.0" title="Logging Updated" date="Feb 18, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Improved Logging for Runs, Full Reset Macro Logging, no more spamming logs</change>
+      <change>Added a Readme for the Launcher</change>
+    </changelog>
+  </update>
+  <update version="2.3.2.0" title="Overlay Mode and Performance Improvements" date="Feb 18, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added a full standalone launcher overlay mode window (separate from the main window)</change>
+      <change>Added startup mode controls for Window vs Overlay and overlay hotkey flow improvements</change>
+      <change>Added Close Game button in main installs view</change>
+      <change>Editable overlay transparency from 0-100% range</change>
+      <change>Additional startup and menu responsiveness improvements</change>
+    </changelog>
+  </update>
+  <update version="2.3.1.0" title="Version Installation Update" date="Feb 17, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>New UI For Installing Versions</change>
+      <change>Added Remember Password Support</change>
+      <change>Improved overall version installation process</change>
+    </changelog>
+  </update>
+  <update version="2.3.0.0" title="Updater and Release Pipeline Overhaul" date="Feb 16, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Rebuilt updater flow and improved update reliability checks</change>
+      <change>Added a new update progress UI with clearer update status handling</change>
+      <change>Improved setup and packaging to ship a cleaner ready release</change>
+    </changelog>
+  </update>
+  <update version="2.2.2.0" title="Code Update" date="Feb 16, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Code Cleanup and Updates</change>
+      <change>Small UI Updates</change>
+      <change>Improved Memory Reading for Improved Gameplay Tracking</change>
+    </changelog>
+  </update>
+  <update version="2.2.1.0" title="Biome Tracker Hotfix" date="Feb 15, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.">
+    <changelog>
+      <change>Fixed All Biomes Databanks and Blueprints</change>
+      <change>Updated Biome Tracker UI</change>
+    </changelog>
+  </update>
+  <update version="2.2.0.0" title="100% Tracker Additions" date="Feb 14, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.">
+    <changelog>
+      <change>Tracks Unlocked Blueprints Per Biome</change>
+      <change>Full Customization for the 100% Tracker</change>
+    </changelog>
+  </update>
+  <update version="2.1.1.0" title="Small Hotfixes" date="Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.">
+    <changelog>
+      <change>Hotfixed 100% Speedrun Tracker</change>
+      <change>Fixes some UI and cleaned up some code</change>
+    </changelog>
+  </update>
+  <update version="2.1.0.0" title="Speedrun Tracking" date="Feb 13, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.">
+    <changelog>
+      <change>Added a 100% Speedrun Tracker for tracking Blueprints and Entries (493 Total)</change>
+      <change>100% Speedrun Tracker Overlay Toggle</change>
+    </changelog>
+  </update>
+  <update version="2.0.1.0" title="Explosion Overlay fix" date="Feb 13, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Explosion Reset Overlay updated to a full real overlay for subnautica</change>
+    </changelog>
+  </update>
+  <update version="2.0.0.0" title="Fully Combined Subnautica and Below Zero Launcher" date="Feb 11, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Subnuatica and Below Zero Fully Supported and Combined into a single Launcher</change>
+      <change>All Original Managing, Launching, Downloading of Version Stays the Same</change>
+      <change>All Tools Stay the Same and have the Improvements of Past Updates</change>
+    </changelog>
+  </update>
+  <update version="1.7.0.0" title="Explosion Reset Macro Full Implementations" date="Feb 11, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.">
+    <changelog>
+      <change>Explosion Reset Macro can do 2018, 2021, 2023 and 2025/all relevant versions</change>
+      <change>Explosion Reset Macro uses Autosplitter Explosion Time Code</change>
+    </changelog>
+  </update>
+  <update version="1.6.2.0" title="Delete Saves Button" date="Feb 10, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added Delete All Hardcore Saves Button</change>
+      <change>Added Delete All Hardcore Saves Window</change>
+    </changelog>
+  </update>
+  <update version="1.6.1.0" title="Hardcore Save Deleter Patch" date="Feb 10, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Now Only Deletes a Save File after one was made, prevents deleting non speedrun saves.</change>
+    </changelog>
+  </update>
+  <update version="1.6.0.0" title="Hardcore Save Deleter" date="Feb 10, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added Hardcore Save Deleter for Subnautica and Below Zero</change>
+      <change>Deletes and Recent Hardcore Saves after use of Reset Macro with Harcore Gamemode Selected</change>
+      <change>Small UI Updates</change>
+    </changelog>
+  </update>
+  <update version="1.5.1.0" title="Internal Code Cleanup" date="Feb 10, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Unified all settings into one file</change>
+      <change>Internal Workings slight change/cleanup</change>
+    </changelog>
+  </update>
+  <update version="1.5.0.0" title="Folder Renaming Full Fix" date="Feb 8, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added back folder renaming on launcher close</change>
+      <change>Added new toggle in settings</change>
+      <change>Prevents Steam from replacing manually launched versions</change>
+    </changelog>
+  </update>
+  <update version="1.4.2.0" title="Folder Renaming Hotfix" date="Feb 8, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Temporarily removed folder renaming</change>
+      <change>Steam overwrite prevention</change>
+    </changelog>
+  </update>
+  <update version="1.4.1.0" title="ExploTime Macro Hotfix" date="Feb 6, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Explosion Time reset macro consistency fix</change>
+      <change>Toggleable macro UI and logging</change>
+      <change>Replaced Updates tab with Info tab</change>
+      <change>Small UI updates</change>
+    </changelog>
+  </update>
+  <update version="1.4.0.0" title="Below Zero Support" date="Feb 2, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Full Below Zero support</change>
+      <change>Below Zero backgrounds</change>
+      <change>Below Zero reset macros</change>
+      <change>All Below Zero versions supported</change>
+    </changelog>
+  </update>
+  <update version="1.3.0.0" title="Explosion Time Tools" date="Feb 1, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.">
+    <changelog>
+      <change>Explosion Time reset support</change>
+      <change>Improved version folder handling</change>
+      <change>Additional logging</change>
+      <change>UI improvements</change>
+    </changelog>
+  </update>
+  <update version="1.2.1.0" title="Reset Macro Hotfix" date="Jan 27, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Fixed folder management</change>
+      <change>Finalized reset macros</change>
+      <change>Launcher logging</change>
+    </changelog>
+  </update>
+  <update version="1.2.0.0" title="UI Overhaul &amp; Reset Macros" date="Jan 27, 2026 | Contributors (2) - ItsFrosti, Sprinter_31.">
+    <changelog>
+      <change>Advanced speedrunning reset macros</change>
+      <change>Reset macro UI</change>
+      <change>Resizable window</change>
+      <change>Custom title bar</change>
+      <change>Icon added</change>
+    </changelog>
+  </update>
+  <update version="1.1.0.0" title="Version Management Update" date="Jan 25, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updates tab</change>
+      <change>Improved UI</change>
+      <change>All versions downloadable</change>
+    </changelog>
+  </update>
+  <update version="1.0.1.0" title="General Improvements" date="Jan 23, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Launcher auto updates</change>
+      <change>Add existing versions</change>
+      <change>UI cleanup</change>
+    </changelog>
+  </update>
+  <update version="1.0.0.0" title="Initial Release" date="Jan 20, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Basic installation and management</change>
+      <change>Background customization</change>
+      <change>Initial UI</change>
+    </changelog>
+  </update>
+</updates>

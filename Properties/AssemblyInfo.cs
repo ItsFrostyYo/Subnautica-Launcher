@@ -1,9 +1,33 @@
 using System.Reflection;
+using System.Resources;
+using System.Runtime.InteropServices;
 using System.Windows;
 
+// Application Identity
 [assembly: AssemblyTitle("Subnautica Launcher")]
-[assembly: AssemblyDescription("A launcher for Subnautica.")]
 [assembly: AssemblyProduct("Subnautica Launcher")]
-[assembly: AssemblyVersion("4.0.5.0")]
-[assembly: AssemblyFileVersion("4.0.5.0")]
-[assembly: ThemeInfo(ResourceDictionaryLocation.None, ResourceDictionaryLocation.SourceAssembly)]
+[assembly: AssemblyDescription("The Subnautica Launcher is a Windows launcher for installing, organizing, switching, and launching multiple versions of Subnautica, with Plugins easy to access and mods management for each version.")]
+
+// Publisher & Copyright
+[assembly: AssemblyCompany("ItsFrostiSR")]
+[assembly: AssemblyCopyright("Copyright © 2026 Kaleb Austin")]
+[assembly: AssemblyTrademark("")]
+[assembly: AssemblyCulture("")]
+
+// Version Information
+[assembly: AssemblyVersion("4.1.0.3")]
+[assembly: AssemblyFileVersion("4.1.0.3")]
+[assembly: AssemblyInformationalVersion("4.1.0")]
+
+
+// COM Interoperability
+[assembly: ComVisible(false)]
+
+// WPF Resource Dictionaries
+[assembly: ThemeInfo(
+    ResourceDictionaryLocation.None,
+    ResourceDictionaryLocation.SourceAssembly
+)]
+
+// Resource Language
+[assembly: NeutralResourcesLanguage("en-US")]

@@ -1,10 +1,10 @@
 {
-    "version":  "4.0.5.0",
+    "version":  "4.1.0.3",
     "files":  [
                   {
                       "path":  "Data/SNLUpdates.xml",
-                      "size":  23614,
-                      "sha256":  "DB6A6CDD24DE1C9EC397FA6377B2B1DB3E4E4FFA23DC5E9EBBCCC9D112921D96"
+                      "size":  23980,
+                      "sha256":  "1F37DEE1B85093CB543024D199EC268B8ABAEE8F1486E3F9CCFAE92E1E6B0AEE"
                   },
                   {
                       "path":  "Data/SNLUUpdates.xml",
@@ -208,23 +208,23 @@
                   },
                   {
                       "path":  "Dependencies/SubnauticaLauncher.ImGuiHost.exe",
-                      "size":  970752,
-                      "sha256":  "A0CEA0DC5B54FA2AF672D45ACF1128939C747F352E333223FF05631913901790"
+                      "size":  985088,
+                      "sha256":  "57C9EADAF6BDF9F8643B14E4A588E41B0475EE213627E3CC2817DA9604467F61"
                   },
                   {
                       "path":  "README.md",
-                      "size":  15056,
-                      "sha256":  "9CF663AF9F5D4F3F0BE907EB26A3436A92889B40D6F8EF15CF8D70EACCC8394F"
+                      "size":  17084,
+                      "sha256":  "F3B2EFE992E0C85511AE7591D85DF6499E7A859C19897D0BB742EA52A9B976B1"
                   },
                   {
                       "path":  "SNLUpdater.exe",
-                      "size":  71724578,
-                      "sha256":  "90DD316D805F62104E64041127F5519BE9D00667A55AFE4C6ECAB3C9FE18EF65"
+                      "size":  71724572,
+                      "sha256":  "B34DBCF9B8B9DD30EECC6492F537C278F4180E494BF10F505E807E3CF8F7657C"
                   },
                   {
                       "path":  "SubnauticaLauncher.exe",
-                      "size":  91951357,
-                      "sha256":  "EBF32DFC2B0065234B12C1628502664083EB142B11167C97B4F6A29059044F04"
+                      "size":  92008701,
+                      "sha256":  "2DDE00CA39B83FDED0516FB14CC1A2814010E33C0466B2C9CA0A762CADF8F5D7"
                   }
               ]
 }

@@ -26,6 +26,7 @@ The launcher can:
 - Supports Launching with the Subnautica Speedrunning Mod.
 - Save Subnautica In-Game Settings and Automatically or Manually Copy into Versions for Settings Saving.
 - Install and Manage Launcher Plugins like Subnautica Speedrunning Reset Macros.
+- Detect and manage BepInEx, QModManager, and the Subnautica Speedrunning Mod separately for each installed version.
 - Automatic Launcher and Plugins Updating.
 
 
@@ -69,6 +70,7 @@ The Play tab displays every managed Subnautica version as a tile. From here you 
 - open its game folder
 - edit its launcher settings
 - add another version
+- manage installed mods and mod loaders
 - change the order of version tiles
 
 Tile colors show whether a version is idle, active, or currently launched.
@@ -154,6 +156,33 @@ Examples of launch options include:
 - `-high`
 
 Launch options apply to direct launches. They are not appended when `Force to Launch With Steam` is enabled because Steam owns that launch flow.
+
+## Mods
+
+Press `Mods` on the Play page to open the native `Manage Mods` window. Use the `Installed Version` dropdown to inspect a managed Subnautica installation.
+
+The status identifies the installation as vanilla, BepInEx, QModManager, the Subnautica Speedrunning Mod, or an unknown/manual mod setup. Standard Subnautica folders are ignored; non-standard root folders and Doorstop marker files cause the version to be identified as modded.
+
+### Installed Mods
+
+The `Installed` view lists detected direct mods:
+
+- BepInEx plugins from `BepInEx/plugins`
+- legacy QMods from `QMods`, including name, author, version, and description from `mod.json` when available
+- the standalone Subnautica Speedrunning Mod
+- unknown non-standard root folders that may contain manually installed mod files
+
+Use `Remove` to permanently remove an individual mod after confirmation. When BepInEx is installed, `Open Folder` opens `BepInEx/plugins` so compatible mods can be added manually.
+
+### Mod Loaders
+
+The `Mod Loaders` view can install the stable Windows x64 BepInEx 5 package directly from the official BepInEx GitHub release. It can also install the complete Subnautica Speedrunning Mod package identified by the mod's official release manifest for the supported September 2018 build.
+
+Existing QModManager installations are detected and can be inspected or removed, but the launcher does not install QModManager. Removing a loader asks for confirmation and removes that loader's runtime files and installed mods.
+
+The Subnautica Speedrunning Mod is standalone and must not be combined with BepInEx or QModManager. The launcher blocks conflicting installations. If conflicting files were added manually, the Mods window displays a warning and offers to remove the incompatible loader while preserving the speedrunning runtime.
+
+Close Subnautica before installing or removing mods.
 
 ## Subnautica Settings Profiles
 

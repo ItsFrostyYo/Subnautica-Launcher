@@ -9,7 +9,10 @@
     <ApplicationIcon>Assets\Icons\SNL.ico</ApplicationIcon>
     <StartupObject>SubnauticaLauncher.Program</StartupObject>
     <RootNamespace>SubnauticaLauncher</RootNamespace>
-    <Version>4.0.5.0</Version>
+    <!-- Keep Properties\AssemblyInfo.cs as the single source of truth for the launcher version. -->
+    <LauncherAssemblyInfoFile>$(MSBuildProjectDirectory)\Properties\AssemblyInfo.cs</LauncherAssemblyInfoFile>
+    <LauncherAssemblyInfoText>$([System.IO.File]::ReadAllText('$(LauncherAssemblyInfoFile)'))</LauncherAssemblyInfoText>
+    <Version>$([System.Text.RegularExpressions.Regex]::Match('$(LauncherAssemblyInfoText)', 'AssemblyVersion\s*\(\s*&quot;([^&quot;]+)&quot;\s*\)').Groups[1].Value)</Version>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
@@ -59,4 +62,9 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
   </ItemGroup>
+
+  <Target Name="ValidateLauncherVersion" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Version)' == ''"
+           Text="Properties\AssemblyInfo.cs must contain an AssemblyVersion attribute so the project version can be determined." />
+  </Target>
 </Project>

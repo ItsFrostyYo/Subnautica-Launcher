@@ -251,14 +251,15 @@ public static class ImGuiAddVersionWindow
 
     public static void CloseAll()
     {
-        foreach ((int id, Process process) in ActiveHosts)
+        Parallel.ForEach(ActiveHosts.ToArray(), entry =>
         {
+            (int id, Process process) = entry;
             try
             {
                 if (!process.HasExited)
                 {
                     process.Kill(entireProcessTree: true);
-                    process.WaitForExit(5000);
+                    process.WaitForExit(1000);
                 }
             }
             catch { }
@@ -266,7 +267,7 @@ public static class ImGuiAddVersionWindow
             {
                 ActiveHosts.TryRemove(id, out _);
             }
-        }
+        });
     }
 
     internal static void RegisterHost(Process process) => ActiveHosts.TryAdd(process.Id, process);

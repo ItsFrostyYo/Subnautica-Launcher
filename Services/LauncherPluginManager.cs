@@ -17,8 +17,11 @@ public sealed class LauncherPluginManager : IDisposable
     private readonly Dictionary<string, PluginUpdateDescriptor> _latestUpdates = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _errors = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, DateTime> _nextRestartUtc = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource _shutdownCancellation = new();
     private bool _disposed;
     private bool _initialized;
+    private readonly object _shutdownSync = new();
+    private Task? _shutdownTask;
 
     public LauncherPluginManager(IntPtr ownerHandle)
     {
@@ -78,7 +81,8 @@ public sealed class LauncherPluginManager : IDisposable
     public async Task InstallOrUpdateAsync(string pluginId)
     {
         LauncherPluginDefinition definition = Find(pluginId);
-        await _operations.WaitAsync();
+        CancellationToken cancellationToken = _shutdownCancellation.Token;
+        await _operations.WaitAsync(cancellationToken);
         try
         {
             PluginPersistentState originalState = _store.Load(pluginId);
@@ -91,9 +95,9 @@ public sealed class LauncherPluginManager : IDisposable
             bool hadInstalledAssembly = File.Exists(destination);
             try
             {
-                PluginUpdateDescriptor update = await GetLatestUpdateAsync(definition);
-                byte[] payload = await Http.GetByteArrayAsync(update.PayloadUri);
-                await File.WriteAllBytesAsync(temporary, payload);
+                PluginUpdateDescriptor update = await GetLatestUpdateAsync(definition, cancellationToken);
+                byte[] payload = await Http.GetByteArrayAsync(update.PayloadUri, cancellationToken);
+                await File.WriteAllBytesAsync(temporary, payload, cancellationToken);
                 Version downloadedVersion = ValidateAssembly(definition, temporary);
                 if (downloadedVersion < update.Version)
                     throw new InvalidDataException($"The downloaded plugin is v{downloadedVersion}, but v{update.Version} is required.");
@@ -255,13 +259,19 @@ public sealed class LauncherPluginManager : IDisposable
 
     private async Task RefreshLatestVersionsAsync()
     {
+        CancellationToken cancellationToken = _shutdownCancellation.Token;
         foreach (LauncherPluginDefinition definition in LauncherPluginCatalog.All)
         {
+            if (cancellationToken.IsCancellationRequested) break;
             try
             {
-                PluginUpdateDescriptor update = await GetLatestUpdateAsync(definition);
+                PluginUpdateDescriptor update = await GetLatestUpdateAsync(definition, cancellationToken);
                 _latestVersions[definition.Id] = update.Version;
                 _latestUpdates[definition.Id] = update;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception exception)
             {
@@ -270,9 +280,11 @@ public sealed class LauncherPluginManager : IDisposable
         }
     }
 
-    private async Task<PluginUpdateDescriptor> GetLatestUpdateAsync(LauncherPluginDefinition definition)
+    private async Task<PluginUpdateDescriptor> GetLatestUpdateAsync(
+        LauncherPluginDefinition definition,
+        CancellationToken cancellationToken = default)
     {
-        string xml = await Http.GetStringAsync(definition.UpdateManifestUri);
+        string xml = await Http.GetStringAsync(definition.UpdateManifestUri, cancellationToken);
         XDocument document = XDocument.Parse(xml, LoadOptions.None);
         XElement root = document.Root ?? throw new InvalidDataException("The plugin update manifest has no root element.");
         if (!string.Equals(root.Name.LocalName, "updates", StringComparison.OrdinalIgnoreCase))
@@ -337,6 +349,7 @@ public sealed class LauncherPluginManager : IDisposable
 
     private void StartAdapter(LauncherPluginDefinition definition)
     {
+        if (_disposed) return;
         StopAdapter(definition.Id);
         try
         {
@@ -444,14 +457,30 @@ public sealed class LauncherPluginManager : IDisposable
         }
     }
 
-    public void Dispose()
+    public Task ShutdownAsync()
     {
-        if (_disposed) return;
-        _disposed = true;
-        foreach (LiveSplitPluginProcessAdapter adapter in _adapters.Values) adapter.Dispose();
-        _adapters.Clear();
-        _operations.Dispose();
+        lock (_shutdownSync)
+            return _shutdownTask ??= ShutdownCoreAsync();
     }
+
+    private async Task ShutdownCoreAsync()
+    {
+        _disposed = true;
+        _shutdownCancellation.Cancel();
+        await _operations.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            LiveSplitPluginProcessAdapter[] adapters = _adapters.Values.ToArray();
+            _adapters.Clear();
+            await Task.WhenAll(adapters.Select(adapter => Task.Run(adapter.Dispose))).ConfigureAwait(false);
+        }
+        finally
+        {
+            _operations.Release();
+        }
+    }
+
+    public void Dispose() => ShutdownAsync().GetAwaiter().GetResult();
 
     private sealed record PluginUpdateDescriptor(Version Version, Uri PayloadUri);
 }

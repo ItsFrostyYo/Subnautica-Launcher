@@ -109,11 +109,23 @@ internal sealed class LiveSplitPluginProcessAdapter : IDisposable
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_stopPath)!);
             File.WriteAllText(_stopPath, DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
-            if (!_process.HasExited && !_process.WaitForExit(2500)) _process.Kill(true);
+            if (!_process.HasExited && !_process.WaitForExit(1000))
+            {
+                _process.Kill(true);
+                _process.WaitForExit(750);
+            }
         }
         catch
         {
-            try { if (!_process.HasExited) _process.Kill(true); } catch { }
+            try
+            {
+                if (!_process.HasExited)
+                {
+                    _process.Kill(true);
+                    _process.WaitForExit(750);
+                }
+            }
+            catch { }
         }
         finally
         {

@@ -1,8 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <updates>
-  <update version="4.0.5.0" title="Launcher Integrity and Navigation" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
+  <update version="4.1.0.3" title="Launcher Integrity and Navigation" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
-      <change>Added Support for Rest Macro Plugin's Hardcore Save Deleter</change>
+      <change>Mods Manager and Mod Loader Downloading Support, aswell as Subnautica Speedrunning Mod Downloading Support</change>
+      <change>Improved Launcher Shutdown Cleanup</change>
     </changelog>
     <files>
       <file path="Release/Data/IntegrityManifest.json" status="changed" />
@@ -12,6 +13,11 @@
       <file path="Release/README.md" status="changed" />
       <file path="Release/SubnauticaLauncher.exe" status="changed" />
     </files>
+  </update>
+  <update version="4.0.5.0" title="Launcher Integrity and Navigation" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Added Support for Rest Macro Plugin's Hardcore Save Deleter</change>
+    </changelog>
   </update>
   <update version="4.0.4.0" title="Launcher Integrity and Navigation" date="October 20, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
