@@ -107,7 +107,6 @@ public partial class MainWindow : Window
             _statusTimer.Stop();
             _updateTimer.Stop();
             ImGuiAddVersionWindow.CloseAll();
-            InputReleaseService.ReleaseAllInjectedInput();
             if (System.Windows.Application.Current is { ShutdownMode: not ShutdownMode.OnExplicitShutdown } application)
                 application.Shutdown();
         };
@@ -140,7 +139,6 @@ public partial class MainWindow : Window
         IsEnabled = false;
         _statusTimer.Stop();
         _updateTimer.Stop();
-        InputReleaseService.ReleaseAllInjectedInput();
         ImGuiAddVersionWindow.CloseAll();
         try
         {
@@ -152,7 +150,6 @@ public partial class MainWindow : Window
         }
         finally
         {
-            InputReleaseService.ReleaseAllInjectedInput();
             _shutdownReady = true;
             _ = Dispatcher.BeginInvoke(Close);
         }

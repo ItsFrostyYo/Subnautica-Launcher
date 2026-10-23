@@ -61,6 +61,25 @@ function Set-ManifestFiles([string]$manifestPath, [string[]]$relativePaths) {
     $document.Save($manifestPath)
 }
 
+function Get-LatestManifestVersion([string]$manifestPath) {
+    [xml]$document = Get-Content -LiteralPath $manifestPath
+    $latest = @($document.updates.update) |
+        Sort-Object { [version]$_.version } -Descending |
+        Select-Object -First 1
+    if ($null -eq $latest) { throw "No update entries were found in $manifestPath." }
+    return [version]$latest.version
+}
+
+function Copy-ManifestVerified([string]$sourcePath, [string]$destinationDirectory) {
+    $destinationPath = Join-Path $destinationDirectory (Split-Path -Leaf $sourcePath)
+    Copy-Item -LiteralPath $sourcePath -Destination $destinationPath -Force
+    $sourceHash = (Get-FileHash -LiteralPath $sourcePath -Algorithm SHA256).Hash
+    $destinationHash = (Get-FileHash -LiteralPath $destinationPath -Algorithm SHA256).Hash
+    if ($sourceHash -ne $destinationHash) {
+        throw "The release manifest was not replaced correctly: $destinationPath"
+    }
+}
+
 function New-IntegrityManifest([string]$packageDirectory, [string]$outputPath, [string]$version) {
     $outputFullPath = [System.IO.Path]::GetFullPath($outputPath)
     $packagePrefix = [System.IO.Path]::GetFullPath($packageDirectory).TrimEnd([System.IO.Path]::DirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
@@ -115,22 +134,35 @@ Copy-Item -LiteralPath (Join-Path $repoRoot "README.md") -Destination $releaseRo
 $dependencyArchive = Join-Path $releaseRoot "Dependencies.zip"
 Compress-Archive -Path (Join-Path $releaseRoot "Dependencies\*") -DestinationPath $dependencyArchive -CompressionLevel Optimal -Force
 
+$launcherVersion = [version](Get-Item -LiteralPath (Join-Path $releaseRoot "SubnauticaLauncher.exe")).VersionInfo.FileVersion
+$updaterVersion = [version](Get-Item -LiteralPath (Join-Path $releaseRoot "SNLUpdater.exe")).VersionInfo.FileVersion
+$launcherManifestVersion = Get-LatestManifestVersion $launcherManifest
+$updaterManifestVersion = Get-LatestManifestVersion $updaterManifest
+if ($launcherManifestVersion -ne $launcherVersion) {
+    throw "The latest SNLUpdates.xml version ($launcherManifestVersion) does not match SubnauticaLauncher.exe ($launcherVersion). Add or update the launcher manifest entry before packaging."
+}
+if ($updaterManifestVersion -ne $updaterVersion) {
+    throw "The latest SNLUUpdates.xml version ($updaterManifestVersion) does not match SNLUpdater.exe ($updaterVersion). Add or update the updater manifest entry before packaging."
+}
+
 Set-ManifestFiles $launcherManifest @("SubnauticaLauncher.exe", "Dependencies.zip", "Data/IntegrityManifest.json", "Data/SNLUpdates.xml", "Data/SNLUUpdates.xml", "README.md")
 Set-ManifestFiles $updaterManifest @("SNLUpdater.exe")
-Copy-Item -LiteralPath $launcherManifest, $updaterManifest -Destination $releaseDataRoot -Force
+Copy-ManifestVerified $launcherManifest $releaseDataRoot
+Copy-ManifestVerified $updaterManifest $releaseDataRoot
 # Keep release-root feed mirrors so installed 4.0.3 clients can discover the
 # one-time move to Data. Packaged 4.0.4 installations use only Data afterward.
-Copy-Item -LiteralPath $launcherManifest, $updaterManifest -Destination $releaseRoot -Force
+Copy-ManifestVerified $launcherManifest $releaseRoot
+Copy-ManifestVerified $updaterManifest $releaseRoot
 
 Copy-Item -LiteralPath (Join-Path $releaseRoot "SubnauticaLauncher.exe"), (Join-Path $releaseRoot "SNLUpdater.exe") -Destination $packageRoot -Force
 Copy-Item -LiteralPath (Join-Path $releaseRoot "Dependencies") -Destination (Join-Path $packageRoot "Dependencies") -Recurse -Force
-Copy-Item -LiteralPath $launcherManifest, $updaterManifest -Destination $packageDataRoot -Force
+Copy-ManifestVerified $launcherManifest $packageDataRoot
+Copy-ManifestVerified $updaterManifest $packageDataRoot
 Copy-Item -LiteralPath (Join-Path $releaseRoot "README.md") -Destination $packageRoot -Force
 New-Item -ItemType Directory -Path (Join-Path $packageRoot "Plugins"), (Join-Path $packageRoot "Logs") -Force | Out-Null
 
-$launcherVersion = (Get-Item -LiteralPath (Join-Path $releaseRoot "SubnauticaLauncher.exe")).VersionInfo.FileVersion
 $integrityManifest = Join-Path $packageDataRoot "IntegrityManifest.json"
-New-IntegrityManifest $packageRoot $integrityManifest $launcherVersion
+New-IntegrityManifest $packageRoot $integrityManifest $launcherVersion.ToString()
 Copy-Item -LiteralPath $integrityManifest -Destination $releaseDataRoot -Force
 
 foreach ($manifestPath in @($launcherManifest, $updaterManifest)) {

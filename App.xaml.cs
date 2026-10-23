@@ -9,7 +9,6 @@ public partial class App : System.Windows.Application
     protected override void OnExit(ExitEventArgs e)
     {
         ImGuiAddVersionWindow.CloseAll();
-        InputReleaseService.ReleaseAllInjectedInput();
         base.OnExit(e);
     }
 }

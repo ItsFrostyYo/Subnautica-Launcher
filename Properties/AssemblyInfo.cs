@@ -8,16 +8,16 @@ using System.Windows;
 [assembly: AssemblyProduct("Subnautica Launcher")]
 [assembly: AssemblyDescription("The Subnautica Launcher is a Windows launcher for installing, organizing, switching, and launching multiple versions of Subnautica, with Plugins easy to access and mods management for each version.")]
 
-// Publisher & Copyright
+// Publisher & Copyright 
 [assembly: AssemblyCompany("ItsFrostiSR")]
 [assembly: AssemblyCopyright("Copyright © 2026 Kaleb Austin")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
 // Version Information
-[assembly: AssemblyVersion("4.1.0.3")]
-[assembly: AssemblyFileVersion("4.1.0.3")]
-[assembly: AssemblyInformationalVersion("4.1.0")]
+[assembly: AssemblyVersion("4.1.1.1")]
+[assembly: AssemblyFileVersion("4.1.1.1")]
+[assembly: AssemblyInformationalVersion("4.1.1")]
 
 
 // COM Interoperability
