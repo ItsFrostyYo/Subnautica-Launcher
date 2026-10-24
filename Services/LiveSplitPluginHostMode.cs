@@ -207,7 +207,8 @@ internal static class LiveSplitPluginHostMode
             _updateTimer.Stop();
             try { SaveSettings(); } catch (Exception exception) { Console.Error.WriteLine(Unwrap(exception)); }
             try { _component.Dispose(); } catch (Exception exception) { Console.Error.WriteLine(Unwrap(exception)); }
-            InputReleaseService.ReleaseAllInjectedInput();
+            // The Macro component releases only its own tracked input in Dispose().
+            // Never broadcast key-up events for unrelated physical keys or mouse buttons.
             try { _hostForm.Dispose(); } catch { }
             ExitThread();
         }

@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <updates>
-  <update version="4.1.1.1" title="Small Hotfix" date="October 23, 2026 | Contributors (1) - ItsFrosti.">
+  <update version="4.1.2.0" title="Small Hotfix" date="October 23, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
-      <change>Small Closing Hotfix</change>
+      <change>Hotifx for Removing the Input Release System</change>
     </changelog>
     <files>
       <file path="Release/Data/IntegrityManifest.json" status="changed" />
@@ -12,6 +12,11 @@
       <file path="Release/README.md" status="changed" />
       <file path="Release/SubnauticaLauncher.exe" status="changed" />
     </files>
+  </update>
+  <update version="4.1.1.1" title="Small Hotfix" date="October 23, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Small Closing Hotfix</change>
+    </changelog>
   </update>
   <update version="4.1.0.3" title="Mod Manager" date="October 23, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
