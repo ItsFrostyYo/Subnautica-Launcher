@@ -15,9 +15,9 @@ using System.Windows;
 [assembly: AssemblyCulture("")]
 
 // Version Information
-[assembly: AssemblyVersion("4.2.0.7")]
-[assembly: AssemblyFileVersion("4.2.0.7")]
-[assembly: AssemblyInformationalVersion("4.2.0")]
+[assembly: AssemblyVersion("4.2.1.1")]
+[assembly: AssemblyFileVersion("4.2.1.1")]
+[assembly: AssemblyInformationalVersion("4.2.1")]
 
 
 // COM Interoperability

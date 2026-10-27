@@ -511,6 +511,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+#if IMGUI_VERSION_NUM >= 19120
+    io.ConfigDebugHighlightIdConflicts = false;
+#endif
     wchar_t modulePath[MAX_PATH]{};
     GetModuleFileNameW(nullptr, modulePath, ARRAYSIZE(modulePath));
     std::wstring iniPath(modulePath);
@@ -1140,11 +1143,42 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
         {
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(16.0f / 255.0f, 23.0f / 255.0f, 37.0f / 255.0f, 168.0f / 255.0f));
             ImGui::BeginChild("##version-list", ImVec2(370, 286), true);
+            const auto isEarlyAccessVersion = [](const std::string& displayName)
+            {
+                return displayName.rfind("*Early Access*", 0) == 0;
+            };
+            bool hasEarlyAccessVersions = false;
             for (int index = 0; index < static_cast<int>(installVersions.size()); ++index)
             {
+                if (isEarlyAccessVersion(installVersions[index].second))
+                {
+                    hasEarlyAccessVersions = true;
+                    continue;
+                }
+                ImGui::PushID(index);
                 bool selected = selectedInstallVersion == index;
                 if (ImGui::Selectable(installVersions[index].second.c_str(), selected)) selectedInstallVersion = index;
                 if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                ImGui::PopID();
+            }
+            if (hasEarlyAccessVersions)
+            {
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+                ImGui::SetNextItemOpen(false, ImGuiCond_Once);
+                if (ImGui::CollapsingHeader("Early Access Builds"))
+                {
+                    for (int index = 0; index < static_cast<int>(installVersions.size()); ++index)
+                    {
+                        if (!isEarlyAccessVersion(installVersions[index].second)) continue;
+                        ImGui::PushID(index);
+                        bool selected = selectedInstallVersion == index;
+                        if (ImGui::Selectable(installVersions[index].second.c_str(), selected)) selectedInstallVersion = index;
+                        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+                        ImGui::PopID();
+                    }
+                }
             }
             ImGui::EndChild();
             ImGui::PopStyleColor();
