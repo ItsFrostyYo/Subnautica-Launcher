@@ -2,25 +2,28 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using SubnauticaLauncher.Core;
-using SubnauticaLauncher.Models;
 
 namespace SubnauticaLauncher.Services;
 
-internal sealed class LiveSplitPluginProcessAdapter : IDisposable
+internal sealed class PluginProcessAdapter : IDisposable
 {
     private readonly Process _process;
     private readonly string _stopPath;
+    private readonly string _requestsDirectory;
     private readonly ManualResetEventSlim _ready = new(false);
     private readonly object _errorSync = new();
     private string? _lastError;
+    private IReadOnlySet<string> _visualComponentIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private bool _disposed;
+    public IReadOnlySet<string> ComponentIds { get; }
 
-    public LiveSplitPluginProcessAdapter(
-        LauncherPluginDefinition definition,
-        string assemblyPath,
-        string settingsPath,
+    public PluginProcessAdapter(
+        string title,
+        IReadOnlyList<PluginHostedComponent> components,
         string dataDirectory)
     {
+        if (components.Count == 0) throw new ArgumentException("At least one Plugin component is required.", nameof(components));
+        ComponentIds = components.Select(component => component.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         string launcherPath = Path.Combine(AppContext.BaseDirectory, "SubnauticaLauncher.exe");
         if (!File.Exists(launcherPath))
         {
@@ -29,10 +32,18 @@ internal sealed class LiveSplitPluginProcessAdapter : IDisposable
         }
 
         _stopPath = Path.Combine(dataDirectory, "stop.signal");
+        _requestsDirectory = Path.Combine(dataDirectory, "Requests");
         TryDelete(_stopPath);
         TryDelete(Path.Combine(dataDirectory, "error.log"));
         TryDelete(Path.Combine(dataDirectory, "status.txt"));
         Directory.CreateDirectory(AppPaths.LogsPath);
+        Directory.CreateDirectory(_requestsDirectory);
+        string manifestPath = Path.Combine(dataDirectory, "host-manifest.json");
+        new PluginHostManifest
+        {
+            Title = title,
+            Components = components.OrderBy(component => component.LayoutOrder).ToList()
+        }.Save(manifestPath);
 
         var startInfo = new ProcessStartInfo(launcherPath)
         {
@@ -42,10 +53,8 @@ internal sealed class LiveSplitPluginProcessAdapter : IDisposable
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
-        startInfo.ArgumentList.Add(LiveSplitPluginHostMode.Command);
-        Add(startInfo, "--assembly", assemblyPath);
-        Add(startInfo, "--component", definition.ComponentName);
-        Add(startInfo, "--settings", settingsPath);
+        startInfo.ArgumentList.Add(PluginHostMode.Command);
+        Add(startInfo, "--manifest", manifestPath);
         Add(startInfo, "--data", dataDirectory);
         Add(startInfo, "--stop", _stopPath);
         Add(startInfo, "--logs", AppPaths.LogsPath);
@@ -54,26 +63,32 @@ internal sealed class LiveSplitPluginProcessAdapter : IDisposable
         _process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
         _process.OutputDataReceived += (_, eventArgs) =>
         {
-            if (eventArgs.Data?.StartsWith("Running|", StringComparison.Ordinal) == true) _ready.Set();
+            if (eventArgs.Data?.StartsWith("Running|", StringComparison.Ordinal) != true) return;
+            string[] parts = eventArgs.Data.Split('|');
+            _visualComponentIds = parts.Length >= 4
+                ? parts[3].Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _ready.Set();
         };
         _process.ErrorDataReceived += (_, eventArgs) =>
         {
             if (string.IsNullOrWhiteSpace(eventArgs.Data)) return;
             lock (_errorSync) _lastError = eventArgs.Data;
         };
-        if (!_process.Start()) throw new InvalidOperationException($"Could not start {definition.Name}.");
+        if (!_process.Start()) throw new InvalidOperationException($"Could not start {title}.");
         _process.BeginOutputReadLine();
         _process.BeginErrorReadLine();
         if (!WaitUntilReady(TimeSpan.FromSeconds(5)))
         {
             string message = ReadError()
                 ?? (_process.HasExited
-                    ? $"{definition.Name} stopped during startup (exit code {_process.ExitCode})."
-                    : $"{definition.Name} did not finish starting within 5 seconds.");
+                    ? $"{title} stopped during startup (exit code {_process.ExitCode})."
+                    : $"{title} did not finish starting within 5 seconds.");
             try { if (!_process.HasExited) _process.Kill(true); } catch { }
             _process.Dispose();
             _ready.Dispose();
-            throw new InvalidOperationException(message);
+            throw new InvalidOperationException($"{title}: {message}");
         }
     }
 
@@ -87,6 +102,8 @@ internal sealed class LiveSplitPluginProcessAdapter : IDisposable
         }
     }
 
+    public IReadOnlySet<string> VisualComponentIds => _visualComponentIds;
+
     public bool IsRunning
     {
         get
@@ -96,9 +113,24 @@ internal sealed class LiveSplitPluginProcessAdapter : IDisposable
         }
     }
 
-    public void NotifySettingsChanged()
+    public IReadOnlyList<string> TakeDisableRequests()
     {
-        // The host watches settings.xml and applies it through IComponent.SetSettings.
+        var requests = new List<string>();
+        try
+        {
+            foreach (string path in Directory.EnumerateFiles(_requestsDirectory, "disable-*.request"))
+            {
+                try
+                {
+                    string componentId = File.ReadAllText(path).Trim();
+                    if (componentId.Length > 0 && ComponentIds.Contains(componentId)) requests.Add(componentId);
+                    File.Delete(path);
+                }
+                catch { }
+            }
+        }
+        catch { }
+        return requests;
     }
 
     public void Dispose()

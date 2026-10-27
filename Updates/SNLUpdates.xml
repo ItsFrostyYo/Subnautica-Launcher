@@ -1,8 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <updates>
-  <update version="4.1.2.0" title="Small Hotfix" date="October 23, 2026 | Contributors (1) - ItsFrosti.">
+  <update version="4.2.0.7" title="Plugin System Update" date="October 27, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
-      <change>Hotifx for Removing the Input Release System</change>
+      <change>Updating Plugin System to be alot better</change>
+      <change>Added Subnautica Tracker Plugin</change>
     </changelog>
     <files>
       <file path="Release/Data/IntegrityManifest.json" status="changed" />
@@ -12,6 +13,11 @@
       <file path="Release/README.md" status="changed" />
       <file path="Release/SubnauticaLauncher.exe" status="changed" />
     </files>
+  </update>
+  <update version="4.1.2.0" title="Small Hotfix" date="October 23, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Hotifx for Removing the Input Release System</change>
+    </changelog>
   </update>
   <update version="4.1.1.1" title="Small Hotfix" date="October 23, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
@@ -51,7 +57,7 @@
     <changelog>
       <change>Added detailed launcher update prompts that show the full changelog before updating</change>
       <change>Added matching download and installation progress windows across the launcher and updater handoff</change>
-      <change>Improved LiveSplit plugin updates, plugin state storage, and plugin logging</change>
+      <change>Improved plugin updates, plugin state storage, and plugin logging</change>
       <change>Simplified launcher update files into a reliable packaged dependency bundle</change>
     </changelog>
   </update>

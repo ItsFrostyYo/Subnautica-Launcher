@@ -1,10 +1,10 @@
 {
-    "version":  "4.1.2.0",
+    "version":  "4.2.0.7",
     "files":  [
                   {
                       "path":  "Data/SNLUpdates.xml",
-                      "size":  24382,
-                      "sha256":  "8796A54FBD7068505330EDDE5848ADBB83D1A4F33B8F8113CE224A7A8A3E5427"
+                      "size":  24656,
+                      "sha256":  "CAE078648AE6F47B69E2D970428CE636928259215C5EE3FD37E90E54FA85726D"
                   },
                   {
                       "path":  "Data/SNLUUpdates.xml",
@@ -202,29 +202,169 @@
                       "sha256":  "FF01619A71A42C7E0720E2E0FCCA83550309292DEA0DD51D082B84634C3880C9"
                   },
                   {
+                      "path":  "Dependencies/Codaxy.Xlio.dll",
+                      "size":  1866752,
+                      "sha256":  "5B8F36CA7B1AB06DF9E2CE135CCABF3D01E2AF0B8E509B43E8E21E89353197C9"
+                  },
+                  {
+                      "path":  "Dependencies/CustomFontDialog.dll",
+                      "size":  26624,
+                      "sha256":  "46CC2F6FAEDFD0C73848A49DCBED8E59B0F9656D671574C8D50058A5B6162108"
+                  },
+                  {
+                      "path":  "Dependencies/ICSharpCode.SharpZipLib.dll",
+                      "size":  204800,
+                      "sha256":  "C287E9B07A8251828F35914364C89A37DB606B0C1D64457F9EB8FA2258F0DEE3"
+                  },
+                  {
+                      "path":  "Dependencies/IrcDotNet.dll",
+                      "size":  123392,
+                      "sha256":  "C73CE0E1732DB0DBCD337D77DE3493A4F2C61B94A31E1D613FABCEFACF980243"
+                  },
+                  {
+                      "path":  "Dependencies/LiveSplit.Core.dll",
+                      "size":  892928,
+                      "sha256":  "6806E58D3F571FDA45FE7CA339EBE23F12F3E7848112FEF8678D98F49D1BD40E"
+                  },
+                  {
+                      "path":  "Dependencies/LiveSplit.Timer.dll",
+                      "size":  38400,
+                      "sha256":  "E1519FF0913E497BE8C27C4B23468893C954EE5C91A3B1F444AC24E20B6DE187"
+                  },
+                  {
+                      "path":  "Dependencies/LiveSplit.View.dll",
+                      "size":  6390272,
+                      "sha256":  "F0EA18FC55E220E0A520B9E947D44011BB4D3F87784A361615CC9A8A376F9C0F"
+                  },
+                  {
+                      "path":  "Dependencies/Microsoft.Bcl.AsyncInterfaces.dll",
+                      "size":  26424,
+                      "sha256":  "707DDC8B6A4119BF614D669EC379F2443C2B180D655AC4B86E7496A30FC604E8"
+                  },
+                  {
+                      "path":  "Dependencies/Microsoft.WindowsAPICodePack.Core.dll",
+                      "size":  111616,
+                      "sha256":  "3C086CA0EC0E9AD957508685064B9FB98992EB828827ED220E8754D424CF935B"
+                  },
+                  {
+                      "path":  "Dependencies/Microsoft.WindowsAPICodePack.Shell.dll",
+                      "size":  596480,
+                      "sha256":  "741B23DC5C54BAEA752D38C29B08D166051FBAAFE30527AB9256273F343A74C9"
+                  },
+                  {
                       "path":  "Dependencies/SDL2.dll",
                       "size":  1334272,
                       "sha256":  "24CB7B791C05255FC35757542F307190D9668A072F1DDCB38EEB8CF8DFC7DC91"
                   },
                   {
+                      "path":  "Dependencies/SharpDisasm.dll",
+                      "size":  220672,
+                      "sha256":  "6D3CE990CDF58DA228697D25416D16D15994135C5F66571FE1E00E9C975BC2CF"
+                  },
+                  {
+                      "path":  "Dependencies/SharpDX.DirectInput.dll",
+                      "size":  151040,
+                      "sha256":  "AABD8C944ED5A47E586F661A7AAD4C0D990F2B85A29E14B32553714C58A523D2"
+                  },
+                  {
+                      "path":  "Dependencies/SharpDX.dll",
+                      "size":  274944,
+                      "sha256":  "A0AF255EA4B09A8CDB995B8C6FD1075E46F098E23C2351C974E6DED9B8B620CF"
+                  },
+                  {
+                      "path":  "Dependencies/SpeedrunComSharp.dll",
+                      "size":  198144,
+                      "sha256":  "73F2E7D47DA2D6D263FBEBF66B1BE28E79BF78E1365825DF13B41DD9FD1B2BD7"
+                  },
+                  {
                       "path":  "Dependencies/SubnauticaLauncher.ImGuiHost.exe",
-                      "size":  985088,
-                      "sha256":  "A9D67AFF3BB8EB98E76030DED825EE1ECF2A712A45D2E71BB66A3C4652E1A641"
+                      "size":  977920,
+                      "sha256":  "448B052BF82AAE5A60B520208CF164865EF36ED266BCABEB21151591714F13CA"
+                  },
+                  {
+                      "path":  "Dependencies/System.Buffers.dll",
+                      "size":  20856,
+                      "sha256":  "ACCCCFBE45D9F08FFEED9916E37B33E98C65BE012CFFF6E7FA7B67210CE1FEFB"
+                  },
+                  {
+                      "path":  "Dependencies/System.Diagnostics.DiagnosticSource.dll",
+                      "size":  34224,
+                      "sha256":  "1090BCA31222EB0E1CF11D61A6F2BC062FF61CDB1C79FD48A6B53AF04720ADF4"
+                  },
+                  {
+                      "path":  "Dependencies/System.IO.Pipelines.dll",
+                      "size":  84760,
+                      "sha256":  "AEAA7D8A08673450BB8ED21475864378D0C6DF3EEB9C405EC8D51BFAA8B00DCD"
+                  },
+                  {
+                      "path":  "Dependencies/System.Memory.dll",
+                      "size":  142240,
+                      "sha256":  "BF3FB84664F4097F1A8A9BC71A51DCF8CF1A905D4080A4D290DA1730866E856F"
+                  },
+                  {
+                      "path":  "Dependencies/System.Numerics.Vectors.dll",
+                      "size":  115856,
+                      "sha256":  "1D3EF8698281E7CF7371D1554AFEF5872B39F96C26DA772210A33DA041BA1183"
+                  },
+                  {
+                      "path":  "Dependencies/System.Resources.Extensions.dll",
+                      "size":  59504,
+                      "sha256":  "8D328477D48F1ED9EA795B22E84ACE6E983B939C6BB743C14D460C17C8E4BA4E"
+                  },
+                  {
+                      "path":  "Dependencies/System.Runtime.CompilerServices.Unsafe.dll",
+                      "size":  18024,
+                      "sha256":  "37768488E8EF45729BC7D9A2677633C6450042975BB96516E186DA6CB9CD0DCF"
+                  },
+                  {
+                      "path":  "Dependencies/System.Text.Encodings.Web.dll",
+                      "size":  79664,
+                      "sha256":  "4F35180CB376F0089E9E96BE7F6E4EF1FD51FF67AD3EBD4DCBF71324CC62FF57"
+                  },
+                  {
+                      "path":  "Dependencies/System.Text.Json.dll",
+                      "size":  726792,
+                      "sha256":  "7263CEE88A60DF6C83BC5C84E6AA6BC2A09F59CBA471393DDC57F0124BABB913"
+                  },
+                  {
+                      "path":  "Dependencies/System.Threading.Tasks.Extensions.dll",
+                      "size":  25984,
+                      "sha256":  "4F81FFD0DC7204DB75AFC35EA4291769B07C440592F28894260EEA76626A23C6"
+                  },
+                  {
+                      "path":  "Dependencies/System.ValueTuple.dll",
+                      "size":  25232,
+                      "sha256":  "E905D102585B22C6DF04F219AF5CBDBFA7BC165979E9788B62DF6DCC165E10F4"
+                  },
+                  {
+                      "path":  "Dependencies/UpdateManager.dll",
+                      "size":  160768,
+                      "sha256":  "C0957886ED153FFEE1E1624922719A4F96394A9891182B8F49720F93CBE473DB"
+                  },
+                  {
+                      "path":  "Dependencies/websocket-sharp.dll",
+                      "size":  250368,
+                      "sha256":  "FB06FFCEB4F8789C893D2F292E5810927DD7266D3BAD68DF2CEDB8775500E8BE"
+                  },
+                  {
+                      "path":  "Dependencies/WinFormsColor.dll",
+                      "size":  67584,
+                      "sha256":  "A086BABDC273C93C69E9790F93E3ED06B5B629DA3940C975CC2715FC2F0B5C9E"
                   },
                   {
                       "path":  "README.md",
-                      "size":  17084,
-                      "sha256":  "F3B2EFE992E0C85511AE7591D85DF6499E7A859C19897D0BB742EA52A9B976B1"
+                      "size":  16555,
+                      "sha256":  "9D8EDB5842623C6589F2F2AF4E71B7AB4AB2B9820A46230F3265EDB376AB4CB8"
                   },
                   {
                       "path":  "SNLUpdater.exe",
-                      "size":  71724562,
-                      "sha256":  "57E843FF932B6264B2F87374B66B9736195BCDF597379B41CBCD4CA723C5B2C4"
+                      "size":  71724566,
+                      "sha256":  "89671B07B12B7900AD3BC5B5B894ECC2965113B819F1DB14E210421E93F11B31"
                   },
                   {
                       "path":  "SubnauticaLauncher.exe",
-                      "size":  92007677,
-                      "sha256":  "D87216642A2AC4E738125FA66C60A15EC17E052FF6F7A93C1573BFC453B7E1DB"
+                      "size":  100986522,
+                      "sha256":  "B11193EE44DCC876B76E75CED878AF344E938B95E23CC77E70A22169042EFF4C"
                   }
               ]
 }

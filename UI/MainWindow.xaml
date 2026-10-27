@@ -304,7 +304,7 @@
                                     <ItemsControl x:Name="PluginCards">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Height="154" Margin="0,0,0,14" Padding="16" Background="#8A101725" BorderBrush="#457C95BD" BorderThickness="1" CornerRadius="12">
+                                                <Border Height="184" Margin="0,0,0,14" Padding="16" Background="#8A101725" BorderBrush="#457C95BD" BorderThickness="1" CornerRadius="12">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="Auto" />
@@ -332,6 +332,10 @@
                                                             </StackPanel>
                                                             <Button Content="{Binding ActionText}" ToolTip="{Binding ActionToolTip}" Width="110" Height="30" Padding="8,3" Margin="0,8,0,0" HorizontalAlignment="Right" Tag="{Binding}" Background="{Binding ActionBrush}" Style="{StaticResource RoundedButton}" Click="PluginAction_Click" />
                                                             <Button Content="Remove" Width="110" Height="30" Padding="8,3" Margin="0,7,0,0" HorizontalAlignment="Right" Tag="{Binding}" Visibility="{Binding IsInstalled, Converter={StaticResource BooleanToVisibilityConverter}}" Background="#FF8B2C2C" Style="{StaticResource RoundedButton}" Click="PluginRemove_Click" />
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,7,0,0" Visibility="{Binding IsInstalled, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                                <Button Content="&#x2191;" ToolTip="Move plugin above" Width="51" Height="28" Padding="0" Margin="0,0,8,0" Tag="{Binding}" Style="{StaticResource RoundedButton}" Click="PluginMoveUp_Click" />
+                                                                <Button Content="&#x2193;" ToolTip="Move plugin below" Width="51" Height="28" Padding="0" Tag="{Binding}" Style="{StaticResource RoundedButton}" Click="PluginMoveDown_Click" />
+                                                            </StackPanel>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Border>

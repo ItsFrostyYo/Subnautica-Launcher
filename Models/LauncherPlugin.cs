@@ -10,7 +10,9 @@ public sealed record LauncherPluginDefinition(
     string ComponentName,
     IReadOnlyList<string> LegacyInstallDirectoryNames,
     Uri UpdateManifestUri,
-    Uri UpdateBaseUri);
+    Uri UpdateBaseUri,
+    string HostGroup,
+    int DefaultLayoutOrder);
 
 public sealed record LauncherPluginSnapshot(
     LauncherPluginDefinition Definition,
@@ -19,21 +21,8 @@ public sealed record LauncherPluginSnapshot(
     bool IsLoaded,
     Version? InstalledVersion,
     Version? LatestVersion,
-    string? Error)
+    string? Error,
+    int LayoutOrder)
 {
     public bool HasUpdate => IsInstalled && InstalledVersion is not null && LatestVersion is not null && LatestVersion > InstalledVersion;
-}
-
-public sealed class SubnauticaMacroPluginSettings
-{
-    public bool MacroEnabled { get; set; }
-    public int Hotkey { get; set; } = 116;
-    public int GameMode { get; set; }
-    public bool ExplosionReset { get; set; }
-    public int ExplosionPreset { get; set; }
-    public int CustomMinimumSeconds { get; set; } = 2760;
-    public int CustomMaximumSeconds { get; set; } = 2790;
-    public bool HardcoreSaveDeleter { get; set; } = false;
-    public int SaveDeletionGameMode { get; set; } = 0;
-    public int SaveDeletionTiming { get; set; } = 0;
 }

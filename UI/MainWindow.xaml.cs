@@ -78,7 +78,12 @@ public partial class MainWindow : Window
             RefreshVersionStatus();
             if (_shutdownInProgress || _pluginManager is null || _maintainingPlugins) return;
             _maintainingPlugins = true;
-            try { await _pluginManager.MaintainEnabledPluginsAsync(); }
+            try
+            {
+                bool pluginStateChanged = await _pluginManager.MaintainEnabledPluginsAsync();
+                if (pluginStateChanged && PluginsView.Visibility == Visibility.Visible)
+                    await ReloadPluginCardsAsync(checkForUpdates: false);
+            }
             finally { _maintainingPlugins = false; }
         };
         _statusTimer.Start();
@@ -91,7 +96,7 @@ public partial class MainWindow : Window
         {
             if (_shutdownInProgress) return;
             BuildUpdatesView();
-            _pluginManager = new LauncherPluginManager(new WindowInteropHelper(this).Handle);
+            _pluginManager = new LauncherPluginManager();
             await RunUpdateChecksIfIdleAsync(updatePlugins: false);
             if (_updateHandoffStarted || _shutdownInProgress) return;
             await _pluginManager.UpdateInstalledPluginsAsync(() => false);
@@ -393,12 +398,30 @@ public partial class MainWindow : Window
         if (_pluginManager is null || (sender as FrameworkElement)?.Tag is not PluginCardViewModel plugin) return;
         try
         {
-            await ImGuiPluginSettingsWindow.ShowAsync(_pluginManager, plugin.Id, new WindowInteropHelper(this).Handle);
+            await PluginSettingsWindow.ShowAsync(_pluginManager, plugin.Id, new WindowInteropHelper(this).Handle);
             await ReloadPluginCardsAsync(checkForUpdates: false);
         }
         catch (Exception exception)
         {
             WpfMessageBox.Show(exception.Message, "Plugin Settings", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private async void PluginMoveUp_Click(object sender, RoutedEventArgs e) => await MovePluginAsync(sender, -1);
+
+    private async void PluginMoveDown_Click(object sender, RoutedEventArgs e) => await MovePluginAsync(sender, 1);
+
+    private async Task MovePluginAsync(object sender, int direction)
+    {
+        if (_pluginManager is null || (sender as FrameworkElement)?.Tag is not PluginCardViewModel plugin) return;
+        try
+        {
+            await _pluginManager.MoveComponentAsync(plugin.Id, direction);
+            await ReloadPluginCardsAsync(checkForUpdates: false);
+        }
+        catch (Exception exception)
+        {
+            WpfMessageBox.Show(exception.Message, "Component Ordering", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -432,12 +455,10 @@ public partial class MainWindow : Window
             IReadOnlyList<LauncherPluginSnapshot> snapshots = await _pluginManager.GetSnapshotsAsync(checkForUpdates);
             _installedPlugins.Clear();
             _browsePlugins.Clear();
-            foreach (LauncherPluginSnapshot snapshot in snapshots)
-            {
-                var card = new PluginCardViewModel(snapshot);
-                if (snapshot.IsInstalled) _installedPlugins.Add(card);
-                else _browsePlugins.Add(card);
-            }
+            foreach (LauncherPluginSnapshot snapshot in snapshots.Where(snapshot => snapshot.IsInstalled).OrderBy(snapshot => snapshot.LayoutOrder))
+                _installedPlugins.Add(new PluginCardViewModel(snapshot));
+            foreach (LauncherPluginSnapshot snapshot in snapshots.Where(snapshot => !snapshot.IsInstalled))
+                _browsePlugins.Add(new PluginCardViewModel(snapshot));
             RefreshPluginCards();
         }
         finally

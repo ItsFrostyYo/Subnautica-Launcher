@@ -27,28 +27,32 @@
     <EmbeddedResource Remove="Updater\**\*" />
     <None Remove="Updater\**\*" />
     <Resource Include="Assets\**\*" />
-    <Content Include="Dependencies\**\*" Exclude="Dependencies\LiveSplit\**\*">
+    <Content Include="Dependencies\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Reference Include="LiveSplit.Core">
-      <HintPath>Dependencies\LiveSplit\LiveSplit.Core.dll</HintPath>
+      <HintPath>Dependencies\LiveSplit.Core.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="LiveSplit.Timer">
+      <HintPath>Dependencies\LiveSplit.Timer.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="UpdateManager">
-      <HintPath>Dependencies\LiveSplit\UpdateManager.dll</HintPath>
+      <HintPath>Dependencies\UpdateManager.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="System.Text.Json">
-      <HintPath>Dependencies\LiveSplit\System.Text.Json.dll</HintPath>
+      <HintPath>Dependencies\System.Text.Json.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="System.Text.Encodings.Web">
-      <HintPath>Dependencies\LiveSplit\System.Text.Encodings.Web.dll</HintPath>
+      <HintPath>Dependencies\System.Text.Encodings.Web.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="System.IO.Pipelines">
-      <HintPath>Dependencies\LiveSplit\System.IO.Pipelines.dll</HintPath>
+      <HintPath>Dependencies\System.IO.Pipelines.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Content Include="Updates\SNLUpdates.xml">

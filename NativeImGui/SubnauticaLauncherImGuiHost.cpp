@@ -40,8 +40,6 @@ static LONG g_minWidth = 380;
 static LONG g_minHeight = 380;
 static bool g_hasBackButton = false;
 static bool g_showDeleteConfirmation = false;
-static bool g_capturePluginHotkey = false;
-static int g_pluginCapturedHotkey = 116;
 
 struct ManagedSettingsVersion
 {
@@ -242,68 +240,8 @@ static std::string FindSteamLaunchOptions()
     return {};
 }
 
-static bool IsModifierKey(int key)
-{
-    return key == VK_SHIFT || key == VK_LSHIFT || key == VK_RSHIFT
-        || key == VK_CONTROL || key == VK_LCONTROL || key == VK_RCONTROL
-        || key == VK_MENU || key == VK_LMENU || key == VK_RMENU;
-}
-
-static bool IsShiftKey(int key)
-{
-    return key == VK_SHIFT || key == VK_LSHIFT || key == VK_RSHIFT;
-}
-
-static bool IsControlKey(int key)
-{
-    return key == VK_CONTROL || key == VK_LCONTROL || key == VK_RCONTROL;
-}
-
-static bool IsAltKey(int key)
-{
-    return key == VK_MENU || key == VK_LMENU || key == VK_RMENU;
-}
-
-static int NormalizeHotkey(int value)
-{
-    int key = value & 0xFFFF;
-    if (IsShiftKey(key)) value &= ~0x10000;
-    if (IsControlKey(key)) value &= ~0x20000;
-    if (IsAltKey(key)) value &= ~0x40000;
-    return value;
-}
-
 static LRESULT WINAPI WindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    if (g_capturePluginHotkey && (message == WM_KEYDOWN || message == WM_SYSKEYDOWN))
-    {
-        int key = static_cast<int>(wParam);
-        if (IsModifierKey(key))
-            return 0;
-
-        if (key == VK_ESCAPE)
-            key = 0;
-        else
-        {
-            if ((GetKeyState(VK_SHIFT) & 0x8000) != 0) key |= 0x10000;
-            if ((GetKeyState(VK_CONTROL) & 0x8000) != 0) key |= 0x20000;
-            if ((GetKeyState(VK_MENU) & 0x8000) != 0) key |= 0x40000;
-        }
-        g_pluginCapturedHotkey = NormalizeHotkey(key);
-        g_capturePluginHotkey = false;
-        return 0;
-    }
-    if (g_capturePluginHotkey && (message == WM_KEYUP || message == WM_SYSKEYUP))
-    {
-        int key = static_cast<int>(wParam);
-        if (!IsModifierKey(key))
-            return 0;
-
-        // Match LiveSplit: a modifier only completes capture when released alone.
-        g_pluginCapturedHotkey = NormalizeHotkey(key);
-        g_capturePluginHotkey = false;
-        return 0;
-    }
     if (ImGui_ImplWin32_WndProcHandler(window, message, wParam, lParam))
         return true;
 
@@ -389,22 +327,6 @@ static std::string Decode(const std::string& value)
     if (!CryptStringToBinaryA(value.c_str(), static_cast<DWORD>(value.size()), CRYPT_STRING_BASE64, buffer.data(), &length, nullptr, nullptr))
         return "";
     return std::string(reinterpret_cast<const char*>(buffer.data()), length);
-}
-
-static std::string FormatHotkey(int value)
-{
-    value = NormalizeHotkey(value);
-    if (value <= 0) return "None";
-    std::string result;
-    if ((value & 0x20000) != 0) result += "Ctrl + ";
-    if ((value & 0x10000) != 0) result += "Shift + ";
-    if ((value & 0x40000) != 0) result += "Alt + ";
-    int key = value & 0xFFFF;
-    if (key >= VK_F1 && key <= VK_F24) return result + "F" + std::to_string(key - VK_F1 + 1);
-    UINT scan = MapVirtualKeyA(static_cast<UINT>(key), MAPVK_VK_TO_VSC) << 16;
-    char name[64]{};
-    if (GetKeyNameTextA(static_cast<LONG>(scan), name, ARRAYSIZE(name)) > 0) return result + name;
-    return result + "Key " + std::to_string(key);
 }
 
 static std::string GetArgument(const std::vector<std::string>& args, const std::string& name)
@@ -504,8 +426,8 @@ static bool TitleIconButton(const char* id, const ImVec2& position, bool isBack)
 
 static void ResizeForMode(HWND window, const std::string& mode)
 {
-    const int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "plugin-settings" ? 520 : mode == "mods" ? 760 : 380;
-    const int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 590 : mode == "mods" ? 590 : 340;
+    const int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "mods" ? 760 : 380;
+    const int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "mods" ? 590 : 340;
     g_minWidth = width;
     g_minHeight = height;
     g_hasBackButton = mode == "existing" || mode == "install" || mode == "login";
@@ -568,8 +490,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
 
     WNDCLASSEXW windowClass{ sizeof(windowClass), CS_CLASSDC, WindowProc, 0, 0, instance, nullptr, nullptr, nullptr, nullptr, L"SubnauticaLauncherNativeImGui", nullptr };
     RegisterClassExW(&windowClass);
-    int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "plugin-settings" ? 520 : mode == "mods" ? 760 : 380;
-    int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "plugin-settings" ? 590 : mode == "mods" ? 590 : 340;
+    int width = mode == "choice" ? 400 : mode == "edit" ? 600 : mode == "install" ? 400 : mode == "login" ? 480 : mode == "progress" ? 760 : mode == "settings" ? 480 : mode == "mods" ? 760 : 380;
+    int height = mode == "choice" ? 180 : mode == "edit" ? 420 : mode == "install" ? 400 : mode == "login" ? 490 : mode == "progress" ? 560 : mode == "settings" ? 390 : mode == "mods" ? 590 : 340;
     g_minWidth = width;
     g_minHeight = height;
     g_hasBackButton = mode == "existing" || mode == "install" || mode == "login";
@@ -648,18 +570,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
     std::string modStatus = Decode(GetArgument(args, "--mod-status"));
     std::string modWarning = Decode(GetArgument(args, "--mod-warning"));
     bool modFolderEnabled = GetArgument(args, "--mod-folder-enabled") == "1";
-    bool pluginMacroEnabled = GetArgument(args, "--macro-enabled") == "1";
-    bool pluginSaveDeleter = GetArgument(args, "--plugin-save-deleter") == "1";
-    int pluginSaveGameMode = std::clamp(std::atoi(GetArgument(args, "--plugin-save-game-mode").c_str()), 0, 1);
-    int pluginSaveTiming = std::clamp(std::atoi(GetArgument(args, "--plugin-save-timing").c_str()), 0, 1);
-    g_pluginCapturedHotkey = NormalizeHotkey(std::atoi(GetArgument(args, "--plugin-hotkey").c_str()));
-    int pluginGameMode = std::clamp(std::atoi(GetArgument(args, "--plugin-game-mode").c_str()), 0, 6);
-    bool pluginExplosionReset = GetArgument(args, "--plugin-explosion") == "1";
-    int pluginExplosionPreset = std::clamp(std::atoi(GetArgument(args, "--plugin-explosion-preset").c_str()), 0, 6);
-    char pluginCustomMinimum[16]{};
-    char pluginCustomMaximum[16]{};
-    strncpy_s(pluginCustomMinimum, GetArgument(args, "--plugin-custom-min").c_str(), _TRUNCATE);
-    strncpy_s(pluginCustomMaximum, GetArgument(args, "--plugin-custom-max").c_str(), _TRUNCATE);
     std::vector<std::pair<std::string, std::string>> installVersions;
     size_t recordStart = 0;
     while (recordStart < versionsArgument.size())
@@ -924,7 +834,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
         ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
         ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings;
         std::string dynamicTitle = mode == "progress" && !installName.empty() ? "Installing " + installName : "Installing Subnautica";
-        const char* title = mode == "choice" ? "Add Version to Launcher" : mode == "edit" ? "Edit Version" : mode == "install" ? "Select a Version to Install" : mode == "login" ? "Login to Depot Downloader" : mode == "progress" ? dynamicTitle.c_str() : mode == "settings" ? "Subnautica In-Game Settings" : mode == "plugin-settings" ? "Subnautica Reset Macro Settings" : mode == "mods" ? "Manage Mods" : "Add Existing Version to Launcher";
+        const char* title = mode == "choice" ? "Add Version to Launcher" : mode == "edit" ? "Edit Version" : mode == "install" ? "Select a Version to Install" : mode == "login" ? "Login to Depot Downloader" : mode == "progress" ? dynamicTitle.c_str() : mode == "settings" ? "Subnautica In-Game Settings" : mode == "mods" ? "Manage Mods" : "Add Existing Version to Launcher";
         ImGui::Begin("##LauncherHost", nullptr, flags);
         if (g_background)
         {
@@ -1117,6 +1027,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
             ImGui::EndChild();
             ImGui::PopStyleColor();
         }
+#if 0 // Plugin settings are now the plugin's native LiveSplit WinForms control.
         else if (mode == "plugin-settings")
         {
             const char* gameModes[] = {
@@ -1224,6 +1135,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
                 g_done = true;
             }
         }
+#endif
         else if (mode == "install")
         {
             ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(16.0f / 255.0f, 23.0f / 255.0f, 37.0f / 255.0f, 168.0f / 255.0f));

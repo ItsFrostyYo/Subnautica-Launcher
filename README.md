@@ -214,28 +214,12 @@ The Plugins tab provides:
 
 Installed plugin binaries are stored under `Plugins`. Launcher-owned plugin state and native plugin settings are stored under `Data/Plugins`.
 
-### Currently Available Plugin
+### Currently Available Plugins
 
-The current catalog includes the **Subnautica Reset Macro** plugin, displayed as `Subnautica Marco` in the launcher. It supports configurable automated resets for relevant 2018, 2021, 2023, and 2025 Subnautica versions and the Subnautica Speedrunning Mod.
+- [Subnautica Tracker (By ItsFrostiSR)](https://github.com/ItsFrostyYo/Subnautica_Autosplitter/tree/LiveSplit.Subnautica/Livesplit.SubnauticaTracker) 
+- [Subnautica Reset Macro (By ItsFrostiSR)](https://github.com/ItsFrostyYo/Subnautica_Autosplitter/tree/LiveSplit.Subnautica/Livesplit.SubnauticaMarco)
 
-Its settings include:
-
-- enable or disable the reset macro
-- configurable reset hotkey
-- Survival, Hardcore, Creative, Freedom, and BetterRNG game modes
-- optional explosion-time resetting
-- built-in explosion-time presets
-- a custom minimum and maximum explosion-time range
-
-
-
-### Plugin Runtime
-
-Compatible LiveSplit component plugins run through an isolated host mode built into `SubnauticaLauncher.exe`. A separate LiveSplit installation is not required.
-
-The launcher manages installation, enabled state, updates, process startup, and settings. If an enabled plugin process stops unexpectedly, the launcher can restart its host. Plugin updates preserve the plugin's enabled state and settings.
-
-Launcher and plugin update work is deferred while Subnautica is running.
+[All Subnautica Speedrunning Plugins and Tools](https://github.com/ItsFrostyYo/Subnautica_Autosplitter/blob/LiveSplit.Subnautica/SubnauticaSpeedrunningTools.md) (Inlcuding not yet supported ones)
 
 ## Settings Tab
 

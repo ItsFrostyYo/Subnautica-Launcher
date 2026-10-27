@@ -39,7 +39,6 @@ if ($LASTEXITCODE -ne 0) {
 $dependenciesSource = Join-Path $repoRoot 'Dependencies'
 if (Test-Path -LiteralPath $dependenciesSource) {
     Get-ChildItem -LiteralPath $dependenciesSource -Force |
-        Where-Object { $_.Name -ne 'LiveSplit' } |
         Copy-Item -Destination (Join-Path $outputPath 'Dependencies') -Recurse -Force
 }
 

@@ -1,4 +1,6 @@
 using System.IO;
+using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
 using System.Net.Http;
 using System.Xml.Linq;
@@ -12,7 +14,7 @@ public sealed class LauncherPluginManager : IDisposable
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
     private readonly PluginStateStore _store = new();
     private readonly SemaphoreSlim _operations = new(1, 1);
-    private readonly Dictionary<string, LiveSplitPluginProcessAdapter> _adapters = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PluginProcessAdapter> _adapters = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Version> _latestVersions = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PluginUpdateDescriptor> _latestUpdates = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> _errors = new(StringComparer.OrdinalIgnoreCase);
@@ -23,12 +25,10 @@ public sealed class LauncherPluginManager : IDisposable
     private readonly object _shutdownSync = new();
     private Task? _shutdownTask;
 
-    public LauncherPluginManager(IntPtr ownerHandle)
+    public LauncherPluginManager()
     {
         Directory.CreateDirectory(AppPaths.PluginsPath);
         Directory.CreateDirectory(AppPaths.LogsPath);
-        MigrateLegacyLog("SubnauticaMarco.log");
-        MigrateLegacyLog("_SubnauticaMarco.log");
     }
 
     public async Task InitializeAsync()
@@ -39,13 +39,9 @@ public sealed class LauncherPluginManager : IDisposable
             foreach (LauncherPluginDefinition definition in LauncherPluginCatalog.All)
             {
                 TryMigrateLegacyInstall(definition);
-                PluginPersistentState state = _store.Load(definition.Id);
-                if (state.Enabled && File.Exists(GetAssemblyPath(definition)))
-                {
-                    try { StartAdapter(definition); }
-                    catch { }
-                }
             }
+            foreach (string group in LauncherPluginCatalog.All.Select(definition => definition.HostGroup).Distinct(StringComparer.OrdinalIgnoreCase))
+                try { RestartGroup(group); } catch { }
             _initialized = true;
         }
         finally
@@ -76,7 +72,76 @@ public sealed class LauncherPluginManager : IDisposable
         }
     }
 
-    public SubnauticaMacroPluginSettings LoadMacroSettings(string pluginId) => _store.LoadMacroSettings(pluginId);
+    public async Task ShowSettingsAsync(string pluginId, IntPtr ownerHandle)
+    {
+        LauncherPluginDefinition definition = Find(pluginId);
+        string assemblyPath;
+        string settingsPath;
+        string dataDirectory;
+
+        await _operations.WaitAsync();
+        try
+        {
+            if (_disposed) return;
+            assemblyPath = GetAssemblyPath(definition);
+            if (!File.Exists(assemblyPath)) throw new FileNotFoundException("Install the plugin before opening its settings.", assemblyPath);
+            settingsPath = _store.GetPluginSettingsPath(definition.Id);
+            dataDirectory = _store.GetPluginDataDirectory(definition.Id);
+        }
+        finally
+        {
+            _operations.Release();
+        }
+
+        Exception? failure = null;
+        try
+        {
+            string launcherPath = File.Exists(Path.Combine(AppContext.BaseDirectory, "SubnauticaLauncher.exe"))
+                ? Path.Combine(AppContext.BaseDirectory, "SubnauticaLauncher.exe")
+                : Environment.ProcessPath ?? throw new InvalidOperationException("The launcher executable path could not be resolved.");
+            var startInfo = new ProcessStartInfo(launcherPath)
+            {
+                WorkingDirectory = AppContext.BaseDirectory,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            startInfo.ArgumentList.Add(PluginSettingsHostMode.Command);
+            AddArgument(startInfo, "--assembly", assemblyPath);
+            AddArgument(startInfo, "--component", definition.ComponentName);
+            AddArgument(startInfo, "--settings", settingsPath);
+            AddArgument(startInfo, "--data", dataDirectory);
+            AddArgument(startInfo, "--logs", AppPaths.LogsPath);
+            AddArgument(startInfo, "--title", definition.Name + " Settings");
+            AddArgument(startInfo, "--owner", ownerHandle.ToInt64().ToString(CultureInfo.InvariantCulture));
+            AddArgument(startInfo, "--parent", Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
+
+            using Process process = Process.Start(startInfo)
+                ?? throw new InvalidOperationException($"Could not open settings for {definition.Name}.");
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync(_shutdownCancellation.Token);
+            string output = await outputTask;
+            string error = await errorTask;
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(error)
+                    ? $"{definition.Name} settings closed with exit code {process.ExitCode}."
+                    : error.Trim());
+            if (!output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Any(line => line is "SAVED" or "CANCELLED"))
+                throw new InvalidOperationException($"{definition.Name} settings did not return a valid result.");
+        }
+        catch (OperationCanceledException) when (_shutdownCancellation.IsCancellationRequested)
+        {
+            // Launcher shutdown owns cancellation; no user-facing error is needed.
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
+        if (failure is not null) throw failure;
+    }
 
     public async Task InstallOrUpdateAsync(string pluginId)
     {
@@ -110,7 +175,7 @@ public sealed class LauncherPluginManager : IDisposable
                 state.Enabled = hadInstalledAssembly ? originalState.Enabled : true;
                 _store.Save(pluginId, state, hadInstalledAssembly ? "Plugin updated; loader state preserved." : "Plugin installed and enabled.");
                 _errors.Remove(pluginId);
-                if (state.Enabled && (_initialized || wasRunning)) StartAdapter(definition);
+                if (_initialized || wasRunning) RestartGroup(definition.HostGroup);
                 TryDelete(backup);
             }
             catch
@@ -128,7 +193,7 @@ public sealed class LauncherPluginManager : IDisposable
                     state.Enabled = false;
                     _store.Save(pluginId, state, "Plugin installation failed before a usable assembly was installed.");
                 }
-                if (hadInstalledAssembly && wasRunning && File.Exists(destination)) StartAdapter(definition);
+                if (wasRunning || _initialized) RestartGroup(definition.HostGroup);
                 throw;
             }
         }
@@ -152,6 +217,45 @@ public sealed class LauncherPluginManager : IDisposable
         }
     }
 
+    public async Task MoveComponentAsync(string pluginId, int direction)
+    {
+        if (direction == 0) return;
+        LauncherPluginDefinition definition = Find(pluginId);
+        await _operations.WaitAsync();
+        try
+        {
+            LauncherPluginDefinition[] ordered = LauncherPluginCatalog.All
+                .Where(candidate => string.Equals(candidate.HostGroup, definition.HostGroup, StringComparison.OrdinalIgnoreCase) &&
+                    File.Exists(GetAssemblyPath(candidate)))
+                .OrderBy(GetLayoutOrder)
+                .ToArray();
+            _adapters.TryGetValue(definition.HostGroup, out PluginProcessAdapter? runningAdapter);
+            string[] visualOrderBefore = runningAdapter?.VisualComponentIds is { Count: > 0 } visualIds
+                ? ordered.Where(candidate => visualIds.Contains(candidate.Id)).Select(candidate => candidate.Id).ToArray()
+                : [];
+            int index = Array.FindIndex(ordered, candidate => string.Equals(candidate.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+            if (index < 0) return;
+            int target = Math.Clamp(index + Math.Sign(direction), 0, ordered.Length - 1);
+            if (target == index) return;
+            (ordered[index], ordered[target]) = (ordered[target], ordered[index]);
+            for (int order = 0; order < ordered.Length; order++)
+            {
+                PluginPersistentState state = _store.Load(ordered[order].Id);
+                state.LayoutOrder = order * 100;
+                _store.Save(ordered[order].Id, state, "Plugin layout order changed by the user.");
+            }
+            string[] visualOrderAfter = runningAdapter?.VisualComponentIds is { Count: > 0 } updatedVisualIds
+                ? ordered.Where(candidate => updatedVisualIds.Contains(candidate.Id)).Select(candidate => candidate.Id).ToArray()
+                : [];
+            if (!visualOrderBefore.SequenceEqual(visualOrderAfter, StringComparer.OrdinalIgnoreCase))
+                RestartGroup(definition.HostGroup);
+        }
+        finally
+        {
+            _operations.Release();
+        }
+    }
+
     private void SetEnabledCore(LauncherPluginDefinition definition, bool enabled)
     {
         if (!File.Exists(GetAssemblyPath(definition)))
@@ -161,40 +265,55 @@ public sealed class LauncherPluginManager : IDisposable
         state.Enabled = enabled;
         _store.Save(definition.Id, state, enabled ? "Enabled by the user." : "Disabled by the user.");
         _nextRestartUtc.Remove(definition.Id);
-        if (enabled) StartAdapter(definition);
-        else StopAdapter(definition.Id);
+        RestartGroup(definition.HostGroup);
     }
 
-    public async Task MaintainEnabledPluginsAsync()
+    public async Task<bool> MaintainEnabledPluginsAsync()
     {
-        if (_disposed || !await _operations.WaitAsync(0)) return;
+        if (_disposed || !await _operations.WaitAsync(0)) return false;
+        bool stateChanged = false;
         try
         {
             DateTime now = DateTime.UtcNow;
-            foreach (LauncherPluginDefinition definition in LauncherPluginCatalog.All)
+            foreach (PluginProcessAdapter adapter in _adapters.Values.ToArray())
             {
-                PluginPersistentState state = _store.Load(definition.Id);
-                if (!state.Enabled || !File.Exists(GetAssemblyPath(definition)))
+                foreach (string pluginId in adapter.TakeDisableRequests())
                 {
-                    if (!state.Enabled) StopAdapter(definition.Id);
+                    LauncherPluginDefinition requested = Find(pluginId);
+                    PluginPersistentState requestedState = _store.Load(pluginId);
+                    requestedState.Enabled = false;
+                    _store.Save(pluginId, requestedState, "Disabled from the Launcher Plugins window.");
+                    _nextRestartUtc.Remove(pluginId);
+                    stateChanged = true;
+                }
+            }
+            foreach (IGrouping<string, LauncherPluginDefinition> group in LauncherPluginCatalog.All.GroupBy(definition => definition.HostGroup, StringComparer.OrdinalIgnoreCase))
+            {
+                LauncherPluginDefinition[] desired = group
+                    .Where(definition => _store.Load(definition.Id).Enabled && File.Exists(GetAssemblyPath(definition)))
+                    .ToArray();
+                if (desired.Length == 0)
+                {
+                    StopGroup(group.Key);
                     continue;
                 }
-
-                if (_adapters.TryGetValue(definition.Id, out LiveSplitPluginProcessAdapter? adapter) && adapter.IsRunning)
+                if (_adapters.TryGetValue(group.Key, out PluginProcessAdapter? adapter) && adapter.IsRunning &&
+                    adapter.ComponentIds.SetEquals(desired.Select(definition => definition.Id)))
                     continue;
-                if (_nextRestartUtc.TryGetValue(definition.Id, out DateTime retryAt) && now < retryAt)
+                if (desired.Any(definition => _nextRestartUtc.TryGetValue(definition.Id, out DateTime retryAt) && now < retryAt))
                     continue;
-
-                StopAdapter(definition.Id);
                 try
                 {
-                    StartAdapter(definition);
-                    _nextRestartUtc.Remove(definition.Id);
+                    RestartGroup(group.Key);
+                    foreach (LauncherPluginDefinition definition in desired) _nextRestartUtc.Remove(definition.Id);
                 }
                 catch (Exception exception)
                 {
-                    _errors[definition.Id] = $"Plugin host stopped and could not restart: {exception.Message}";
-                    _nextRestartUtc[definition.Id] = now.AddSeconds(5);
+                    foreach (LauncherPluginDefinition definition in desired)
+                    {
+                        _errors[definition.Id] = $"Plugin host stopped and could not restart: {exception.Message}";
+                        _nextRestartUtc[definition.Id] = now.AddSeconds(5);
+                    }
                 }
             }
         }
@@ -202,36 +321,7 @@ public sealed class LauncherPluginManager : IDisposable
         {
             _operations.Release();
         }
-    }
-
-    public async Task SaveMacroSettingsAsync(string pluginId, SubnauticaMacroPluginSettings settings)
-    {
-        settings.GameMode = Math.Clamp(settings.GameMode, 0, 6);
-        settings.ExplosionPreset = Math.Clamp(settings.ExplosionPreset, 0, 6);
-        settings.SaveDeletionGameMode = Math.Clamp(settings.SaveDeletionGameMode, 0, 1);
-        settings.SaveDeletionTiming = Math.Clamp(settings.SaveDeletionTiming, 0, 1);
-        settings.CustomMinimumSeconds = Math.Max(0, settings.CustomMinimumSeconds);
-        settings.CustomMaximumSeconds = Math.Max(settings.CustomMinimumSeconds, settings.CustomMaximumSeconds);
-        await _operations.WaitAsync();
-        try
-        {
-            _store.SaveMacroSettings(pluginId, settings);
-            PluginPersistentState state = _store.Load(pluginId);
-            LauncherPluginDefinition definition = Find(pluginId);
-            if (!state.Enabled || !File.Exists(GetAssemblyPath(definition))) return;
-            if (_adapters.TryGetValue(pluginId, out LiveSplitPluginProcessAdapter? adapter))
-            {
-                adapter.NotifySettingsChanged();
-            }
-            else
-            {
-                StartAdapter(definition);
-            }
-        }
-        finally
-        {
-            _operations.Release();
-        }
+        return stateChanged;
     }
 
     public async Task RemoveAsync(string pluginId)
@@ -250,6 +340,7 @@ public sealed class LauncherPluginManager : IDisposable
                 if (Directory.Exists(fullDirectory)) Directory.Delete(fullDirectory, recursive: true);
             }
             _errors.Remove(pluginId);
+            RestartGroup(definition.HostGroup);
         }
         finally
         {
@@ -334,48 +425,81 @@ public sealed class LauncherPluginManager : IDisposable
             catch (Exception exception) { error = exception.Message; }
         }
 
-        if (_adapters.TryGetValue(definition.Id, out LiveSplitPluginProcessAdapter? adapter) && adapter.LastError is not null)
+        if (_adapters.TryGetValue(definition.HostGroup, out PluginProcessAdapter? adapter) && adapter.LastError is not null)
             error = adapter.LastError;
 
         return new LauncherPluginSnapshot(
             definition,
             File.Exists(assemblyPath) && installedVersion is not null,
             _store.Load(definition.Id).Enabled,
-            _adapters.TryGetValue(definition.Id, out LiveSplitPluginProcessAdapter? loadedAdapter) && loadedAdapter.IsRunning,
+            _adapters.TryGetValue(definition.HostGroup, out PluginProcessAdapter? loadedAdapter) && loadedAdapter.IsRunning && loadedAdapter.ComponentIds.Contains(definition.Id),
             installedVersion,
             _latestVersions.GetValueOrDefault(definition.Id),
-            error);
+            error,
+            GetLayoutOrder(definition));
     }
 
-    private void StartAdapter(LauncherPluginDefinition definition)
+    private void RestartGroup(string hostGroup)
     {
         if (_disposed) return;
-        StopAdapter(definition.Id);
+        StopGroup(hostGroup);
         try
         {
-            string settingsPath = definition.Id == LauncherPluginCatalog.SubnauticaResetMacroId
-                ? _store.EnsureLiveSplitSettings(definition.Id)
-                : _store.GetLiveSplitSettingsPath(definition.Id);
-            _adapters[definition.Id] = new LiveSplitPluginProcessAdapter(
-                definition,
-                GetAssemblyPath(definition),
-                settingsPath,
-                _store.GetPluginDataDirectory(definition.Id));
-            _errors.Remove(definition.Id);
-            _nextRestartUtc.Remove(definition.Id);
+            LauncherPluginDefinition[] enabled = LauncherPluginCatalog.All
+                .Where(definition => string.Equals(definition.HostGroup, hostGroup, StringComparison.OrdinalIgnoreCase))
+                .Where(definition => _store.Load(definition.Id).Enabled && File.Exists(GetAssemblyPath(definition)))
+                .OrderBy(GetLayoutOrder)
+                .ToArray();
+            if (enabled.Length == 0) return;
+            PluginHostedComponent[] components = enabled.Select(definition => new PluginHostedComponent
+            {
+                Id = definition.Id,
+                AssemblyPath = GetAssemblyPath(definition),
+                ComponentName = definition.ComponentName,
+                SettingsPath = _store.GetPluginSettingsPath(definition.Id),
+                LayoutOrder = GetLayoutOrder(definition)
+            }).ToArray();
+            const string title = "Launcher Plugins";
+            _adapters[hostGroup] = new PluginProcessAdapter(
+                title,
+                components,
+                GetGroupDataDirectory(hostGroup));
+            foreach (LauncherPluginDefinition definition in enabled)
+            {
+                _errors.Remove(definition.Id);
+                _nextRestartUtc.Remove(definition.Id);
+            }
         }
         catch (Exception exception)
         {
-            _errors[definition.Id] = exception.Message;
+            foreach (LauncherPluginDefinition definition in LauncherPluginCatalog.All.Where(definition =>
+                         string.Equals(definition.HostGroup, hostGroup, StringComparison.OrdinalIgnoreCase)))
+                _errors[definition.Id] = exception.Message;
             throw;
         }
     }
 
     private bool StopAdapter(string pluginId)
     {
-        if (!_adapters.Remove(pluginId, out LiveSplitPluginProcessAdapter? adapter)) return false;
+        return StopGroup(Find(pluginId).HostGroup);
+    }
+
+    private bool StopGroup(string hostGroup)
+    {
+        if (!_adapters.Remove(hostGroup, out PluginProcessAdapter? adapter)) return false;
         adapter.Dispose();
         return true;
+    }
+
+    private int GetLayoutOrder(LauncherPluginDefinition definition) =>
+        _store.Load(definition.Id).LayoutOrder ?? definition.DefaultLayoutOrder;
+
+    private static string GetGroupDataDirectory(string hostGroup)
+    {
+        string safeName = string.Concat(hostGroup.Select(character => char.IsLetterOrDigit(character) || character is '-' or '_' ? character : '_'));
+        string path = Path.Combine(AppPaths.DataPath, "PluginGroups", safeName);
+        Directory.CreateDirectory(path);
+        return path;
     }
 
     private static Version ValidateAssembly(LauncherPluginDefinition definition, string path)
@@ -434,27 +558,10 @@ public sealed class LauncherPluginManager : IDisposable
         try { File.Delete(path); } catch { }
     }
 
-    private static void MigrateLegacyLog(string fileName)
+    private static void AddArgument(ProcessStartInfo startInfo, string name, string value)
     {
-        string legacy = Path.Combine(AppPaths.BasePath, fileName);
-        if (!File.Exists(legacy)) return;
-        try
-        {
-            string destination = Path.Combine(AppPaths.LogsPath, fileName);
-            if (File.Exists(destination))
-            {
-                File.AppendAllText(destination, Environment.NewLine + File.ReadAllText(legacy));
-                File.Delete(legacy);
-            }
-            else
-            {
-                File.Move(legacy, destination);
-            }
-        }
-        catch
-        {
-            // Log migration is best-effort and must not block plugin startup.
-        }
+        startInfo.ArgumentList.Add(name);
+        startInfo.ArgumentList.Add(value);
     }
 
     public Task ShutdownAsync()
@@ -470,7 +577,7 @@ public sealed class LauncherPluginManager : IDisposable
         await _operations.WaitAsync().ConfigureAwait(false);
         try
         {
-            LiveSplitPluginProcessAdapter[] adapters = _adapters.Values.ToArray();
+            PluginProcessAdapter[] adapters = _adapters.Values.ToArray();
             _adapters.Clear();
             await Task.WhenAll(adapters.Select(adapter => Task.Run(adapter.Dispose))).ConfigureAwait(false);
         }
