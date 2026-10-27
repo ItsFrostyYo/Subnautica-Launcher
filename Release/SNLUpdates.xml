@@ -1,9 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <updates>
-  <update version="4.2.0.7" title="Plugin System Update" date="October 27, 2026 | Contributors (1) - ItsFrosti.">
+  <update version="4.2.1.1" title="Install Version List UI Update" date="October 27, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>
-      <change>Updating Plugin System to be alot better</change>
-      <change>Added Subnautica Tracker Plugin</change>
+      <change>Updated Install Version List to have an Early Access Dropdown to Seperate Early Access</change>
     </changelog>
     <files>
       <file path="Release/Data/IntegrityManifest.json" status="changed" />
@@ -13,6 +12,12 @@
       <file path="Release/README.md" status="changed" />
       <file path="Release/SubnauticaLauncher.exe" status="changed" />
     </files>
+  </update>
+  <update version="4.2.0.7" title="Plugin System Update" date="October 27, 2026 | Contributors (1) - ItsFrosti.">
+    <changelog>
+      <change>Updating Plugin System to be alot better</change>
+      <change>Added Subnautica Tracker Plugin</change>
+    </changelog>
   </update>
   <update version="4.1.2.0" title="Small Hotfix" date="October 23, 2026 | Contributors (1) - ItsFrosti.">
     <changelog>

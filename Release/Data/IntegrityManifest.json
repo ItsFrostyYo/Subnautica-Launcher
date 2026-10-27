@@ -1,10 +1,10 @@
 {
-    "version":  "4.2.0.7",
+    "version":  "4.2.1.1",
     "files":  [
                   {
                       "path":  "Data/SNLUpdates.xml",
-                      "size":  24656,
-                      "sha256":  "CAE078648AE6F47B69E2D970428CE636928259215C5EE3FD37E90E54FA85726D"
+                      "size":  24940,
+                      "sha256":  "3B7693C7CC9E3338FB1B185A800FCE3B9778EDF184061DC7618F34D502AA45B1"
                   },
                   {
                       "path":  "Data/SNLUUpdates.xml",
@@ -278,8 +278,8 @@
                   },
                   {
                       "path":  "Dependencies/SubnauticaLauncher.ImGuiHost.exe",
-                      "size":  977920,
-                      "sha256":  "448B052BF82AAE5A60B520208CF164865EF36ED266BCABEB21151591714F13CA"
+                      "size":  985600,
+                      "sha256":  "D9D6F98813455E5B19FCCD4511D066039F0AF0ADEAAB7075F6FA0879ACB86F06"
                   },
                   {
                       "path":  "Dependencies/System.Buffers.dll",
@@ -358,13 +358,13 @@
                   },
                   {
                       "path":  "SNLUpdater.exe",
-                      "size":  71724566,
-                      "sha256":  "89671B07B12B7900AD3BC5B5B894ECC2965113B819F1DB14E210421E93F11B31"
+                      "size":  71724572,
+                      "sha256":  "6F882A212E128D963CD8052E069B8EC1E60087FDD95BFF82273158D4D6FB79E6"
                   },
                   {
                       "path":  "SubnauticaLauncher.exe",
-                      "size":  100986522,
-                      "sha256":  "B11193EE44DCC876B76E75CED878AF344E938B95E23CC77E70A22169042EFF4C"
+                      "size":  100994202,
+                      "sha256":  "56E00FFC9D32A14A013FCBBA8B9CE03CF5D6B12B85E9776D2575C6B0235B4A4D"
                   }
               ]
 }
