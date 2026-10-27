@@ -44,7 +44,7 @@ internal static class DepotDownloaderInstallService
         "steam mobile app to confirm your sign in", "steam guard", "check your email"
     ];
 
-    public static async Task InstallAsync(SubnauticaVersionDefinition version, DepotInstallCredentials credentials, Action<string> status, Action<string> output, Action<double> progress, Func<string, bool, bool, Task<string?>> requestInput, CancellationToken cancellationToken)
+    public static async Task InstallAsync(GameVersionDefinition version, DepotInstallCredentials credentials, Action<string> status, Action<string> output, Action<double> progress, Func<string, bool, bool, Task<string?>> requestInput, CancellationToken cancellationToken)
     {
         await EnsureToolAsync(status, cancellationToken);
         string destination = Path.Combine(credentials.InstallCommonPath, version.Id);
@@ -54,8 +54,8 @@ internal static class DepotDownloaderInstallService
         Directory.CreateDirectory(destination);
         int loginId = CreateUniqueLoginId();
         var startInfo = new ProcessStartInfo { FileName = Executable, WorkingDirectory = ToolRoot, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, RedirectStandardInput = true, CreateNoWindow = true };
-        startInfo.ArgumentList.Add("-app"); startInfo.ArgumentList.Add(SubnauticaVersionDefinition.SteamAppId.ToString());
-        startInfo.ArgumentList.Add("-depot"); startInfo.ArgumentList.Add(SubnauticaVersionDefinition.SteamDepotId.ToString());
+        startInfo.ArgumentList.Add("-app"); startInfo.ArgumentList.Add(GameVersionRegistry.Subnautica.SteamAppId.ToString());
+        startInfo.ArgumentList.Add("-depot"); startInfo.ArgumentList.Add(GameVersionRegistry.Subnautica.SteamDepotId.ToString());
         startInfo.ArgumentList.Add("-manifest"); startInfo.ArgumentList.Add(version.ManifestId.ToString());
         startInfo.ArgumentList.Add("-username"); startInfo.ArgumentList.Add(credentials.Username);
         if (!string.IsNullOrWhiteSpace(credentials.Password)) { startInfo.ArgumentList.Add("-password"); startInfo.ArgumentList.Add(credentials.Password); }

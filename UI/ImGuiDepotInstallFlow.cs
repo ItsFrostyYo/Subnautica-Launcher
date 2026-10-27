@@ -56,7 +56,7 @@ internal static class ImGuiDepotInstallFlow
         return new LoginResult(new DepotInstallCredentials(username, password, library, rememberPassword, preferCode), false);
     }
 
-    public static async Task<LauncherVersion?> InstallAsync(IntPtr ownerHandle, SubnauticaVersionDefinition definition, DepotInstallCredentials credentials, LauncherVersionStore store)
+    public static async Task<LauncherVersion?> InstallAsync(IntPtr ownerHandle, GameVersionDefinition definition, DepotInstallCredentials credentials, LauncherVersionStore store)
     {
         using Process host = StartHost(ownerHandle, "progress", startInfo => Add(startInfo, "--install-name", definition.DisplayName), redirectInput: true);
         using var cancellation = new CancellationTokenSource();
@@ -219,7 +219,7 @@ internal static class ImGuiDepotInstallFlow
                 OriginalVersionId = definition.Id,
                 OriginalVersionDisplayName = definition.DisplayName
             };
-            SteamAppIdFileService.Ensure(folder);
+            SN1SteamAppIdFileService.Ensure(folder);
             LauncherConfig installConfig = LauncherConfig.Load();
             if (installConfig.ApplySavedSubnauticaSettingsToNewInstalls && SubnauticaSettingsProfileService.GetProfileInfo().Exists)
             {

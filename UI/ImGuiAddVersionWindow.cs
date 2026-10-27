@@ -57,7 +57,7 @@ public static class ImGuiAddVersionWindow
         AddArgument(startInfo, "--top", request.WindowTop?.ToString() ?? string.Empty);
         AddArgument(startInfo, "--id", request.VersionId);
         AddArgument(startInfo, "--detected", request.DetectedDisplayName);
-        AddArgument(startInfo, "--versions", string.Join('\n', SubnauticaVersionRegistry.All.Select(version => version.Id + "\t" + version.DisplayName)));
+        AddArgument(startInfo, "--versions", string.Join('\n', GameVersionRegistry.Subnautica.All.Select(version => version.Id + "\t" + version.DisplayName)));
         AddArgument(startInfo, "--background", ResolveBackgroundPath());
 
         string output;
@@ -98,7 +98,7 @@ public static class ImGuiAddVersionWindow
             if (values[0] == "INSTALL" && values.Length == 2)
             {
                 string selectedId = Decode(values[1]);
-                SubnauticaVersionDefinition? definition = SubnauticaVersionRegistry.All.FirstOrDefault(version => version.Id == selectedId);
+                GameVersionDefinition? definition = GameVersionRegistry.Subnautica.All.FirstOrDefault(version => version.Id == selectedId);
                 if (definition is null) throw new InvalidOperationException("The selected install version was not found in the registry.");
                 ImGuiDepotInstallFlow.LoginResult login = await ImGuiDepotInstallFlow.PromptLoginAsync(ownerHandle);
                 if (login.GoBack) { await RunAsync(store, ownerHandle, onChanged, new HostRequest { Mode = "install" }); return; }
@@ -184,7 +184,7 @@ public static class ImGuiAddVersionWindow
             }
             WriteBridgeLog("Build-time candidates: " + string.Join(" | ", SubnauticaBuildIdentityResolver.GetCandidateFiles(gameFolder)));
 
-            if (!SubnauticaBuildIdentityResolver.TryDetect(gameFolder, out SubnauticaVersionDefinition? detected, out error))
+            if (!SubnauticaBuildIdentityResolver.TryDetect(gameFolder, out GameVersionDefinition? detected, out error))
             {
                 WriteBridgeLog("Detection failed: " + error);
                 WpfMessageBox.Show(error, "Subnautica Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -192,7 +192,7 @@ public static class ImGuiAddVersionWindow
                 return;
             }
 
-            SubnauticaVersionDefinition identifiedVersion = detected ?? throw new InvalidOperationException("Version detection returned no result.");
+            GameVersionDefinition identifiedVersion = detected ?? throw new InvalidOperationException("Version detection returned no result.");
             bool isSpeedrunningMod = SpeedrunningModDetector.IsDetected(gameFolder);
             await RunAsync(store, ownerHandle, onChanged, new HostRequest
             {
@@ -216,7 +216,7 @@ public static class ImGuiAddVersionWindow
                 return;
             }
 
-            if (!SubnauticaBuildIdentityResolver.TryDetect(gameFolder, out SubnauticaVersionDefinition? detected, out string detectionError))
+            if (!SubnauticaBuildIdentityResolver.TryDetect(gameFolder, out GameVersionDefinition? detected, out string detectionError))
             {
                 WpfMessageBox.Show(detectionError, "Subnautica Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;

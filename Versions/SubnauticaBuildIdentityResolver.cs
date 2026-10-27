@@ -9,7 +9,7 @@ public static class SubnauticaBuildIdentityResolver
 {
     private static readonly Regex MonthYearRegex = new(@"\b(?<month>Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*,?\s*(?<year>\d{4})\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public static bool TryDetect(string gameFolder, out SubnauticaVersionDefinition? definition, out string error)
+    public static bool TryDetect(string gameFolder, out GameVersionDefinition? definition, out string error)
     {
         definition = null;
         error = string.Empty;
@@ -27,7 +27,7 @@ public static class SubnauticaBuildIdentityResolver
                     !DateTime.TryParse(File.ReadAllText(candidate).Trim(), out buildTime))
                     continue;
 
-                SubnauticaVersionDefinition[] matches = SubnauticaVersionRegistry.All
+                GameVersionDefinition[] matches = GameVersionRegistry.Subnautica.All
                     .Where(item => TryParseMonthYear(item.DisplayName, out int month, out int year) && month == buildTime.Month && year == buildTime.Year)
                     .ToArray();
                 if (matches.Length == 1)

@@ -676,18 +676,18 @@ public partial class MainWindow : Window
     {
         if (!_forceSteamLaunch)
         {
-            SteamAppIdFileService.Ensure(version.GameFolder);
+            SN1SteamAppIdFileService.Ensure(version.GameFolder);
             return version.GameFolder;
         }
 
-        string? commonPath = SteamAppIdFileService.FindSteamCommonPath(version.GameFolder);
+        string? commonPath = SN1SteamAppIdFileService.FindSteamCommonPath(version.GameFolder);
         if (commonPath is null)
             throw new InvalidOperationException("Force to Launch With Steam requires the selected version to be inside a Steam steamapps\\common library.");
 
         string activePath = Path.Combine(commonPath, "Subnautica");
         if (PathsEqual(version.GameFolder, activePath))
         {
-            SteamAppIdFileService.Remove(activePath);
+            SN1SteamAppIdFileService.Remove(activePath);
             return activePath;
         }
 
@@ -701,12 +701,12 @@ public partial class MainWindow : Window
             if (Directory.Exists(restoredPath))
                 throw new InvalidOperationException($"Cannot restore the active version because '{activeVersion.FolderName}' already exists.");
 
-            SteamAppIdFileService.Remove(activePath);
+            SN1SteamAppIdFileService.Remove(activePath);
             Directory.Move(activePath, restoredPath);
             UpdateVersionFolder(activeVersion, restoredPath);
         }
 
-        SteamAppIdFileService.Remove(version.GameFolder);
+        SN1SteamAppIdFileService.Remove(version.GameFolder);
         Directory.Move(version.GameFolder, activePath);
         UpdateVersionFolder(version, activePath);
         return activePath;
@@ -847,9 +847,9 @@ public partial class MainWindow : Window
             try
             {
                 if (_forceSteamLaunch)
-                    SteamAppIdFileService.Remove(version.GameFolder);
+                    SN1SteamAppIdFileService.Remove(version.GameFolder);
                 else
-                    SteamAppIdFileService.Ensure(version.GameFolder);
+                    SN1SteamAppIdFileService.Ensure(version.GameFolder);
             }
             catch { }
         }

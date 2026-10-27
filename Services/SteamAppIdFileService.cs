@@ -2,7 +2,7 @@ using System.IO;
 
 namespace SubnauticaLauncher.Services;
 
-internal static class SteamAppIdFileService
+internal static class SN1SteamAppIdFileService
 {
     private const string AppId = "264710";
     private const string FileName = "steam_appid.txt";
