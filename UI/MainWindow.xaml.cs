@@ -198,6 +198,30 @@ public partial class MainWindow : Window
 
             var progress = new Progress<LauncherUpdateProgress>(progressWindow.Apply);
             LauncherIntegrityResult result = await _integrityService.VerifyAsync(progress);
+            if (result.RequiresUpdate)
+            {
+                LauncherUpdate latestRelease = await _updateService.GetLatestReleaseAsync();
+                if (latestRelease.Version != result.ManifestVersion)
+                    throw new InvalidDataException(
+                        $"The integrity manifest describes v{result.ManifestVersion}, but the update feed provides v{latestRelease.Version}. " +
+                        "The online release is temporarily inconsistent; no files were changed.");
+
+                progressWindow.Apply(new LauncherUpdateProgress(
+                    "Launcher update required",
+                    $"Updating v{result.InstalledVersion} to v{result.ManifestVersion}...",
+                    8));
+                string updateUpdaterPath = await _updaterUpdateService.EnsureLatestAsync(progress);
+                string updatePayloadDirectory = await _updateService.DownloadLauncherAsync(latestRelease, progress);
+                progressWindow.Apply(new LauncherUpdateProgress(
+                    "Handing off to SNLUpdater...",
+                    "The launcher will close, update, and reopen automatically.",
+                    100));
+                _updateService.StartUpdater(updatePayloadDirectory, latestRelease.Version, updateUpdaterPath);
+                _updateHandoffStarted = true;
+                Close();
+                return;
+            }
+
             if (result.IsValid)
             {
                 progressWindow.Close();
@@ -207,8 +231,10 @@ public partial class MainWindow : Window
             }
 
             LauncherUpdate repairRelease = await _updateService.GetLatestReleaseAsync();
-            if (repairRelease.Version != result.Version)
-                throw new InvalidDataException($"The integrity manifest describes v{result.Version}, but the available repair files describe v{repairRelease.Version}.");
+            if (repairRelease.Version != result.ManifestVersion)
+                throw new InvalidDataException(
+                    $"The integrity manifest describes v{result.ManifestVersion}, but the available repair files describe v{repairRelease.Version}. " +
+                    "The online release is temporarily inconsistent; no files were changed.");
 
             LauncherIntegrityIssue firstIssue = result.Issues[0];
             string issueSummary = result.Issues.Count == 1
@@ -220,18 +246,42 @@ public partial class MainWindow : Window
                 issueSummary,
                 62));
 
-            string updaterPath = await _updaterUpdateService.EnsureLatestAsync(progress, forceDownload: true);
-            string payloadDirectory = await _updateService.DownloadLauncherAsync(repairRelease, progress);
+            bool updaterNeedsRepair = result.Issues.Any(issue =>
+                string.Equals(issue.Path.Replace('\\', '/'), "SNLUpdater.exe", StringComparison.OrdinalIgnoreCase));
+            string updaterPath = await _updaterUpdateService.EnsureLatestAsync(progress, forceDownload: updaterNeedsRepair);
+            LauncherIntegrityIssue[] payloadIssues = result.Issues
+                .Where(issue => !string.Equals(issue.Path.Replace('\\', '/'), "SNLUpdater.exe", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (payloadIssues.Length == 0)
+            {
+                LauncherIntegrityResult repaired = await _integrityService.VerifyAsync(progress);
+                if (!repaired.IsValid)
+                    throw new IOException("SNLUpdater.exe was downloaded, but it still does not match the official integrity manifest.");
+
+                progressWindow.Close();
+                progressWindow = null;
+                WpfMessageBox.Show(this, "SNLUpdater.exe was repaired successfully. All launcher files are now present and valid.", "Launcher Integrity Repaired", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            string payloadDirectory = await _updateService.DownloadRepairAsync(repairRelease, payloadIssues, progress);
             progressWindow.Apply(new LauncherUpdateProgress(
                 "Handing off to SNLUpdater...",
-                "The launcher will close, repair its files, and reopen automatically.",
+                "The launcher will close, replace only the damaged files, and reopen automatically.",
                 100));
-            _updateService.StartUpdater(payloadDirectory, repairRelease.Version, updaterPath);
+            _updateService.StartUpdater(payloadDirectory, repairRelease.Version, updaterPath, isRepair: true);
             _updateHandoffStarted = true;
             Close();
         }
         catch (Exception exception)
         {
+            try { progressWindow?.Close(); } catch { }
+            progressWindow = null;
+            if (IsLoaded)
+            {
+                IsEnabled = true;
+                Activate();
+            }
             WpfMessageBox.Show(this, $"Launcher integrity could not be verified or repaired.\n\n{exception.Message}", "Launcher Integrity Failed", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally
@@ -932,7 +982,16 @@ public partial class MainWindow : Window
         catch (Exception exception)
         {
             if (updateAccepted)
+            {
+                try { progressWindow?.Close(); } catch { }
+                progressWindow = null;
+                if (IsLoaded)
+                {
+                    IsEnabled = true;
+                    Activate();
+                }
                 WpfMessageBox.Show(this, $"The launcher update could not be completed.\n\n{exception.Message}", "Launcher Update Failed", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         finally
         {

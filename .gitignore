@@ -22,3 +22,4 @@
 *.staged
 *.update-staged/
 *.update-backup/
+a.md

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
@@ -13,10 +14,12 @@ namespace SubnauticaLauncher.Updates;
 public sealed record LauncherIntegrityIssue(string Path, string Reason);
 
 public sealed record LauncherIntegrityResult(
-    Version Version,
+    Version InstalledVersion,
+    Version ManifestVersion,
     IReadOnlyList<LauncherIntegrityIssue> Issues)
 {
-    public bool IsValid => Issues.Count == 0;
+    public bool RequiresUpdate => InstalledVersion < ManifestVersion;
+    public bool IsValid => InstalledVersion == ManifestVersion && Issues.Count == 0;
 }
 
 public sealed class LauncherIntegrityService
@@ -42,6 +45,23 @@ public sealed class LauncherIntegrityService
 
         if (!Version.TryParse(manifest.Version, out Version? version) || manifest.Files.Count == 0)
             throw new InvalidDataException("The launcher integrity manifest is incomplete.");
+
+        Version installedVersion = Assembly.GetEntryAssembly()?.GetName().Version
+            ?? Assembly.GetExecutingAssembly().GetName().Version
+            ?? new Version(0, 0, 0, 0);
+        if (installedVersion < version)
+        {
+            progress?.Report(new LauncherUpdateProgress(
+                "Launcher update required",
+                $"Installed: v{installedVersion}. Current release: v{version}.",
+                5));
+            return new LauncherIntegrityResult(installedVersion, version, []);
+        }
+
+        if (installedVersion > version)
+            throw new InvalidDataException(
+                $"This launcher is v{installedVersion}, but the official integrity manifest is for the older v{version}. " +
+                "Verification will not downgrade a newer launcher. Try again after the release manifest is updated.");
 
         string installRoot = Path.GetFullPath(AppContext.BaseDirectory)
             .TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
@@ -98,7 +118,7 @@ public sealed class LauncherIntegrityService
                 : $"Found {issues.Count} missing or damaged launcher file{(issues.Count == 1 ? string.Empty : "s")}.",
             60));
 
-        return new LauncherIntegrityResult(version, issues);
+        return new LauncherIntegrityResult(installedVersion, version, issues);
     }
 
     private sealed class IntegrityManifest

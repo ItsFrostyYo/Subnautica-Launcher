@@ -1167,18 +1167,31 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int)
                 ImGui::Separator();
                 ImGui::Spacing();
                 ImGui::SetNextItemOpen(false, ImGuiCond_Once);
-                if (ImGui::CollapsingHeader("Early Access Builds"))
-                {
+
+                bool earlyAccessExpanded = ImGui::CollapsingHeader("Early Access Builds");
+
+                if (ImGui::IsItemHovered())
+                   ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+
+                if (earlyAccessExpanded)
+             {
                     for (int index = 0; index < static_cast<int>(installVersions.size()); ++index)
-                    {
-                        if (!isEarlyAccessVersion(installVersions[index].second)) continue;
-                        ImGui::PushID(index);
-                        bool selected = selectedInstallVersion == index;
-                        if (ImGui::Selectable(installVersions[index].second.c_str(), selected)) selectedInstallVersion = index;
-                        if (ImGui::IsItemHovered()) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-                        ImGui::PopID();
-                    }
-                }
+                  {
+                      if (!isEarlyAccessVersion(installVersions[index].second)) continue;
+
+                      ImGui::PushID(index);
+
+                     bool selected = selectedInstallVersion == index;
+
+                        if (ImGui::Selectable(installVersions[index].second.c_str(), selected))
+                         selectedInstallVersion = index;
+
+                        if (ImGui::IsItemHovered())
+                         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+
+                       ImGui::PopID();
+                  }
+               }
             }
             ImGui::EndChild();
             ImGui::PopStyleColor();

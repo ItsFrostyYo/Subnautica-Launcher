@@ -1,10 +1,10 @@
 {
-    "version":  "4.2.1.1",
+    "version":  "4.2.2.0",
     "files":  [
                   {
                       "path":  "Data/SNLUpdates.xml",
-                      "size":  24940,
-                      "sha256":  "3B7693C7CC9E3338FB1B185A800FCE3B9778EDF184061DC7618F34D502AA45B1"
+                      "size":  25181,
+                      "sha256":  "EF3DCCC6811DD1E139B647FC5D4F3ABCB22D9EBCB1ADFF2B23AD5BE8244CF09B"
                   },
                   {
                       "path":  "Data/SNLUUpdates.xml",
@@ -278,8 +278,8 @@
                   },
                   {
                       "path":  "Dependencies/SubnauticaLauncher.ImGuiHost.exe",
-                      "size":  985600,
-                      "sha256":  "D9D6F98813455E5B19FCCD4511D066039F0AF0ADEAAB7075F6FA0879ACB86F06"
+                      "size":  986112,
+                      "sha256":  "74B0D7BE616663F9FDFB87A4E9B7C5ACFF58028AB0F2A886C23F97BE4F7C4496"
                   },
                   {
                       "path":  "Dependencies/System.Buffers.dll",
@@ -353,18 +353,18 @@
                   },
                   {
                       "path":  "README.md",
-                      "size":  16555,
-                      "sha256":  "9D8EDB5842623C6589F2F2AF4E71B7AB4AB2B9820A46230F3265EDB376AB4CB8"
+                      "size":  16996,
+                      "sha256":  "6AD9682255CE70350382558F9AC9F9542E2EA0C6DFB4998EFA2BEAB73C17AD52"
                   },
                   {
                       "path":  "SNLUpdater.exe",
-                      "size":  71724572,
-                      "sha256":  "6F882A212E128D963CD8052E069B8EC1E60087FDD95BFF82273158D4D6FB79E6"
+                      "size":  71726542,
+                      "sha256":  "E7DED25DC5AB2A80487814FA347F660307C094F552FD39ACFBAB56DF51B2D3CE"
                   },
                   {
                       "path":  "SubnauticaLauncher.exe",
-                      "size":  100994202,
-                      "sha256":  "56E00FFC9D32A14A013FCBBA8B9CE03CF5D6B12B85E9776D2575C6B0235B4A4D"
+                      "size":  101000858,
+                      "sha256":  "F2D2427824A4CD3A61129F291523378F029A17F3F8986A1F2BEB726713AAAF77"
                   }
               ]
 }

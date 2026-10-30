@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Windows;
 using SubnauticaLauncher.Updates;
@@ -18,26 +20,33 @@ internal static class Program
     {
         UpdateProgressWindow? window = null;
         Application? application = null;
+        UpdateArguments? options = null;
         try
         {
-            UpdateArguments options = ParseArguments(args);
+            options = ParseArguments(args);
             Directory.CreateDirectory(options.TargetDirectory);
             string logsDirectory = Path.Combine(options.TargetDirectory, "Logs");
             Directory.CreateDirectory(logsDirectory);
             _logPath = Path.Combine(logsDirectory, "SNLUpdater.log");
-            Log($"Updater started for launcher v{options.Version}.");
+            Log($"{(options.IsRepair ? "Repair" : "Update")} started for launcher v{options.Version}.");
 
             WaitForLauncherExit(options.ProcessId);
             application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             window = new UpdateProgressWindow(options.Version);
-            window.SetDetectedUpdate($"Updating to v{options.Version}");
+            window.SetDetectedUpdate(options.IsRepair
+                ? $"Repairing launcher v{options.Version}"
+                : $"Updating to v{options.Version}");
             window.Show();
             window.Apply(new LauncherUpdateProgress("Launcher closed", "Waiting for launcher helpers to finish...", 5));
             window.PumpUi();
             WaitForLauncherHelpers(options.TargetDirectory, window);
 
             ApplyPayload(options.SourceDirectory, options.TargetDirectory, window);
-            window.Apply(new LauncherUpdateProgress("Update complete", "Reopening Subnautica Launcher...", 100));
+            ValidateInstallation(options.TargetDirectory, options.Version, window);
+            window.Apply(new LauncherUpdateProgress(
+                options.IsRepair ? "Repair complete" : "Update complete",
+                "Reopening Subnautica Launcher...",
+                100));
             window.PumpUi();
             StartLauncher(options.TargetDirectory);
             Log("Update completed successfully.");
@@ -51,8 +60,28 @@ internal static class Program
             {
                 window.Apply(new LauncherUpdateProgress("Update failed", exception.Message, 100));
                 window.PumpUi();
+                try { window.Close(); } catch { }
+                window = null;
             }
-            MessageBox.Show($"The launcher update could not be completed.\n\n{exception.Message}", "SNL Updater", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(
+                $"The launcher update could not be completed.\n\n{exception.Message}",
+                "SNL Updater",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error,
+                MessageBoxResult.OK,
+                MessageBoxOptions.DefaultDesktopOnly);
+            if (options is not null)
+            {
+                try
+                {
+                    if (File.Exists(Path.Combine(options.TargetDirectory, "SubnauticaLauncher.exe")))
+                        StartLauncher(options.TargetDirectory);
+                }
+                catch (Exception restartException)
+                {
+                    Log("Could not reopen the launcher after the failure: " + restartException.Message);
+                }
+            }
             return 1;
         }
         finally
@@ -68,6 +97,7 @@ internal static class Program
         string? target = ReadOption(args, "--target-dir");
         string? pidText = ReadOption(args, "--pid");
         string? requestedVersion = ReadOption(args, "--version");
+        bool isRepair = args.Any(arg => string.Equals(arg, "--repair", StringComparison.OrdinalIgnoreCase));
         if (string.IsNullOrWhiteSpace(source) || string.IsNullOrWhiteSpace(target) ||
             !int.TryParse(pidText, out int processId) || processId <= 0)
             throw new ArgumentException("Usage: --source-dir <directory> --target-dir <directory> --pid <launcher-pid> [--version <version>]");
@@ -76,15 +106,17 @@ internal static class Program
         string targetPath = Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar);
         if (!Directory.Exists(sourcePath)) throw new DirectoryNotFoundException("Downloaded update directory was not found: " + sourcePath);
         string launcherPayload = Path.Combine(sourcePath, "SubnauticaLauncher.exe");
-        if (!File.Exists(launcherPayload))
+        if (!isRepair && !File.Exists(launcherPayload))
             throw new FileNotFoundException("Downloaded update does not contain SubnauticaLauncher.exe.");
         string version = ResolveUpdateVersion(requestedVersion, launcherPayload);
-        return new UpdateArguments(sourcePath, targetPath, processId, version);
+        return new UpdateArguments(sourcePath, targetPath, processId, version, isRepair);
     }
 
     private static string ResolveUpdateVersion(string? requestedVersion, string launcherPayload)
     {
         if (!string.IsNullOrWhiteSpace(requestedVersion)) return requestedVersion;
+        if (!File.Exists(launcherPayload))
+            throw new ArgumentException("A version is required when a repair payload does not contain SubnauticaLauncher.exe.");
         string? fileVersion = FileVersionInfo.GetVersionInfo(launcherPayload).FileVersion;
         return Version.TryParse(fileVersion, out Version? version) ? version.ToString() : "Unknown";
     }
@@ -229,6 +261,50 @@ internal static class Program
         TryDeleteDirectory(sourceDirectory);
     }
 
+    private static void ValidateInstallation(string targetDirectory, string requestedVersion, UpdateProgressWindow window)
+    {
+        window.Apply(new LauncherUpdateProgress("Verifying installed files...", "Checking the repaired launcher installation...", 95));
+        window.PumpUi();
+
+        string manifestPath = Path.Combine(targetDirectory, "Data", "IntegrityManifest.json");
+        if (!File.Exists(manifestPath))
+            throw new FileNotFoundException("The repaired installation does not contain Data/IntegrityManifest.json.", manifestPath);
+
+        IntegrityManifest manifest = JsonSerializer.Deserialize<IntegrityManifest>(File.ReadAllText(manifestPath), new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? throw new InvalidDataException("The installed integrity manifest is invalid.");
+        if (!Version.TryParse(manifest.Version, out Version? manifestVersion) || manifest.Files.Count == 0)
+            throw new InvalidDataException("The installed integrity manifest is incomplete.");
+        if (Version.TryParse(requestedVersion, out Version? expectedVersion) && manifestVersion != expectedVersion)
+            throw new InvalidDataException($"The installed integrity manifest is for v{manifestVersion}, not the requested v{expectedVersion}.");
+
+        string root = Path.GetFullPath(targetDirectory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        for (int index = 0; index < manifest.Files.Count; index++)
+        {
+            IntegrityManifestFile expected = manifest.Files[index];
+            string fullPath = Path.GetFullPath(Path.Combine(root, expected.Path.Replace('/', Path.DirectorySeparatorChar)));
+            if (!fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("The installed integrity manifest contains an unsafe path.");
+            if (!File.Exists(fullPath))
+                throw new FileNotFoundException($"A launcher file is still missing after repair: {expected.Path}", fullPath);
+
+            var info = new FileInfo(fullPath);
+            if (info.Length != expected.Size)
+                throw new InvalidDataException($"A launcher file still has the wrong size after repair: {expected.Path}");
+            using FileStream stream = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            string actualHash = Convert.ToHexString(SHA256.HashData(stream));
+            if (!string.Equals(actualHash, expected.Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"A launcher file still has the wrong checksum after repair: {expected.Path}");
+
+            window.Apply(new LauncherUpdateProgress(
+                "Verifying installed files...",
+                expected.Path,
+                95 + ((index + 1d) / manifest.Files.Count * 4)));
+            if (index % 8 == 0) window.PumpUi();
+        }
+    }
+
     private static void ReplaceFile(string sourcePath, string targetPath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
@@ -344,5 +420,18 @@ internal static class Program
         }
     }
 
-    private sealed record UpdateArguments(string SourceDirectory, string TargetDirectory, int ProcessId, string Version);
+    private sealed record UpdateArguments(string SourceDirectory, string TargetDirectory, int ProcessId, string Version, bool IsRepair);
+
+    private sealed class IntegrityManifest
+    {
+        public string Version { get; set; } = string.Empty;
+        public List<IntegrityManifestFile> Files { get; set; } = [];
+    }
+
+    private sealed class IntegrityManifestFile
+    {
+        public string Path { get; set; } = string.Empty;
+        public long Size { get; set; }
+        public string Sha256 { get; set; } = string.Empty;
+    }
 }

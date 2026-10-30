@@ -38,6 +38,7 @@ The launcher can:
 - Steam account with Valid Subnautica Ownership (For Installing Versions you cannot have it through Family Share)
 - Internet Acces for Installing Versions and Updating the Luancher and Plugins.
 - Enough Disk Space for what is wanted.
+- Optionally Stable 60fps for Plugins. 
 
 Release builds are self-contained, so a separate .NET installation is not required.
 
@@ -271,8 +272,10 @@ Select `Verify Launcher Integrity` in the top-right title bar and confirm with `
 
 - If every managed file has the expected size and SHA-256 checksum, the launcher reports that all files are present and valid.
 - If a file is missing or damaged, the progress window identifies the problem and enters repair mode automatically.
-- Repair mode downloads clean launcher files, refreshes the updater when necessary, replaces the dependency bundle, and restarts the launcher.
-- If the installed launcher is older than the current integrity manifest, the same process updates it to the current release.
+- Same-version repair downloads and replaces only the affected launcher payload. The dependency bundle is downloaded only when at least one file under `Dependencies` is missing or damaged.
+- A missing or damaged `SNLUpdater.exe` is repaired directly. It does not cause an otherwise valid launcher or dependency bundle to be downloaded again.
+- If the installed launcher is older than the current integrity manifest, verification switches to the normal full-update path and updates it to the current release.
+- If the online integrity and update manifests temporarily describe different releases, verification stops without changing local files and reports the mismatch.
 
 The check covers `SubnauticaLauncher.exe`, `SNLUpdater.exe`, the README, launcher-managed manifests, and every shipped dependency file. It does not inspect Subnautica installations, saved games, user configuration, logs, or third-party plugin files.
 

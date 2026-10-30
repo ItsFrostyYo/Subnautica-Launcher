@@ -46,6 +46,45 @@ public sealed class LauncherUpdateService
         if (!files.Any(file => string.Equals(Path.GetFileName(file.Path), LauncherExecutableName, StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException("The update manifest does not contain SubnauticaLauncher.exe.");
 
+        return await DownloadFilesAsync(files, progress, cancellationToken);
+    }
+
+    public async Task<string> DownloadRepairAsync(
+        LauncherUpdate update,
+        IReadOnlyList<LauncherIntegrityIssue> issues,
+        IProgress<LauncherUpdateProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var selected = new Dictionary<string, LauncherUpdateFile>(StringComparer.OrdinalIgnoreCase);
+        foreach (LauncherIntegrityIssue issue in issues)
+        {
+            string issuePath = NormalizeRelativePath(issue.Path);
+            if (string.Equals(issuePath, UpdaterExecutableName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string payloadPath = issuePath.StartsWith("Dependencies/", StringComparison.OrdinalIgnoreCase)
+                ? "Dependencies.zip"
+                : issuePath;
+            LauncherUpdateFile? file = update.Files.FirstOrDefault(candidate =>
+                !string.Equals(candidate.Status, "removed", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(NormalizeRelativePath(GetPayloadRelativePath(candidate.Path)), payloadPath, StringComparison.OrdinalIgnoreCase));
+            if (file is null)
+                throw new InvalidDataException($"The current release does not provide a repair payload for {issue.Path}.");
+            selected[file.Path] = file;
+        }
+
+        if (selected.Count == 0)
+            throw new InvalidOperationException("No launcher payload files require repair.");
+
+        return await DownloadFilesAsync(selected.Values.ToArray(), progress, cancellationToken);
+    }
+
+    private static async Task<string> DownloadFilesAsync(
+        IReadOnlyList<LauncherUpdateFile> files,
+        IProgress<LauncherUpdateProgress>? progress,
+        CancellationToken cancellationToken)
+    {
+
         string temporaryDirectory = Path.Combine(Path.GetTempPath(), $"SubnauticaLauncher.{Guid.NewGuid():N}");
         Directory.CreateDirectory(temporaryDirectory);
         try
@@ -53,7 +92,7 @@ public sealed class LauncherUpdateService
             progress?.Report(new LauncherUpdateProgress("Preparing download...", "Calculating update size...", null));
             long? totalBytes = await TryGetTotalSizeAsync(files, cancellationToken);
             long completedBytes = 0;
-            for (int fileIndex = 0; fileIndex < files.Length; fileIndex++)
+            for (int fileIndex = 0; fileIndex < files.Count; fileIndex++)
             {
                 LauncherUpdateFile updateFile = files[fileIndex];
                 string relativePath = GetPayloadRelativePath(updateFile.Path);
@@ -78,7 +117,7 @@ public sealed class LauncherUpdateService
                     downloadedFileBytes += read;
                     double percent = totalBytes is > 0
                         ? (completedBytes + downloadedFileBytes) * 100d / totalBytes.Value
-                        : (fileIndex + (fileBytes is > 0 ? downloadedFileBytes / (double)fileBytes.Value : 0d)) * 100d / files.Length;
+                        : (fileIndex + (fileBytes is > 0 ? downloadedFileBytes / (double)fileBytes.Value : 0d)) * 100d / files.Count;
                     progress?.Report(new LauncherUpdateProgress(
                         "Downloading launcher update...",
                         $"{Path.GetFileName(updateFile.Path)} ({FormatBytes(completedBytes + downloadedFileBytes)} of {FormatBytes(totalBytes)})",
@@ -97,7 +136,11 @@ public sealed class LauncherUpdateService
         }
     }
 
-    public void StartUpdater(string downloadedPayloadDirectory, Version updateVersion, string? verifiedUpdaterPath = null)
+    public void StartUpdater(
+        string downloadedPayloadDirectory,
+        Version updateVersion,
+        string? verifiedUpdaterPath = null,
+        bool isRepair = false)
     {
         string installDirectory = AppContext.BaseDirectory;
         // The update feed can ship a newer updater. Use it for the handoff so an
@@ -119,7 +162,11 @@ public sealed class LauncherUpdateService
         startInfo.ArgumentList.Add("--pid");
         startInfo.ArgumentList.Add(Environment.ProcessId.ToString());
         startInfo.ArgumentList.Add("--version");
-        startInfo.ArgumentList.Add(updateVersion.ToString(3));
+        startInfo.ArgumentList.Add(updateVersion.ToString());
+        if (isRepair)
+        {
+            startInfo.ArgumentList.Add("--repair");
+        }
 
         Process.Start(startInfo);
     }
@@ -221,4 +268,7 @@ public sealed class LauncherUpdateService
 
         return normalizedPath.Replace('/', Path.DirectorySeparatorChar);
     }
+
+    private static string NormalizeRelativePath(string path) =>
+        path.Replace('\\', '/').TrimStart('/');
 }
